@@ -1,0 +1,20 @@
+# Schützt Zugangsdaten und Programmdateien vor direktem Aufruf.
+<FilesMatch "^config\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(lib|sql)/ - [F,L]
+</IfModule>
+
+# Hinweis: "Options -Indexes" wurde hier bewusst weggelassen. Viele Hoster erlauben diese
+# Anweisung in .htaccess nicht (AllowOverride Options fehlt) und liefern dann für die ganze
+# Seite einen 500-Fehler. Falls Verzeichnisauflistung ein Problem ist, im Hosting-Panel oder
+# in der Server-Konfiguration abschalten statt hier.

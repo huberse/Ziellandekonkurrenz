@@ -1,0 +1,21 @@
+# Zugangsdaten der Datenbank. Aus dieser Vorlage entsteht config.php;
+# die echte Datei gehört niemals in ein Repository.
+config.php
+
+# Produktionsdump mit echten Vereins- und Pilotennamen.
+wettbewerb.sql
+
+# Erzeugte Ausgaben: Laufzettel enthalten die Startliste mit Klarnamen.
+*.pdf
+
+# Interne Arbeitsnotizen zum Aufbau der Anwendung.
+review.txt
+
+# Übliches, was nicht ins Projekt gehört.
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+*.log
