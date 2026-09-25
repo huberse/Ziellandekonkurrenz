@@ -11,6 +11,9 @@ wettbewerb.sql
 # Interne Arbeitsnotizen zum Aufbau der Anwendung.
 review.txt
 
+# Vom Aktualisierungs-Knopf angelegt: Sicherungen und Sperren des Laufs.
+.update/
+
 # Übliches, was nicht ins Projekt gehört.
 .DS_Store
 Thumbs.db

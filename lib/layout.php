@@ -72,9 +72,11 @@ function page_start(string $title, string $area = 'public', string $here = '', b
         ];
 
     // Die Benutzerverwaltung ist dem SuperAdmin vorbehalten; für alle anderen
-    // Konten gehört der Punkt nicht in die Leiste.
+    // Konten gehört der Punkt nicht in die Leiste. Dasselbe gilt für die
+    // Aktualisierung, denn nur der SuperAdmin darf Programme Dateien austauschen.
     if ($area === 'admin' && is_superadmin()) {
         $links['benutzer.php'] = 'Benutzer';
+        $links['aktualisieren.php'] = 'Aktualisierung';
     }
 
     if ($area !== 'admin' && !setting_bool('club_ranking_enabled', true)) {

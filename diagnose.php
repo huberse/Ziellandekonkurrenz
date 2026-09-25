@@ -37,6 +37,32 @@ echo "-- Dateien und Rechte --\n";
 check('config.php vorhanden', is_file(__DIR__ . '/config.php'),
     'config.sample.php nach config.php kopieren und ausfüllen.');
 check('lib/db.php lesbar', is_readable(__DIR__ . '/lib/db.php'), 'Datei fehlt oder falsche Rechte.');
+check('ZipArchive für die Aktualisierung', class_exists('ZipArchive'),
+    'Fehlt, ist aber nicht zwingend: nur der Aktualisierungs-Knopf braucht es.', false);
+
+// Fassung und Bestandsliste muessen zusammenpassen, sonst haelt der
+// Aktualisierungs-Knopf den Server fuer aelter als er ist oder umgekehrt.
+require_once __DIR__ . '/lib/version.php';
+require_once __DIR__ . '/lib/update.php';
+$bestand = update_bestand_installiert();
+check('Bestandsliste vorhanden', $bestand !== null,
+    'manifest.json fehlt. Beim Entwickeln: php tools/manifest.php.');
+check('Fassung passt zur Bestandsliste', $bestand !== null && $bestand['version'] === APP_VERSION,
+    'manifest.json nennt ' . ($bestand['version'] ?? '–') . ', der Code ist ' . APP_VERSION
+    . '. Beim Entwickeln: php tools/manifest.php.');
+if ($bestand !== null) {
+    $abweichend = [];
+    foreach ($bestand['files'] as $pfad => $summe) {
+        $da = is_file(__DIR__ . '/' . $pfad);
+        if (!$da || hash_file('sha256', __DIR__ . '/' . $pfad) !== $summe) {
+            $abweichend[] = $pfad;
+        }
+    }
+    check('Dateien passen zur Bestandsliste', !$abweichend,
+        count($abweichend) . ' Datei(en) weichen ab: ' . implode(', ', array_slice($abweichend, 0, 5))
+        . (count($abweichend) > 5 ? ' …' : '')
+        . '. Von Hand geaenderte Dateien bleiben beim Update stehen.', false);
+}
 echo "\n";
 
 if (is_file(__DIR__ . '/config.php')) {
