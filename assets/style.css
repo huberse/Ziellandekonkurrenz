@@ -1,0 +1,779 @@
+/* Segelflug-Wettbewerb — Oberfläche für Zelt, Laptop und Sonnenlicht.
+   Keine externen Schriften oder Skripte: läuft auch ohne Internet auf dem Platz. */
+
+:root {
+  --ink:      #142433;
+  --ink-soft: #55636f;
+  --paper:    #eef1f4;
+  --surface:  #ffffff;
+  --line:     #d3dae1;
+  --line-2:   #e7ebef;
+  --blau:     #0065ae;
+  --blau-dunkel: #063d61;
+  --blau-hell:#e5f0f8;
+  --signal:   #f7c200;
+  --signal-bg:#fdf3d4;
+  --gruen:    #2c7a51;
+  --rot:      #a8322d;
+  --rot-bg:   #fbeceb;
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
+  /* Höhen aller Bedienelemente. Knöpfe, Eingabefelder und Auswahllisten
+     benutzen dieselben drei Werte, damit sie in einer Zeile bündig stehen. */
+  --ctl-h:    44px;  /* normale Höhe */
+  --ctl-h-sm: 32px;  /* kompakte Höhe, z.B. in Tabellen */
+  --ctl-h-lg: 52px;  /* grosse Hauptaktion */
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: var(--blau); }
+a:hover { color: var(--ink); }
+
+:focus-visible {
+  outline: 3px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* ---------- Kopf ---------- */
+
+.top {
+  background: var(--blau-dunkel);
+  color: #fff;
+  border-bottom: 4px solid var(--signal);
+}
+
+.top-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.top h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.top h1 a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+}
+
+.brand-logo {
+  height: 34px;
+  width: 34px;
+  border-radius: 50%;
+  flex: none;
+  /* Der helle Rand trennt das Logo auf dem dunklen Balken, egal ob es rund
+     ausgeschnitten ist oder einen weißen Hintergrund hat. */
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.top .meta { color: #a9b6c2; font-size: 0.875rem; }
+.competition-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+.top a { color: #cfe0ef; text-decoration: none; }
+.top a:hover { color: #fff; text-decoration: underline; }
+.logout-form { display: inline; }
+.logout-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #cfe0ef;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+.logout-link:hover { color: #fff; text-decoration: underline; }
+
+.nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.nav a {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  border-bottom: 3px solid transparent;
+}
+
+.nav a:hover { color: var(--ink); background: var(--paper); }
+
+.nav a.on {
+  color: var(--blau);
+  font-weight: 600;
+  border-bottom-color: var(--blau);
+}
+
+.nav .spacer { flex: 1; }
+
+/* ---------- Gerüst ---------- */
+
+main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+main.wide { max-width: 1500px; }
+
+.login-wrap {
+  min-height: calc(100vh - 220px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card { width: 100%; max-width: 380px; }
+.login-back { text-align: center; margin: 18px 0 0; font-size: 0.9rem; }
+
+/* Schmale Seiten wie das Anmeldeformular: mittig und gut lesbar. */
+.narrow { max-width: 720px; margin-left: auto; margin-right: auto; }
+
+/* Wettbewerbsauswahl über den Verwaltungsseiten. */
+.competition-switch-row { margin-bottom: 16px; }
+.competition-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  max-width: 640px;
+}
+.competition-switch select { width: auto; min-width: 280px; max-width: 100%; }
+.competition-switch label { margin-bottom: 0; }
+
+h2 { font-size: 1.15rem; margin: 0 0 4px; }
+h3 { font-size: 1rem; margin: 24px 0 8px; }
+
+.lead { color: var(--ink-soft); margin: 0 0 20px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.panel > :first-child { margin-top: 0; }
+.panel > :last-child { margin-bottom: 0; }
+
+.split { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.split > * { flex: 1 1 300px; }
+
+.row-between { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+
+/* ---------- Durchgangs-Streifen ---------- */
+
+.rounds-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.round-chip {
+  display: block;
+  min-width: 96px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 3px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.round-chip:hover { border-color: var(--blau); color: var(--ink); }
+.round-chip b { display: block; font-size: 0.95rem; }
+.round-chip span { font-size: 0.8rem; color: var(--ink-soft); font-family: var(--mono); }
+
+.round-chip.on { border-left-color: var(--blau); background: var(--blau-hell); }
+.round-chip.active { border-left-color: var(--signal); }
+.round-chip.excluded { opacity: 0.55; }
+.round-chip.excluded b { text-decoration: line-through; }
+
+/* ---------- Tabellen ---------- */
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+table.data th {
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 10px 10px;
+  border-bottom: 2px solid var(--line);
+  white-space: nowrap;
+}
+
+table.data td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line-2);
+  vertical-align: middle;
+}
+
+table.data tbody tr:hover { background: #f7f9fb; }
+
+.num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+.mid { text-align: center; }
+.muted { color: var(--ink-soft); }
+.small { font-size: 0.84rem; }
+.nowrap { white-space: nowrap; }
+
+.rank {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 600;
+  width: 3.2rem;
+}
+
+.total {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.05rem;
+  background: #f5f8fa;
+  border-left: 1px solid var(--line);
+}
+
+.competition-rename-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 300px;
+}
+.competition-rename-form input[type=text] {
+  flex: 1;
+  min-width: 220px;
+}
+.competition-rename-form .btn { flex: none; }
+
+/* Wettbewerbe als Karten: mehrere Wettbewerbe nebeneinander, statt einer
+   langen Liste, die man vertikal durchscrollen muss. */
+.competition-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.competition-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 4px;
+}
+.competition-card.current { border-left-color: var(--blau); background: var(--blau-hell); }
+.competition-card.archived { background: #f7f9fb; }
+
+.competition-card .card-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.competition-card .card-note { margin: 0; }
+.competition-card .card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+/* Der Name sieht als Überschrift aus und wird erst beim Bearbeiten zum Feld. */
+.competition-card .competition-rename-form { min-width: 0; }
+.competition-card .competition-rename-form input[type=text] {
+  font-size: 1.02rem;
+  font-weight: 600;
+  height: var(--ctl-h-sm);
+  padding: 0 6px;
+  background: transparent;
+  border-color: transparent;
+}
+.competition-card .competition-rename-form input[type=text]:hover { border-color: var(--line); }
+.competition-card .competition-rename-form input[type=text]:focus { background: #fff; border-color: var(--blau); }
+.competition-card .competition-rename-form .btn { visibility: hidden; }
+.competition-card .competition-rename-form:focus-within .btn { visibility: visible; }
+
+.completion-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.data td:first-child { border-left: 4px solid transparent; }
+.podium-1 td:first-child { border-left-color: var(--signal); }
+.podium-2 td:first-child { border-left-color: #98a5b0; }
+.podium-3 td:first-child { border-left-color: #b98a5e; }
+
+.dropped { color: var(--ink-soft); text-decoration: line-through; }
+.cell-missing { color: var(--rot); }
+.cell-empty { color: #b7c0c8; }
+
+.table-scroll { overflow-x: auto; }
+
+/* ---------- Formulare ---------- */
+
+label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+
+/* Alle Bedienelemente bekommen ihre Höhe zugewiesen, statt sie aus Schriftgrösse
+   und Innenabstand entstehen zu lassen. Sonst war ein Knopf neben einem
+   Auswahlfeld sichtbar kleiner als das Feld, und die Höhe hing vom Text ab. */
+input[type=text], input[type=number], input[type=email], input[type=password],
+input[type=date], input[type=tel], select {
+  width: 100%;
+  height: var(--ctl-h);
+  padding: 0 12px;
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #b9c3cc;
+  border-radius: 3px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 9px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #b9c3cc;
+  border-radius: 3px;
+  resize: vertical;
+}
+
+input:focus, select:focus, textarea:focus { border-color: var(--blau); }
+
+/* Kompakte Bedienelemente. Die Markierung sitzt auf dem Bereich, nicht auf dem
+   einzelnen Element, damit eine Zeile nicht halb kompakt und halb normal sein
+   kann: .dense verkleinert alles darin, .btn.small einzelne Knöpfe. */
+.dense input, .dense select, .dense .btn, .btn.small { height: var(--ctl-h-sm); }
+.dense input, .dense select { padding: 0 8px; font-size: 0.85rem; }
+.dense .btn, .btn.small { padding: 0 10px; font-size: 0.85rem; }
+
+.field { margin-bottom: 14px; }
+.hint { font-size: 0.8rem; color: var(--ink-soft); font-weight: 400; margin-top: 4px; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
+
+/* Strafpunktregeln: zwei Gruppen nebeneinander, je Gruppe Beschriftung, Feld
+   und Erklärung in festen Spalten. Dadurch stehen alle Zahlen in einer Linie,
+   statt je Zeile unterschiedlich zu verrutschen. */
+.rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px 28px;
+  align-items: start;
+}
+
+.rule-group {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 12px 14px 4px;
+  background: #fbfcfd;
+}
+.rule-group h4 { margin: 0; font-size: 0.95rem; }
+.rule-intro {
+  margin: 2px 0 10px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.rule {
+  display: grid;
+  /* Feste Spalten, damit alle Zahlen in einer Linie stehen und keine
+     Beschriftung über zwei Zeilen läuft. */
+  grid-template-columns: 11rem 5.5rem minmax(0, 1fr);
+  /* Bewusst "center" und nicht "baseline": die Grundlinie eines <input> ist
+     seine Unterkante. Mit "baseline" stünde die Beschriftung sichtbar zu tief
+     und je nach Zeilenhöhe anders – genau das war der Versatz. */
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-2);
+}
+.rule:first-of-type { border-top: 0; }
+.rule label { font-size: 0.9rem; }
+.rule input {
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.rule-note {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+/* Reicht die Breite nicht für Beschriftung, Feld und Erklärung nebeneinander,
+   wandert die Erklärung unter die Beschriftung. Die Grenze ist so gewählt,
+   dass die Erklärung auch in der breitesten dreispaltigen Karte auf einer
+   Zeile bleibt (gerechnet: ab 1101 px Breite stehen 180 px für die Erklärung
+   zur Verfügung, gebraucht werden rund 155 px). */
+@media (max-width: 1100px) {
+  .rule { grid-template-columns: 1fr 4.5rem; }
+  .rule-note { grid-column: 1 / -1; }
+}
+
+.rule-sample {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--blau);
+  background: var(--blau-hell);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.rule-sample b { font-weight: 600; }
+
+@media (max-width: 640px) {
+  .rule { grid-template-columns: 1fr 5.5rem; }
+  .rule-note { grid-column: 1 / -1; }
+}
+
+fieldset { border: 1px solid var(--line); border-radius: 3px; padding: 16px; margin: 0 0 20px; }
+.entry-controls, .readonly-operations { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-weight: 600; padding: 0 6px; }
+
+/* Feste Kästchengrösse: damit sitzt das Kästchen unabhängig vom Browser gleich
+   gross und mittig neben der Beschriftung, statt an einem geratenen
+   Innenabstand zu hängen. Beschriftung ist 24 px hoch, also (24-18)/2 = 3 px. */
+.check { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+.check input { width: 18px; height: 18px; flex: none; margin: 3px 0 0; }
+.check label { font-weight: 400; margin: 0; }
+
+/* Knöpfe */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--ctl-h);
+  padding: 0 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--blau);
+  border: 1px solid var(--blau);
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.btn:hover { background: #17395a; color: #fff; }
+
+.btn.ghost { background: #fff; color: var(--ink); border-color: #b9c3cc; }
+.btn.ghost:hover { background: var(--paper); color: var(--ink); }
+.btn.danger { background: var(--rot); border-color: var(--rot); }
+.btn.danger:hover { background: #8a2925; }
+.btn.big { height: var(--ctl-h-lg); padding: 0 24px; font-size: 1.05rem; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ---------- Statusanzeigen ---------- */
+
+.flash {
+  padding: 12px 16px;
+  border-radius: 3px;
+  margin-bottom: 16px;
+  border-left: 4px solid;
+}
+
+.flash.ok   { background: #eaf4ee; border-color: var(--gruen); }
+.flash.err  { background: var(--rot-bg); border-color: var(--rot); }
+.flash.info { background: var(--signal-bg); border-color: var(--signal); }
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--paper);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.tag.live { background: var(--signal-bg); color: #8a6208; border-color: #e4c77a; }
+.tag.off  { background: var(--rot-bg); color: var(--rot); border-color: #e3b5b2; }
+.tag.on   { background: #eaf4ee; color: var(--gruen); border-color: #aacfba; }
+
+.stat-strip { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+.stat { flex: 1 1 150px; background: var(--surface); padding: 14px 16px; }
+.stat b { display: block; font-size: 1.7rem; font-family: var(--mono); line-height: 1.1; }
+.stat span { font-size: 0.82rem; color: var(--ink-soft); }
+
+.progress { height: 6px; background: var(--line-2); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.progress i { display: block; height: 100%; background: var(--gruen); }
+/* In der Wettbewerbskarte folgt der Balken direkt auf die Statuszeile. */
+.competition-card .progress { margin-top: 0; }
+.competition-card .progress.complete i { background: var(--signal); }
+
+/* ---------- Erfassungsraster ---------- */
+
+.entry th { position: sticky; top: 0; background: var(--surface); z-index: 2; }
+
+.entry td { padding: 6px 8px; }
+
+.entry input[type=text] {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.entry .w-time { width: 8.5rem; }
+.entry .w-dist { width: 7rem; }
+.entry select { padding: 10px 6px; }
+
+.entry .live {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.entry tr.group-head td {
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
+.entry tr.saved { background: #f2f8f4; }
+
+.bib {
+  display: inline-block;
+  min-width: 2.2rem;
+  padding: 2px 6px;
+  text-align: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 3px;
+}
+
+.sticky-save {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 2px solid var(--line);
+  padding: 12px 20px;
+  margin: 0 -20px 0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  box-shadow: 0 -2px 8px rgba(22, 33, 43, 0.08);
+}
+
+/* ---------- Laufzettel (Druck) ---------- */
+/* Zwei A4-Seiten je Durchgang: ungerade und gerade Startnummern. */
+
+.runsheet-card {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 14mm 12mm 10mm;
+  margin: 0 auto 24px;
+  overflow: hidden;
+}
+
+.runsheet-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12mm;
+  font-size: 10pt;
+  padding-bottom: 4mm;
+  margin-bottom: 5mm;
+  border-bottom: 2px solid var(--ink);
+}
+
+.runsheet-page-head > div:first-child { display: flex; flex-direction: column; gap: 1mm; }
+.runsheet-page-head b { font-size: 13pt; }
+.runsheet-page-head .muted { color: var(--ink-soft); }
+.runsheet-round { text-align: right; display: flex; flex-direction: column; gap: 1mm; }
+
+.runsheet-sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3mm;
+  font-size: 11pt;
+}
+
+.runsheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8.5pt;
+}
+
+.runsheet-table th,
+.runsheet-table td {
+  border: 1px solid #555;
+  padding: 1.5mm 1.8mm;
+  vertical-align: middle;
+}
+
+.runsheet-table th {
+  background: #eee;
+  font-weight: 700;
+  text-align: left;
+  font-size: 8pt;
+}
+
+/* Summe 190 mm – der Druckbereich eines A4-Blatts bei 10 mm Rand an jeder Seite.
+   Länger würde die Tabelle am rechten Rand abgeschnitten. */
+.runsheet-table th:nth-child(1), .runsheet-table td:nth-child(1) { width: 11mm; }
+.runsheet-table th:nth-child(2), .runsheet-table td:nth-child(2) { width: 51mm; }
+.runsheet-table th:nth-child(3), .runsheet-table td:nth-child(3) { width: 24mm; }
+.runsheet-table th:nth-child(4), .runsheet-table td:nth-child(4) { width: 22mm; }
+.runsheet-table th:nth-child(5), .runsheet-table td:nth-child(5) { width: 19mm; }
+.runsheet-table th:nth-child(6), .runsheet-table td:nth-child(6),
+.runsheet-table th:nth-child(7), .runsheet-table td:nth-child(7),
+.runsheet-table th:nth-child(8), .runsheet-table td:nth-child(8) { width: 21mm; text-align: center; }
+.runsheet-table th.penalty-head { font-size: 6.5pt; line-height: 1.2; }
+
+.runsheet-table tbody tr { height: var(--runsheet-row-height, 7mm); }
+.runsheet-table td b { font-size: 8.5pt; }
+.runsheet-table td .muted { font-size: 7pt; }
+.runsheet-number { text-align: center; font-family: var(--mono); font-weight: 700; }
+.runsheet-write { background: #fff; }
+.runsheet-check { font-size: 12pt; line-height: 1; }
+.runsheet-section td { background: #f3f3f3; font-weight: 700; }
+.runsheet-empty { height: 18mm; text-align: center; color: var(--ink-soft); }
+
+/* Erklärung unter dem Laufzettel: was ein angekreuztes Feld kostet. */
+.runsheet-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 4mm;
+  margin: 2mm 0 0;
+  font-size: 6.6pt;
+  color: var(--ink-soft);
+}
+.runsheet-legend b { color: var(--ink); }
+
+.runsheet-footline {
+  display: flex;
+  justify-content: space-between;
+  gap: 5mm;
+  margin-top: auto;
+  padding-top: 5mm;
+  font-size: 8pt;
+  color: var(--ink-soft);
+}
+
+@page { size: A4 portrait; margin: 0; }
+
+@media print {
+  .top, .nav, .no-print, .sticky-save { display: none !important; }
+  /* Karten ohne Knöpfe und ohne die nur zum Bearbeiten gedachte Beschriftung. */
+  .competition-cards { grid-template-columns: repeat(2, 1fr); }
+  .competition-card .competition-rename-form input[type=text] {
+    border: 0;
+    background: transparent;
+  }
+  body { background: #fff; font-size: 11pt; }
+  main { max-width: none; padding: 0; }
+  .panel { border: none; padding: 0; margin: 0; }
+  .runsheet-card {
+    width: 210mm;
+    min-height: 297mm;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 12mm 10mm 8mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .runsheet-break { page-break-after: always; break-after: page; }
+  .runsheet-card:last-child { page-break-after: auto; break-after: auto; }
+  table.data th { border-bottom: 1px solid #333; }
+  table.data td { border-bottom: 1px solid #bbb; }
+  a { color: inherit; text-decoration: none; }
+}
+
+@media (max-width: 700px) {
+  .runsheet-card { width: 100%; min-height: auto; padding: 14px 12px 18px; }
+  .runsheet-table { font-size: 0.7rem; }
+  .runsheet-table th, .runsheet-table td { padding: 5px 4px; }
+  .runsheet-footline { flex-wrap: wrap; }
+  .top-inner { padding: 12px 14px; }
+  .nav-inner, main { padding-left: 14px; padding-right: 14px; }
+  .sticky-save { margin-left: -14px; margin-right: -14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
