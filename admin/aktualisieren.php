@@ -42,11 +42,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (update_plan_umfang($plan) === 0) {
                 flash('Es gibt nichts zu aktualisieren.');
             } else {
+                $stehen = count($plan['geaendert']) + count($plan['unbekannt']) + count($plan['von_hand']);
                 $bericht = update_ausfuehren($plan, $remote['manifest']);
                 if ($bericht['ok']) {
                     $zahl = count($bericht['ersetzen']) + count($bericht['neu']);
-                    flash('Fassung ' . $bericht['version'] . ' ist eingespielt, ' . $zahl . ' Datei(en) geschrieben.'
-                        . (schema_hinter_programm() ? ' Danach bitte upgrade.php aufrufen.' : ''));
+                    $text = 'Fassung ' . $bericht['version'] . ' ist eingespielt, ' . $zahl . ' Datei(en) geschrieben.';
+                    if ($stehen > 0) {
+                        $text .= ' ' . $stehen . ' Datei(en) sind stehen geblieben, weil sie von Hand geaendert '
+                              . 'oder geschuetzt sind. Der Stand ist damit gemischt, siehe die Liste unten.';
+                    }
+                    if (schema_hinter_programm()) {
+                        $text .= ' Danach bitte upgrade.php aufrufen.';
+                    }
+                    flash($text, $stehen > 0 ? 'err' : 'ok');
                 } else {
                     flash('Nichts eingespielt. ' . implode(' ', $bericht['fehler']), 'err');
                 }

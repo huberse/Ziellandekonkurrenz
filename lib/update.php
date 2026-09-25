@@ -447,6 +447,10 @@ function update_ausfuehren(array $plan, array $neu): array
                 $bericht['abgelehnt'][$pfad] = 'der Inhalt passt nicht zur Bestandsliste';
                 continue;
             }
+            if (substr($pfad, -4) === '.php' && !update_php_gueltig($inhalt)) {
+                $bericht['abgelehnt'][$pfad] = 'der Inhalt ist kein gueltiges PHP';
+                continue;
+            }
             $inhalte[$pfad] = $inhalt;
         }
         $zip->close();
@@ -506,6 +510,26 @@ function update_ausfuehren(array $plan, array $neu): array
 function zu_pfade(array $plan): array
 {
     return array_merge(array_keys($plan['ersetzen']), array_keys($plan['neu']));
+}
+
+/**
+ * Ist der Inhalt gueltiges PHP?
+ *
+ * `php -l` waere der naehere Weg, braucht aber exec() und ist auf Hostern oft
+ * abgeschaltet. Der Tokenizer mit TOKEN_PARSE parst dagegen vollstaendig und
+ * wirft bei einem Syntaxfehler einen ParseError - ohne den Code auszufuehren.
+ */
+function update_php_gueltig(string $inhalt): bool
+{
+    if (!defined('TOKEN_PARSE')) {                 // aelteres PHP ohne diese Option
+        return true;                               // dann eben nicht pruefen
+    }
+    try {
+        token_get_all($inhalt, TOKEN_PARSE);
+        return true;
+    } catch (ParseError $e) {
+        return false;
+    }
 }
 
 /**

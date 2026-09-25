@@ -176,11 +176,14 @@ Vereins). Ändern sie sich auf GitHub, erscheinen sie in der Liste der Dateien f
 
 1. Bestandsliste von GitHub holen und mit dem Server vergleichen. Die Seite zeigt vorher an, was
    passieren würde.
-2. Die Datei mit der neuen Fassung holen, **alle** Inhalte gegen die Bestandsliste prüfen.
-   Stimmt eines nicht, wird **nichts** geschrieben.
+2. Die Datei mit der neuen Fassung holen, **alle** Inhalte gegen die Bestandsliste prüfen. Stimmt
+   eine Prüfsumme nicht oder ist eine Datei kein gültiges PHP, wird **nichts** geschrieben.
 3. Die zu ersetzenden Dateien in `.update/sicherung-<Zeitstempel>/` kopieren.
 4. Dateien einsetzen, die Bestandsliste zuletzt schreiben.
 5. Bei einem Fehler beim Einsetzen wird alles aus der Sicherung zurückgeholt.
+
+Die Syntaxprüfung braucht kein `exec()`: `token_get_all($inhalt, TOKEN_PARSE)` parbt vollständig
+und wirft bei einem Syntaxfehler einen `ParseError`, ohne den Code auszuführen.
 
 Die Sicherungen bleiben liegen, damit sich ein Update mit **Neueste Sicherung zurückholen** wieder
 rückgängig machen lässt. `.update/` steht in `.gitignore` und sperrt sich selbst gegen direkten
