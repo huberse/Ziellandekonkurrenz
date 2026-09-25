@@ -215,7 +215,9 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
 <div class="panel">
     <h3>Selbsttest des Servers</h3>
     <p class="hint">Damit der Knopf arbeiten kann, braucht der Server ein paar Voraussetzungen.
-        Fehlt eine, laesst sich die Seite nicht per Knopf aktualisieren.</p>
+        Fehlt eine, laesst sich die Seite nicht per Knopf aktualisieren. GitHub speichert rohe
+        Dateien bis zu fünf Minuten zwischen: direkt nach dem Hochladen einer Fassung kann der
+        Knopf noch den vorherigen Stand sehen.</p>
     <table class="data dense">
         <thead><tr><th>Voraussetzung</th><th class="mid">vorhanden</th><th>Wenn nicht</th></tr></thead>
         <tbody>

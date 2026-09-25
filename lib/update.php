@@ -442,6 +442,25 @@ function update_ausfuehren(array $plan, array $neu): array
         }
         $eintraege = update_zip_namen($zip);
 
+        // Die Bestandsliste steckt auch im Archiv. Stimmt sie nicht mit der von
+        // aussen geholten ueberein, ist eine von beiden veraltet: GitHub
+        // speichert rohe Dateien bis zu fuenf Minuten zwischen, das Archiv
+        // dagegen nicht. Genau das ist hier zu melden, statt spaeter
+        // "Inhalt passt nicht" zu sagen.
+        $drin = update_zip_lesen($zip, $praefix . 'manifest.json', 2097152);
+        if ($drin !== null) {
+            $innen = json_decode($drin, true);
+            $versionDrin = is_array($innen) ? (string) ($innen['version'] ?? '') : '';
+            if ($versionDrin !== '' && $versionDrin !== $neu['version']) {
+                $zip->close();
+                @unlink($zipPfad);
+                $bericht['fehler'][] = 'GitHub antwortet mit zwei verschiedenen Staenden: die Bestandsliste nennt '
+                    . $neu['version'] . ', im Archiv steckt ' . $versionDrin . '. Rohdateien werden bis zu '
+                    . '5 Minuten zwischengespeichert, das Archiv nicht. In ein paar Minuten erneut versuchen.';
+                return $bericht;
+            }
+        }
+
         // ----_phase 1: alles lesen und gegen die Bestandsliste pruefen --------
         $inhalte = [];
         $gesamt = 0;
