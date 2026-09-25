@@ -1,170 +1,149 @@
 # Segelflug-Wettbewerb
 
-Erfassung und Auswertung eines Wettbewerbs, bei dem Modellsegelflugzeuge eine Zielzeit treffen
-und auf den Punkt landen sollen. PHP und MySQL, ohne Framework und ohne externe Bibliotheken.
+Wertung und Ergebnisverwaltung für Modellsegelflug-Wettbewerbe: Zielzeit treffen, auf den Punkt
+landen, und daraus eine Rangliste, die alle nachvollziehen können.
 
-Die Zeitnehmer schreiben wie bisher auf Papier. Die App druckt die Laufzettel dafür aus und
+**PHP und MySQL, ohne Framework, ohne Composer, ohne externe Bibliotheken.** Die Dateien werden
+auf einen Webserver gelegt und sind danach lauffähig.
+
+Die Zeitnehmer schreiben wie bisher auf Papier. Die App druckt dafür die Laufzettel aus und
 nimmt die Zahlen danach im Wettkampfbüro auf. Mehrere Wettbewerbe eines Vereins oder mehrerer
-Vereine können in derselben Installation geführt werden; die Wettbewerbe bleiben vollständig
-getrennt.
+Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig getrennt.
+
+---
+
+## Inhalt
+
+- [Was die App kann](#was-die-app-kann)
+- [Anforderungen](#anforderungen)
+- [Installation](#installation)
+- [Aktualisieren einer bestehenden Installation](#aktualisieren-einer-bestehenden-installation)
+- [Ablauf an einem Wettbewerbstag](#ablauf-an-einem-wettbewerbstag)
+- [Wertung](#wertung)
+- [Einstellungen](#einstellungen)
+- [Wettbewerbe](#wettbewerbe)
+- [Anmeldung](#anmeldung)
+- [Vereinswertung](#vereinswertung)
+- [Aufbau des Projekts](#aufbau-des-projekts)
+- [Gestaltung](#gestaltung)
+- [Sicherheit und Betrieb](#sicherheit-und-betrieb)
+- [Fehlersuche](#fehlersuche)
+
+---
+
+## Was die App kann
+
+- **Öffentliche Seiten** ohne Konto: Rangliste je Modelltyp, Vereinswertung, Teilnehmerliste,
+  Anmeldeformular.
+- **Wettkampfbüro** mit Login, erreichbar die Erfassung, Startliste, Durchgänge, Vereine,
+  Modelltypen, Anmeldungen, Export und Einstellungen.
+- **Laufzettel als PDF**, je Durchgang zwei A4-Blätter für die geraden und die ungeraden
+  Startnummern, mit Ankreuzfeldern für jede mögliche Abweichung.
+- **Eigene Strafpunktregeln je Wettbewerb** – fünf Bausteine, pro Verein einstellbar.
+- **Anmeldung im Internet** mit Bestätigung per E-Mail, ohne dass eine Adresse gespeichert wird.
+- **Wettbewerbe über die Jahre**, abgeschlossen bleibt alles als Archiv erhalten und
+  jederzeit wieder zu öffnen.
+
+## Anforderungen
+
+| | |
+| --- | --- |
+| PHP | 7.3 oder neuer, mit `pdo_mysql` und `mbstring` |
+| Datenbank | MySQL 5.7 oder MariaDB 10.3 oder neuer, `utf8mb4` |
+| Webserver | Apache mit `mod_rewrite` (siehe `.htaccess`) oder nginx |
+| Sonstiges | nichts – kein Composer, kein Build-Schritt, keine externen Schriften oder Skripte |
+
+Die Oberfläche lädt keine externen Ressourcen. Die App läuft damit auch dann, wenn am
+Wettkampfort kein Internet zur Verfügung steht.
 
 ## Installation
 
-1. Dateien auf den Webserver laden (PHP 7.3 oder neuer, MySQL 5.7 / MariaDB 10.3 oder neuer).
-2. Leere Datenbank anlegen, Zeichensatz `utf8mb4`.
-3. `config.sample.php` nach `config.php` kopieren, Zugangsdaten eintragen und unter
-   `site_name` den Namen der Plattform sowie unter `logo` die Logo-Datei aus `assets/` eintragen.
-4. Im Browser `install.php` aufrufen. Das legt die Tabellen, den ersten Wettbewerb, die
-   Durchgänge und das erste Konto an.
-5. `install.php` vom Server löschen.
+1. **Datenbank anlegen.** Leere Datenbank mit Zeichensatz `utf8mb4` anlegen und einen Benutzer
+   mit Rechten darauf einrichten.
 
-`site_name` und `logo` gehören zur Installation und nicht zu einem Wettbewerb: Oben links im
-Kopf steht der Name der Plattform, der ausgewählte Wettbewerb daneben im Abzeichen – jeder
-Wettbewerb bekommt seinen Namen also nur einmal zu sehen. Fehlen die beiden Angaben in einer
-älteren `config.php`, gelten `Ziellandekonkurrenz` und `logo_nordwest.jpg`.
+2. **`config.php` anlegen.** `config.sample.php` nach `config.php` kopieren und die
+   Zugangsdaten eintragen:
 
-Die ersten Einstellungen werden für den ersten Wettbewerb gespeichert. Weitere Wettbewerbe
-können danach unter **Wettbewerbe** angelegt werden.
+   ```php
+   return [
+       'db_host' => 'localhost',
+       'db_name' => 'segelflug',
+       'db_user' => 'segelflug',
+       'db_pass' => 'geheim',
+       'db_port' => 3306,
+       'timezone' => 'Europe/Zurich',
+       'site_name' => 'Ziellandekonkurrenz',
+       'logo'      => 'logo_nordwest.jpg',   // Datei in assets/
+   ];
+   ```
 
-Wer schon eine ältere Version dieser App im Einsatz hatte: siehe **Aktualisieren** unten,
-statt `install.php` zu benutzen.
+   `site_name` und `logo` gehören zur Installation und nicht zu einem Wettbewerb. Oben links im
+   Kopf steht der Name der Plattform, der ausgewählte Wettbewerb daneben im Abzeichen – jeder
+   Wettbewerb bekommt seinen Namen also nur einmal zu sehen. Fehlen die beiden Angaben in einer
+   älteren `config.php`, gelten `Ziellandekonkurrenz` und `logo_nordwest.jpg`.
 
-### Bei Problemen: diagnose.php
+3. **`install.php` aufrufen.** Die Dateien hochladen und `install.php` im Browser öffnen. Das legt
+   die Tabellen, den ersten Wettbewerb, die Durchgänge und das erste Konto an.
 
-Zeigt eine Seite einen 500-Fehler, `diagnose.php` hochladen und im Browser aufrufen. Es prüft
-PHP-Version, nötige Erweiterungen (vor allem `pdo_mysql`), Dateirechte, die Datenbankverbindung
-und ob alle Tabellen vorhanden sind. Für die eigentliche Fehlermeldung mit Datei und Zeile hilft
-oft nur das PHP-Fehlerprotokoll des Hosters. Danach die Diagnosedatei löschen.
+4. **`install.php` löschen.** Die Datei wird nach der Einrichtung nicht mehr gebraucht und
+   gehört nicht auf einen Server im Internet.
+
+Falls eine Seite mit einem 500-Fehler antwortet, hilft [`diagnose.php`](#fehlersuche).
+
+Wer bereits eine ältere Version dieser App im Einsatz hatte, nimmt statt `install.php` den Weg
+über [Aktualisieren](#aktualisieren-einer-bestehenden-installation) – sonst gingen die
+bisherigen Daten verloren.
 
 ## Aktualisieren einer bestehenden Installation
 
-Neue Dateien hochladen (bestehende überschreiben), `config.php` nicht anfassen und vorher ein
-Datenbank-Backup erstellen. Danach einmal `upgrade.php` im Browser aufrufen und **Jetzt
-aktualisieren** klicken.
+Neue Dateien hochladen und bestehende überschreiben. **`config.php` nicht anfassen.** Vorher ein
+Datenbank-Backup erstellen. Danach einmal `upgrade.php` aufrufen und **Jetzt aktualisieren**
+klicken, anschliessend `upgrade.php` löschen.
 
 Die Migrationen laufen versioniert und werden erst nach erfolgreicher Ausführung in
 `schema_migrations` protokolliert. Ein abgebrochener Lauf kann nach Beheben der gemeldeten
-Datenprobleme erneut gestartet werden. Die Wettbewerbs-Migrationen:
+Datenprobleme erneut gestartet werden.
 
-- benennt `seasons` in `competitions` um,
-- benennt alle `season_id`-Spalten in `competition_id` um,
-- übernimmt bestehende Wettbewerbe, Piloten, Durchgänge, Anmeldungen und Results,
-- legt `competition_settings` an und kopiert die bisherigen Einstellungen in jeden Wettbewerb,
-- normalisiert die alten Index- und Foreign-Key-Namen,
-- ergänzt die Zuordnung von Anmeldungen zu Piloten,
-- ergänzt den Abschlussstatus und die benötigten Resultatfelder für Wettbewerbe,
-- lässt den bisherigen aktiven Wettbewerb aktiv,
-- ergänzt als Migration 5 das Kennzeichen `scores.motor` und die neuen Strafpunktregeln.
+| Version | Was passiert |
+| --- | --- |
+| 1 | altes Schema auf Vereine, Modelltypen und Wettbewerbe vorbereiten |
+| 2 | Wettbewerbs- und Startnummern-Constraints für Piloten und Resultate ergänzen |
+| 3 | Saisons in Wettbewerbe umbenennen, Einstellungen pro Wettbewerb speichern |
+| 4 | Abschlussstatus und Resultatfelder ergänzen |
+| 5 | Strafpunktregeln je Wettbewerb und das Kennzeichen für den Motorstart |
 
-Nach dem Upload muss für die bestehende Installation einmal `upgrade.php` laufen; die Abschluss-Spalte
-wird als Migration 4, die Motorstrafe als Migration 5 ergänzt. Danach sollte `MAX(version)` in
-`schema_migrations` mindestens `5` sein.
+Danach sollte `MAX(version)` in `schema_migrations` mindestens `5` sein. Ruft man eine Seite auf,
+bevor `upgrade.php` gelaufen ist, leitet die App automatisch dorthin um, statt einen
+Datenbankfehler zu zeigen.
 
-Migration 5 rechnet die bisherigen Strafpunkte auf das neue Format um, damit erfasste Resultate
-gültig bleiben: aus den getrennten Sätzen für „zu lang" und „zu kurz" wird ein gemeinsamer Satz
-(bei unterschiedlichen Werten wird der höhere übernommen und die Änderung im Protokoll
-ausgewiesen), und der bisherige Sammelwert für „Aussenlandung oder fehlendes Resultat" wird für
-Aussenlandung, Nichtantritt und Motorstart übernommen. Die Obergrenzen für Zeit- und Landestrafe
-entfallen; sie standen überall auf 0 und haben nie gewirkt, deshalb ändert sich kein
-bereits gespeichertes Resultat. **Danach die Werte unter Einstellungen → Strafpunkte kurz prüfen**
-– jeder Verein sollte seine eigenen Zahlen setzen, insbesondere den Betrag für den Motorstart.
+**Nach Migration 5 die Strafpunkte kurz prüfen.** Die bisher getrennten Sätze für „zu lang" und
+„zu kurz" werden zu einem gemeinsamen Satz zusammengefasst (bei unterschiedlichen Werten wird
+der höhere übernommen und die Änderung im Protokoll ausgewiesen), und der bisherige Sammelwert
+für „Aussenlandung oder fehlendes Resultat" wird für Aussenlandung, Nichtantritt und Motorstart
+übernommen. Bereits gespeicherte Resultate bleiben gültig. Den Betrag für den Motorstart gab es
+bisher nicht – er ist jetzt gesetzt und sollte je Verein angepasst werden, ebenso alle anderen
+Werte unter **Einstellungen → Strafpunkte**.
 
-Die alten Spalten und Tabellen werden danach nicht mehr von der Anwendung verwendet. Die
-Dateien `admin/saisons.php` und `lib/season.php` bleiben nur als Kompatibilitätspfade für alte
-Lesezeichen bzw. Erweiterungen erhalten. Neue URLs verwenden `competition`.
-
-Ruft man eine Seite auf, bevor `upgrade.php` gelaufen ist, leitet die App automatisch dorthin um,
-statt einen Datenbankfehler zu zeigen.
-
-## Wettbewerbe
-
-Unter **Wettbewerbe** wird ein Wettbewerb mit einem aussagekräftigen Namen angelegt, zum Beispiel:
-
-- `MFV Brislach - Schwarzbubenfliegen 2027`
-- `MG Breitenbach - Erlencup 2027`
-
-Ein neuer Wettbewerb erhält eigene Durchgänge, eine leere Startliste und eigene Einstellungen.
-Er kann sofort aktiviert werden. Der aktive Wettbewerb ist der Default für Erfassung,
-Anmeldung, Export und die öffentlichen Seiten. Ältere Wettbewerbe bleiben vollständig erhalten;
-der Name lässt sich direkt in der Wettbewerbsliste ändern. Ein Wettbewerb mit Anmeldungen oder
-Resultaten wird aus Sicherheitsgründen nicht gelöscht; abgeschlossene Wettbewerbe bleiben als Archiv erhalten.
-
-Sobald für jeden aktiven Piloten in jedem gewerteten Durchgang ein Resultat vorhanden ist – einschliesslich
-Aussenlandung oder „nicht gestartet“ –, kann der Wettbewerb unter **Wettbewerbe** beendet werden.
-Nicht gewertete Durchgänge müssen dafür nicht ausgefüllt werden.
-Danach bleiben Startliste, Resultate, PDF und Export sichtbar; Resultate, Anmeldungen, Wettbewerbs-
-einstellungen und die Aktivierung sind gesperrt. Der bisherige aktive Wettbewerb bleibt aktiv.
-Der Wettbewerbsname bleibt auch nach dem Abschluss änderbar. Bei einem Korrekturfehler kann ein Admin ihn ausdrücklich wieder öffnen.
-
-Die öffentlichen Seiten bieten bei mehreren Wettbewerben eine Auswahl. Ein gezielter Aufruf
-funktioniert zum Beispiel mit `index.php?competition=2`. Im Wettkampfbüro steht dieselbe Auswahl
-unter **Piloten** und **Einstellungen**; Durchgänge, Resultate, Export und PDF-Laufzettel
-arbeiten mit dem aktiven Wettbewerb. Die alte Form `?season=...` wird beim Lesen noch akzeptiert.
-
-Die Auswahl ist ein Dropdown und gruppiert nach **Offene Wettbewerbe** und **Abgeschlossene
-Wettbewerbe**. Der aktive Wettbewerb steht oben, dahinter die neuesten; hinter dem Namen stehen
-Zustand und Anzahl der Piloten. Damit bleibt die Auswahl auch lesbar, wenn viele Vereine über
-die Jahre je einen Wettbewerb anlegen.
-
-Aktuell gibt es **noch kein Mandantenmodell**: Benutzer, Vereine und Modelltypen sind global.
-Vereins- und Modelltypennamen können deshalb weiterhin global gepflegt werden; destruktive Änderungen
-an Kategorien, die in abgeschlossenen Wettbewerben verwendet werden, werden blockiert.
-Die Wettbewerbe sind aber datenseitig getrennt. Wenn später mehrere Vereine mit getrennten
-Konten und strikter Zugriffstrennung arbeiten sollen, kann ein Mandantenmodell auf dieser
-Wettbewerbsstruktur aufgebaut werden, ohne die Wettbewerbsdaten neu zu modellieren.
-
-## Einstellungen
-
-Unter **Einstellungen** werden die Einstellungen des ausgewählten Wettbewerbs bearbeitet:
-
-- Name, Datum und Ort,
-- Standard-Zielzeit und Anzahl der Durchgänge,
-- Strafpunkte: die zwei Faktoren für einen gelungenen Flug und die drei festen Beträge für
-  Aussenlandung, Nichtantritt und Motorstart, jeweils mit kurzer Erklärung und einem
-  Rechenbeispiel darunter,
-- Streichresultat und Ranglisten-Ansicht,
-- Öffentlichkeit der Resultate,
-- Vereinswertung und Anmeldeformular.
-
-Beim Anlegen eines neuen Wettbewerbs werden die Einstellungen des aktuell ausgewählten
-Wettbewerbs als Vorlage kopiert. So können zwei Vereinswettbewerbe unterschiedliche Regeln
-haben, ohne die bestehenden Wettbewerbe zu verändern. Ausgenommen ist die Absenderadresse der
-Anmeldebestätigung: sie gehört jedem Verein selbst und wird bewusst nicht vererbt.
+Die Dateien `admin/saisons.php` und `lib/season.php` bleiben nur als Kompatibilitätspfade für
+alte Lesezeichen erhalten. Neue URLs verwenden `competition`.
 
 ## Ablauf an einem Wettbewerbstag
 
-1. **Einstellungen** – Name, Datum, Ort und Strafpunkt-Regeln prüfen.
+1. **Einstellungen** – Name, Datum, Ort und die Strafpunkt-Regeln prüfen.
 2. **Modelltypen** – Segler, Elektro, weitere. Die Rangliste wird je Modelltyp ausgewertet.
 3. **Vereine** – alle teilnehmenden Vereine, für Auswahl und Vereinswertung.
-4. **Piloten** – nur für den ausgewählten Wettbewerb. Einzeln erfassen, als Liste aus Excel
-   einfügen oder über Anmeldungen freigeben. `Startnummern zufällig neu vergeben` nummeriert
-   alle aktiven Piloten dieses Wettbewerbs nach Modelltyp und Zufall neu.
-5. **Durchgänge** – Anzahl einstellen, Zielzeit je Durchgang anpassen und die Wertung aktivieren.
-6. **Laufzettel als PDF** – je Durchgang zwei A4-Seiten: eine für ungerade und eine für gerade
-   Startnummern. Jede Seite enthält alle Piloten des jeweiligen Zeitnehmers sowie Flugzeit,
-   Landewert, drei Ankreuzfelder (nicht angetreten, Aussenlandung, Motor angelassen) und eine
-   Übergabequittung. `admin/erfassung.php` bietet den direkten PDF-Download an; die HTML-Ansicht
-   ist nur noch ein Druck-Fallback.
+4. **Piloten** – nur für den gewählten Wettbewerb: einzeln, als Liste aus Excel oder über
+   freigegebene Anmeldungen. *Startnummern zufällig neu vergeben* nummeriert alle aktiven
+   Piloten dieses Wettbewerbs nach Modelltyp und Zufall neu.
+5. **Durchgänge** – Anzahl einstellen, Zielzeit je Durchgang anpassen, Wertung aktivieren.
+6. **Laufzettel als PDF** – ausdrucken. Je Durchgang zwei Blätter, eines für die ungeraden und
+   eines für die geraden Startnummern, jeweils mit Flugzeit, Landewert und drei Ankreuzfeldern.
 7. **Resultate erfassen** – ein Durchgang pro Seite, eine Zeile pro Pilot. Flugzeit als `2:58`
-   oder `178`; die Wertung nennt geflogen, nicht angetreten, Aussenlandung, Motor angelassen
-   und Aussenlandung & Motor angelassen. Die Strafpunkte stehen live in der letzten Spalte.
+   oder `178`. Die Strafpunkte stehen live in der letzten Spalte.
 8. **Rangliste** – öffentlich unter `index.php`, je Modelltyp oder alle zusammen.
 9. **Vereinswertung** – öffentlich unter `vereinswertung.php`.
-10. **Wettbewerb beenden** – auf der Seite **Wettbewerbe** steht der Fortschritt als Balken in der
-    Karte des Wettbewerbs. Sobald alle Resultate erfasst sind, erscheint dort **Beenden**; danach
-    bleibt der Wettbewerb als Archiv erhalten und lässt sich mit **Wieder öffnen** zurückholen.
-    Ein beendeter Wettbewerb meldet auf der Übersicht auch keinen laufenden Durchgang mehr – dort
-    steht „Wettbewerb beendet, es läuft kein Durchgang“.
-
-### Wettbewerbe-Seite
-
-Oben steht das Formular **Neuen Wettbewerb anlegen**, darunter eine Karte je Wettbewerb – auf
-einer Bildschirmbreite neben- statt untereinander, sodass nichts vertikal durchlaufen werden muss.
-Jede Karte zeigt Zustand (`aktiv`, `offen`, `beendet`), Anzahl der Durchgänge und offene
-Anmeldungen, den Fortschritt der Resultate sowie die Knöpfe **Erfassen**, **Durchgänge**,
-**Rangliste** und je nach Zustand **Beenden**, **Aktivieren**, **Wieder öffnen** oder **Löschen**.
-Der Name ist direkt in der Karte änderbar; das Feld sieht dabei wie eine Überschrift aus und der
-Knopf **Speichern** erscheint erst, wenn der Cursor darin ist.
+10. **Wettbewerb beenden** – sobald alle Resultate erfasst sind. Der Wettbewerb bleibt als
+    Archiv erhalten und lässt sich mit *Wieder öffnen* zurückholen.
 
 ## Wertung
 
@@ -179,116 +158,188 @@ damit jeder Verein seine eigenen Zahlen haben kann. Es gibt genau fünf Baustein
 | Strafe nicht angetreten | `penalty_not_started` | fester Betrag |
 | Strafe Motor angelassen | `penalty_motor` | fester Betrag, bei einer Aussenlandung zusätzlich |
 
-Es gibt keine Obergrenze: eine grosse Zeitabweichung oder ein weit entfernter Landepunkt kostet
-unbegrenzt Punkte. Die festen Strafen wirken ohnehin als Gesamtbetrag.
+Es gibt **keine Obergrenze**: eine grosse Zeitabweichung oder ein weit entfernter Landepunkt
+kostet unbegrenzt Punkte. Die festen Strafen wirken ohnehin als Gesamtbetrag.
+
+Zwei Regeln, die man leicht falsch liest:
 
 **Die Zeitabweichung ist ein Betrag.** Zwei Sekunden zu lang und zwei Sekunden zu kurz kosten
-gleich viel, es gibt nur einen Satz je Sekunde und keine getrennten Werte für oben und unten.
+gleich viel – es gibt nur einen Satz je Sekunde.
 
 **Der Motor ist eine Zusatzstrafe, keine eigene Ergebnisart.** Bei einem geflogenen Flug ersetzt
-sie Zeit und Landewert – gezählt wird allein die Motorstrafe. Bei einer Aussenlandung oder einem
+sie Zeit und Landewert, gezählt wird allein die Motorstrafe. Bei einer Aussenlandung oder einem
 Nichtantritt kommt sie zur jeweiligen Feststrafe dazu.
 
-Die fünf Ausgänge, die `admin/erfassung.php` anbietet:
-
-| Auswahl | Punkte |
+| Auswahl beim Erfassen | Punkte |
 | --- | --- |
 | geflogen | Zeitabweichung + Landepunkte |
 | nicht angetreten | `penalty_not_started` |
 | Aussenlandung | `penalty_outlanding` |
 | Motor angelassen | `penalty_motor` |
 | Aussenlandung & Motor angelassen | `penalty_outlanding` + `penalty_motor` |
-| kein Eintrag | die Zeile bleibt leer |
+| kein Eintrag | die Zeile bleibt ohne Resultat |
 
 Der Landewert ist eine Zahl: entweder die Distanz in Metern zum Landepunkt oder direkt eine
-Punktzahl aus einer Landetabelle. Die App rechnet in beiden Fällen mit dem eingestellten Faktor.
+Punktzahl aus der Landetabelle.
 
-Ein Durchgang gilt als geflogen, sobald mindestens ein Resultat erfasst ist. Piloten ohne
-Resultat in einem geflogenen Durchgang erhalten die Punkte für einen Nichtantritt. Wer in keinem
-Durchgang ein Resultat hat, erscheint ohne Rang am Listenende. Ein Flug mit Motor zählt nicht
-als gültiger Flug für den Gleichstand-Entscheid.
+**Streichresultat.** Das schlechteste Resultat kann ab einer einstellbaren Anzahl geflogener
+Durchgänge gestrichen werden. Bei Punktegleichheit entscheidet zuerst das kleinere
+Streichresultat, danach die Anzahl gültiger Flüge, danach das beste Einzelresultat. Ein Flug mit
+Motor zählt dabei nicht als gültiger Flug.
 
-Das Streichresultat lässt sich pro Wettbewerb abschalten und die Schwelle einstellen. Bei
-Punktegleichheit entscheidet zuerst das kleinere Streichresultat, danach die Anzahl gültiger
-Flüge, danach das beste Einzelresultat.
-
-Wird eine Regel oder eine Zielzeit nachträglich geändert, bleiben bereits gespeicherte Punkte
-stehen. Unter **Durchgänge** rechnet `Punkte neu berechnen` einen Durchgang mit den aktuellen
-Regeln des Wettbewerbs nach – auch die festen Strafen und der Motor-Flag werden dabei berücksichtigt.
+**Nachträgliche Änderungen.** Wird eine Regel oder eine Zielzeit geändert, bleiben bereits
+gespeicherte Punkte stehen. Unter **Durchgänge** rechnet *Punkte neu berechnen* einen Durchgang
+mit den aktuellen Regeln des Wettbewerbs nach – auch die festen Strafen und der Motorstart.
 
 ### Laufzettel
 
-Je Durchgang entstehen zwei A4-Blätter, eines für die ungeraden und eines für die geraden
-Startnummern. Neben Flugzeit und Landewert hat jede Zeile **drei Ankreuzfelder**:
+Je Durchgang entstehen zwei A4-Blätter. Neben Flugzeit und Landewert hat jede Zeile drei
+Ankreuzfelder:
 
-- **nicht angetreten** – der Pilot ist nicht angetreten
+- **nicht angetreten**
 - **Aussenlandung**
 - **Motor angelassen** – bei einem elektrischen Modell wurde der Motor angelassen
 
 Kein Feld angekreuzt heisst „geflogen". Aussenlandung und Motor zusammen ergeben
-„Aussenlandung & Motor angelassen". Die Bezeichnungen stehen in der Kopfzeile, die Punkte für jedes
-Feld in der Legende darunter, damit der Zeitnehmer sie nicht nachschlagen muss.
+„Aussenlandung & Motor angelassen". Die Bezeichnungen stehen in der Kopfzeile, die Punkte für
+jedes Feld in der Legende darunter, damit der Zeitnehmer sie nicht nachschlagen muss.
 
 `admin/laufzettel.php` bietet den PDF-Download an; die HTML-Ansicht ist der Druck-Fallback.
 
-## Vereinswertung
+## Einstellungen
 
-Die besten Piloten eines Vereins ergeben zusammen das Vereinsresultat, der tiefste Wert gewinnt.
-Wie viele Piloten zählen, wird pro Wettbewerb unter **Einstellungen** eingestellt. Ein Verein
-mit weniger gewerteten Piloten erscheint ausser Konkurrenz am Listenende. Für den Verein zählt
-nur, wer mindestens ein Resultat hat.
+Unter **Einstellungen** werden die Einstellungen des ausgewählten Wettbewerbs bearbeitet:
+
+- Name, Datum, Ort und Standard-Zielzeit für neue Durchgänge
+- die fünf [Strafpunkt-Bausteine](#wertung) mit Erklärung und Rechenbeispiel
+- Streichresultat und Ranglisten-Ansicht
+- Öffentlichkeit der Resultate
+- Vereinswertung: Anzahl der gewerteten Piloten je Verein
+- Anmeldeformular: offen oder geschlossen, Text über dem Formular, Absenderadresse
+- Passwort des eigenen Kontos und weitere Zugänge
+
+Die Einstellungen gelten nur für den Wettbewerb, der oben ausgewählt ist. Beim Anlegen eines
+neuen Wettbewerbs werden die Einstellungen des gerade ausgewählten als Vorlage kopiert – so
+haben zwei Vereinswettbewerbe unterschiedliche Regeln, ohne dass die bestehenden Wettbewerbe
+verändert werden.
+
+Ein abgeschlossener Wettbewerb ist gesperrt: Startliste, Resultate, Anmeldungen und
+Wettbewerbseinstellungen bleiben unverändert sichtbar, lassen sich aber nicht mehr ändern. Der
+Name des Wettbewerbs selbst bleibt auch nach dem Abschluss änderbar.
+
+## Wettbewerbe
+
+Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel
+`MFV Brislach - Schwarzbubenfliegen 2027`, eigene Durchgänge, eine leere Startliste und eigene
+Einstellungen. Er kann sofort aktiviert werden. Der aktive Wettbewerb ist der Vorgabe für
+Erfassung, Anmeldung, Export und die öffentlichen Seiten.
+
+Beim Anlegen werden die Einstellungen des gerade ausgewählten Wettbewerbs als Vorlage kopiert.
+So haben zwei Vereinswettbewerbe unterschiedliche Regeln, ohne dass die bestehenden
+Wettbewerbe verändert werden. Ausgenommen ist die Absenderadresse der Anmeldebestätigung: sie
+gehört jedem Verein selbst und wird bewusst nicht vererbt.
+
+Auf der Seite **Wettbewerbe** steht eine Karte je Wettbewerb – nebeneinander statt
+untereinander, sodass nichts vertikal durchlaufen werden muss. Jede Karte zeigt Zustand,
+Anzahl der Durchgänge, offene Anmeldungen und den Fortschritt der Resultate.
+
+**Beenden.** Sobald für jeden aktiven Piloten in jedem gewerteten Durchgang ein Resultat
+vorliegt – Aussenlandung und „nicht angetreten" zählen mit –, kann der Wettbewerb beendet
+werden. Danach bleiben Startliste, Resultate, PDF und Export sichtbar; gesperrt sind
+Resultate, Anmeldungen und Wettbewerbseinstellungen. Der bisherige aktive Wettbewerb bleibt
+aktiv, der Name des abgeschlossenen bleibt änderbar. Bei einem Korrekturfehler holt ein
+Administrator ihn mit *Wieder öffnen* zurück.
+
+Ein Wettbewerb mit Anmeldungen oder Resultaten wird nicht gelöscht, damit keine Daten
+verloren gehen.
+
+**Auswahl.** Die öffentlichen Seiten bieten bei mehreren Wettbewerben ein Dropdown, gruppiert
+nach *Offene Wettbewerbe* und *Abgeschlossene Wettbewerbe*, mit dem aktiven Wettbewerb oben.
+Ein gezielter Aufruf funktioniert mit `index.php?competition=2`. Die frühere Form
+`?season=...` wird beim Lesen noch akzeptiert.
+
+**Noch kein Mandantenmodell.** Benutzer, Vereine und Modelltypen sind global; die Wettbewerbe
+sind datenseitig getrennt. Vereins- und Modelltypennamen können deshalb global gepflegt
+werden, wobei destruktive Änderungen an Kategorien blockiert werden, sobald sie in
+abgeschlossenen Wettbewerben verwendet wurden.
 
 ## Anmeldung
 
 `anmeldung.php` ist das öffentliche Formular. Eingegangene Anmeldungen erscheinen unter
-**Anmeldungen** und wandern beim Freigeben mit einer Startnummer in die Startliste des jeweiligen
-Wettbewerbs. Das Formular lässt sich pro Wettbewerb schliessen und mit einem eigenen Text versehen.
-
-Die Auswahl oben im Formular zeigt nur Wettbewerbe, die noch nicht beendet sind. Beendete
-Wettbewerbe nehmen keine Anmeldungen mehr an und stehen dort nicht mehr zur Wahl; ein altes
-Lesezeichen führt weiterhin zur Abschluss-Seite.
+**Anmeldungen** und wandern beim Freigeben mit einer Startnummer in die Startliste. Das Formular
+lässt sich pro Wettbewerb schliessen und mit einem eigenen Text versehen; die Auswahl zeigt nur
+Wettbewerbe, die noch nicht beendet sind.
 
 Das Formular fragt Vorname, Name, Verein, E-Mail, Modelltyp, Modell und Bemerkung ab – ein
-Telefonfeld gibt es nicht. Die E-Mail-Adresse wird **nicht gespeichert**: sie dient ausschliesslich
-der Anmeldebestätigung. Verschickt wird diese erst, nachdem die Anmeldung gespeichert und
-anschliessend wieder aus der Datenbank gelesen wurde – eine Bestätigung ohne Eintrag kann es
-dadurch nicht geben. Die Adresse dafür steht pro Wettbewerb unter **Einstellungen → Anmeldung**
-(Absendername und Absenderadresse). Ohne Absenderadresse wird nichts verschickt; die Anmeldung
-selbst geht trotzdem ein. Der Versand nutzt die Mail-Funktion von PHP, der Server muss sie also
-unterstützen.
+Telefonfeld gibt es nicht.
 
-Die Absenderadresse steht zugleich im **CC** der Bestätigung. Damit geht jede neue Anmeldung im
-Postfach der Wettkampfleitung ein, ohne dass eine Adresse gespeichert werden muss: Der Pilot
-bekommt seine Bestätigung, das Wettkampfbüro sieht dieselbe Mail und weiss so, dass etwas
-eingegangen ist. Meldet sich jemand mit exakt dieser Adresse an, entfällt das CC, damit er die
-Mail nicht doppelt bekommt.
+**Die E-Mail-Adresse wird nicht gespeichert.** Sie dient ausschliesslich der Bestätigung.
+Verschickt wird diese erst, nachdem die Anmeldung gespeichert *und wieder aus der Datenbank
+gelesen* wurde – eine Bestätigung ohne Eintrag kann es dadurch nicht geben. Die Absenderadresse
+steht pro Wettbewerb unter **Einstellungen → Anmeldung**; ohne sie wird nichts verschickt, die
+Anmeldung geht aber trotzdem ein.
 
-Nach dem Absenden leitet die Seite auf eine eigene Bestätigungsseite um. Ein Reload oder ein
+Die Absenderadresse steht zugleich im **CC**. Damit geht jede neue Anmeldung im Postfach der
+Wettkampfleitung ein, ohne dass eine Adresse gespeichert werden muss. Meldet sich jemand mit
+exakt dieser Adresse an, entfällt das CC, damit er die Mail nicht doppelt bekommt.
+
+Nach dem Absenden leitet die Seite auf eine eigene Bestätigungsseite um; ein Reload oder ein
 zweiter Klick sendet deshalb keine weitere Anmeldung ab.
 
-## Dateien
+## Vereinswertung
 
-    index.php              öffentliche Rangliste
-    vereinswertung.php     öffentliche Vereinswertung
-    teilnehmer.php         öffentliche Teilnehmerliste
-    anmeldung.php          öffentliches Anmeldeformular
-    install.php            Einrichtung, danach löschen
-    upgrade.php            Aktualisierung einer älteren Installation, danach löschen
-    diagnose.php           Fehlersuche bei 500-Fehlern, danach löschen
-    admin/wettbewerbe.php  Wettbewerbe verwalten
-    lib/competition.php    Wettbewerbe und Kontext der Einstellungen
-    lib/mail.php           Anmeldebestätigung per Mail
-    lib/scoring.php        Wertung und Ranglisten
-    lib/pdf.php            einfacher, abhängigkeitsfreier PDF-Generator
-    lib/runsheet_pdf.php   A4-Laufzettel als PDF
-    sql/schema.sql         Tabellen und aktuelle Constraints
-    assets/                Gestaltung, Logos (Auswahl über `logo` in config.php)
+Die besten Piloten eines Vereins ergeben zusammen das Vereinsresultat, der tiefste Wert gewinnt.
+Wie viele Piloten zählen, ist pro Wettbewerb einstellbar. Ein Verein mit weniger gewerteten
+Piloten erscheint ausser Konkurrenz am Listenende. Für den Verein zählt nur, wer mindestens ein
+Resultat hat.
 
-## Design und Sicherheit
+## Aufbau des Projekts
 
-Name und Logo der Plattform stehen in `config.php` (`site_name`, `logo`); das Logo wird als
-rundes Abzeichen neben dem Namen dargestellt. Farben und Anordnung stehen in
-`assets/style.css`, das Logo selbst in `assets/`.
+```
+index.php              öffentliche Rangliste
+vereinswertung.php     öffentliche Vereinswertung
+teilnehmer.php         öffentliche Teilnehmerliste
+anmeldung.php          öffentliches Anmeldeformular
+
+admin/index.php        Übersicht
+admin/wettbewerbe.php  Wettbewerbe anlegen, aktivieren, beenden
+admin/erfassung.php    Resultate erfassen
+admin/piloten.php      Startliste
+admin/durchgaenge.php  Durchgänge und Zielzeiten
+admin/vereine.php      Vereine
+admin/modelltypen.php  Modelltypen
+admin/anmeldungen.php  Anmeldungen freigeben oder ablehnen
+admin/laufzettel.php   Laufzettel, HTML und PDF
+admin/export.php       CSV-Export
+admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
+admin/login.php        Anmeldung des Wettkampfbüros
+admin/logout.php       Abmeldung
+
+install.php            Einrichtung – danach löschen
+upgrade.php            Aktualisierung – danach löschen
+diagnose.php           Fehlersuche – danach löschen
+
+lib/competition.php    Wettbewerbe, Kontext der Einstellungen, Abschlussstatus
+lib/scoring.php        Strafpunkte, Rangliste, Vereinswertung
+lib/db.php             Datenbankzugriff und Einstellungen
+lib/mail.php           Anmeldebestätigung
+lib/pdf.php            abhängigkeitsfreier PDF-Generator
+lib/runsheet_pdf.php   A4-Laufzettel als PDF
+lib/layout.php         Kopf, Navigation, Bedienhilfen
+lib/helpers.php        Hilfsfunktionen und Eingabeprüfung
+lib/auth.php           Anmeldung des Wettkampfbüros
+lib/migrations.php     versionierte Datenbankmigrationen
+lib/season.php         Kompatibilitätspfad für alte Lesezeichen
+sql/schema.sql         Tabellen und Constraints
+assets/                Gestaltung und Logos
+```
+
+Die Logik liegt in `lib/`, die Seiten liefern das HTML. Seiten sprechen nie direkt mit der
+Datenbank, sondern über `lib/`.
+
+## Gestaltung
+
+Farben und Anordnung stehen in `assets/style.css`, Name und Logo der Plattform in `config.php`.
 
 Alle Bedienelemente teilen sich drei Höhen, damit Knöpfe, Eingabefelder und Auswahllisten in
 einer Zeile bündig stehen:
@@ -301,17 +352,36 @@ einer Zeile bündig stehen:
 
 Die Markierung für die kompakte Grösse sitzt auf dem **Bereich** (`class="dense"`), nicht auf
 dem einzelnen Element. `.dense` verkleinert alles darin, so kann eine Zeile nicht halb kompakt
-und halb normal sein. Für einzelne Knöpfe gibt es weiterhin `.btn.small`. Wer eine neue Zeile
-mit Bedienelementen baut, setzt also `dense` auf den Container und lässt die Kinder ohne
-zusätzliche Klasse – dann sind sie automatisch gleich hoch.
+und halb normal sein. Für einzelne Knöpfe gibt es `.btn.small`.
 
-Für Zeilen, in denen eine **Beschriftung, ein Feld und eine Erklärung** nebeneinander stehen,
-gibt es `.rule`. Die Spalten sind fest (11 rem / 5.5 rem / Rest), damit alle Zahlen in einer
-Linie stehen, und die Ausrichtung ist `center` statt `baseline` – die Grundlinie eines
-`<input>` ist seine Unterkante, mit `baseline` stünde die Beschriftung sichtbar zu tief. Unter
-1100 px Fensterbreite rutscht die Erklärung unter die Beschriftung. Beschriftung und Erklärung
-folgen dem Muster „Beschriftung nennt was, Erklärung nennt in welcher Einheit“.
+Für Zeilen aus Beschriftung, Feld und Erklärung gibt es `.rule`: feste Spalten, damit alle Zahlen
+in einer Linie stehen, und `align-items: center` statt `baseline` – die Grundlinie eines
+`<input>` ist seine Unterkante, mit `baseline` stünde die Beschriftung sichtbar zu tief.
 
-Login mit gehashtem Passwort, CSRF-Token auf allen Formularen (auch beim Abmelden), Prepared
-Statements und maskierte Ausgabe. `config.php`, `lib/` und `sql/` gehören nicht in ein
-öffentlich erreichbares Verzeichnis. Auf einem öffentlichen Server gehört HTTPS davor.
+## Sicherheit und Betrieb
+
+- Anmeldung mit gehashtem Passwort, CSRF-Token auf **allen** Formularen, auch beim Abmelden.
+- Prepared Statements für jeden Datenbankzugriff, Ausgabe über `h()` maskiert.
+- **HTTPS auf einem öffentlichen Server.** Ohne sind Passwort und Anmeldedaten im Klartext
+  mitlesbar.
+- `config.php`, `lib/` und `sql/` gehören nicht in ein öffentlich erreichbares Verzeichnis. Die
+  mitgelieferte `.htaccess` sperrt `config.php` und `lib/` sowie `sql/` für Apache. Für nginx
+  entsprechend selbst konfigurieren.
+- `install.php`, `upgrade.php` und `diagnose.php` nach der Einrichtung vom Server löschen.
+- Zerstörende Änderungen an Vereinen und Modelltypen werden blockiert, sobald sie in
+  abgeschlossenen Wettbewerben verwendet wurden.
+
+## Fehlersuche
+
+Antwortet eine Seite mit einem 500-Fehler, `diagnose.php` hochladen und aufrufen. Die Datei prüft
+PHP-Version, benötigte Erweiterungen, Dateirechte, die Datenbankverbindung, alle Tabellen und ob
+das Schema dem aktuellen Stand entspricht. Für die eigentliche Fehlermeldung mit Datei und Zeile
+hilft meist nur das PHP-Fehlerprotokoll des Hosters. Danach `diagnose.php` löschen.
+
+```
+GET https://example.org/diagnose.php
+```
+
+Ein gemeldeter Hinweis `scores.motor fehlt` bedeutet: `upgrade.php` wurde noch nicht gelaufen.
+Ein Hinweis `Strafpunktregeln je Wettbewerb` bedeutet dasselbe für eine Installation, die
+teilweise migriert wurde.
