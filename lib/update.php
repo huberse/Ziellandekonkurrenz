@@ -240,6 +240,11 @@ function update_bestand_remote(): array
  *
  * Kommt null zurueck, sobald ein einziger Eintrag unbrauchbar ist. Dann wird
  * die ganze Liste verworfen, nicht nur der schlechte Eintrag.
+ *
+ * Geprueft wird hier nur die Form eines Pfades. Ob eine Datei geschrieben
+ * werden darf, entscheidet update_plan anhand der Liste der geschuetzten
+ * Dateien - sonst wuerde eine Bestandsliste, die wie jede andere auch
+ * `.htaccess` und die Logos nennt, grundsatz abgewiesen.
  */
 function update_datein_pruefen(array $roh): ?array
 {
@@ -249,7 +254,7 @@ function update_datein_pruefen(array $roh): ?array
         if (!is_string($summe) || !preg_match('/^[0-9a-f]{64}$/', (string) $summe)) {
             return null;
         }
-        if (!update_pfad_erlaubt($pfad) || update_ist_geschuetzt($pfad)) {
+        if (!update_pfad_erlaubt($pfad)) {
             return null;
         }
         $sauber[$pfad] = (string) $summe;
@@ -274,7 +279,13 @@ function update_pfad_erlaubt(string $pfad): bool
             return false;
         }
     }
-    return strncmp($pfad, '.update', 7) !== 0 && $pfad !== 'manifest.json';
+    return strncmp($pfad, '.update', 7) !== 0;
+}
+
+/** Darf dieser Pfad aus einem Archiv geschrieben werden? */
+function update_zip_pfad_erlaubt(string $pfad): bool
+{
+    return update_pfad_erlaubt($pfad) && $pfad !== 'manifest.json' && !update_ist_geschuetzt($pfad);
 }
 
 // ---------------------------------------------------------------------------
@@ -696,6 +707,10 @@ function update_rueckgaengig(): array
                 continue;
             }
             $pfad = str_replace('\\', '/', substr($eintrag->getPathname(), strlen($basis) + 1));
+            // Die Form wird geprueft. manifest.json ist damit zugelassen: die
+            // Sicherung enthaelt sie, damit ein zurueckgeholter Stand wieder
+            // als installiert gilt. Geschuetzte Dateien stehen nie in einer
+            // Sicherung, und auch wenn: sie nur zurueckzuholen waere harmlos.
             if (!update_pfad_erlaubt($pfad) || !update_datei_schreiben($pfad, (string) file_get_contents($eintrag->getPathname()))) {
                 $fehler[] = $pfad;
                 continue;
