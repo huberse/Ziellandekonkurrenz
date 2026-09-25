@@ -1,5 +1,5 @@
 {
-    "version": "1.4.0",
+    "version": "1.5.0",
     "files": {
         ".gitignore": "d194af526ce715b249ee97de0351f3e5c61812dfd3a2a16b8a1b29e4f7a83327",
         ".htaccess": "75f926687ce6004da159a7a1ae681894bcef438b1c44fc2824dff605b3b26b4f",
@@ -40,10 +40,11 @@
         "lib/runsheet_pdf.php": "645625a7941fab750852ff4bd97918fdbf1ce617beb4bebfe3857af249be1b08",
         "lib/scoring.php": "66089d08daed265d89277b1320efde8dcda20a46544b41e7343bfa3f68e863f0",
         "lib/season.php": "c8f8d5d27d589d03f5d5229e4782d4cc17103a1eb713e05ae04f4477029032e8",
-        "lib/update.php": "284446a2a04c7f7a1ba6eb4360ec5346498f21827a1ffbf5ffb9b0e17c2295b4",
-        "lib/version.php": "57ad9e97a938c873072f0ed6409f150f1a0d95e5736b0fc0e442a2a5275cba40",
+        "lib/update.php": "9c9b9a0eef8901452f638a0859aeed9df07c035894534bd0b012569accf7c0c1",
+        "lib/version.php": "1035eae6dadff8e45b9bb0d1e343befa1fad49cc56613a0bab4fc06fc52ba241",
         "sql/schema.sql": "8b5e20ab3b352f6424d18d0da4fc25b0dc2d6a405860882e98b243919e80ec80",
         "teilnehmer.php": "ee5b01cf9947a0e859da2cf823d2de475ab8156a3534fac6570501fe86065860",
+        "tools/aufrufe_pruefen.php": "7ed0fa104074c0d470eceb3066fae396880034a95ea2cc440bdf122bd727265a",
         "tools/manifest.php": "07ce006a4286cea0fd0b835d029b9b4d05eab3eea9e2fbcf6e42ce7ec891e5e8",
         "upgrade.php": "a9bb0a677af6ebaaecda6f3f468f513cd121aaabcda67675e6a773db00b9758a",
         "vereinswertung.php": "5f2518091dca774ac9dc10e18a29ff21989eeee679bd2607b982ed2d2279c54c"
