@@ -17,6 +17,15 @@ declare(strict_types=1);
 
 const MANIFEST_DATEI = 'manifest.json';
 
+// Dieses Skript gehoert auf die Kommandozeile. Vom Browser aufgerufen wuerde es
+// manifest.json neu schreiben - und zwar auf Verlangen jedes Besuchers, ohne
+// Anmeldung. Der Zusatz .htaccess allein genuegt nicht, weil der Server
+// Regelungen in Verzeichnissen je nach Hoster ignoriert.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("Dieses Skript laeuft nur auf der Kommandozeile.\n");
+}
+
 $root = dirname(__DIR__);
 $neu = manifest_bauen($root);
 $alt = manifest_lesen($root);

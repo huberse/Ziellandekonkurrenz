@@ -19,6 +19,11 @@ declare(strict_types=1);
  * Rueckgabe 1 bei mindestens einem Fund.
  */
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("Dieses Skript laeuft nur auf der Kommandozeile.\n");
+}
+
 if ($argc < 2) {
     fwrite(STDERR, "Aufruf: php tools/aufrufe_pruefen.php <datei.php> [<datei.php> ...]\n");
     exit(2);
