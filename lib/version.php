@@ -15,7 +15,7 @@ declare(strict_types=1);
  */
 
 // Version des Programms.
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 
 // Quelle der Aktualisierungen. Feste Angaben, keine Eingabe aus dem Formular:
 // sonst wuerde die Seite zur Bruecke fuer beliebige Ziele.

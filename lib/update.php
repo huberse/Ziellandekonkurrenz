@@ -464,7 +464,7 @@ function update_ausfuehren(array $plan, array $neu): array
         // ----_phase 1: alles lesen und gegen die Bestandsliste pruefen --------
         $inhalte = [];
         $gesamt = 0;
-        foreach ($zu_pfade($plan) as $pfad) {
+        foreach (update_schreib_pfade($plan) as $pfad) {
             $name = $praefix . $pfad;
             if (!isset($eintraege[$name])) {
                 $bericht['abgelehnt'][$pfad] = 'im Archiv fehlt die Datei';
@@ -544,7 +544,7 @@ function update_ausfuehren(array $plan, array $neu): array
 }
 
 /** Die Pfade, die geschrieben werden sollen: erst ersetzen, dann neu. */
-function zu_pfade(array $plan): array
+function update_schreib_pfade(array $plan): array
 {
     return array_merge(array_keys($plan['ersetzen']), array_keys($plan['neu']));
 }
