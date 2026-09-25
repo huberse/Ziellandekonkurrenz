@@ -12,6 +12,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^(lib|sql)/ - [F,L]
+    # Werkzeuge für die Entwicklung. Die Skripte weisen sich selbst ab, wenn sie
+    # nicht über die Kommandozeile laufen; das hier ist die zweite Absicherung.
+    RewriteRule ^tools/ - [F,L]
     # Sicherungen und Sperren des Aktualisierungs-Knopfes. Das Verzeichnis
     # traegt selbst eine Sperre, damit sie auch ohne diese Regel greift.
     RewriteRule ^\.update(/|$) - [F,L]
