@@ -882,6 +882,64 @@ function migration_penalty_rules(PDO $pdo): array
     return $log;
 }
 
+/**
+ * Ergänzt die Rechteverwaltung der Konten. Bestehende Installationen bekommen
+ * beide Spalten mit sinnvollen Werten, damit niemand ausgesperrt wird: das
+ * älteste Konto wird SuperAdmin, damit es Benutzer anlegen und bearbeiten
+ * kann. Ein Reset per E-Mail ist bewusst nicht dabei – für den Betrieb an
+ * einem Wettbewerbsplatz reicht das eigene Passwort und der SuperAdmin.
+ */
+function migration_user_rights(PDO $pdo): array
+{
+    if (!migration_table_exists($pdo, 'users')) {
+        throw new RuntimeException('Die Tabelle users fehlt; Benutzerrechte können nicht vorbereitet werden.');
+    }
+    $log = [];
+    foreach (['is_superadmin', 'active'] as $column) {
+        if (!migration_column_exists($pdo, 'users', $column)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN `$column` TINYINT(1) NOT NULL DEFAULT 0");
+            $log[] = "Spalte users.$column wurde ergänzt.";
+        }
+        $pdo->exec("UPDATE users SET `$column` = 0 WHERE `$column` IS NULL OR `$column` NOT IN (0, 1)");
+        $pdo->exec("ALTER TABLE users MODIFY COLUMN `$column` TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    $pdo->exec('UPDATE users SET active = 1 WHERE active = 0');
+
+    // Solange es keinen SuperAdmin gibt, wird das älteste Konto dazu. Damit kann
+    // eine bestehende Installation die Benutzerverwaltung überhaupt erreichen.
+    $admins = (int) $pdo->query('SELECT COUNT(*) FROM users WHERE is_superadmin = 1')->fetchColumn();
+    if ($admins === 0) {
+        $pdo->query('UPDATE users SET is_superadmin = 1 ORDER BY id LIMIT 1');
+        $first = $pdo->query('SELECT username FROM users ORDER BY id LIMIT 1')->fetchColumn();
+        $log[] = "Das Konto \"{$first}\" wurde zum SuperAdmin, damit die Benutzerverwaltung erreichbar ist.";
+    }
+    return $log;
+}
+
+/**
+ * Migrationen, die ausschliesslich Spalten ergänzen. Sie hängen an keiner
+ * anderen Migration und sind idempotent, deshalb lassen sie sich auch dann
+ * nachholen, wenn die Wettbewerbsstruktur schon vollständig steht – etwa wenn
+ * eine Installation von Migration 4 direkt auf 6 springt. Ohne diese Liste
+ * müsste jede neue Spalte an mehreren Stellen einzeln nachgezogen werden, und
+ * eine vergessene Stelle sperrt die Installation aus.
+ *
+ * @return array<int, callable(PDO):array>
+ */
+function migration_pending_column_steps(PDO $pdo): array
+{
+    $steps = [];
+    if (!migration_column_exists($pdo, 'scores', 'motor')) {
+        $steps[] = static function (PDO $pdo): array { return migration_penalty_rules($pdo); };
+    }
+    if (migration_table_exists($pdo, 'users')
+        && (!migration_column_exists($pdo, 'users', 'is_superadmin')
+            || !migration_column_exists($pdo, 'users', 'active'))) {
+        $steps[] = static function (PDO $pdo): array { return migration_user_rights($pdo); };
+    }
+    return $steps;
+}
+
 function migration_definitions(): array
 {
     return [
@@ -904,6 +962,10 @@ function migration_definitions(): array
         5 => [
             'description' => 'Strafpunkte je Wettbewerb: eine Zeitabweichung, Feststrafen und Motor-Kennzeichen',
             'run' => function (PDO $pdo): array { return migration_penalty_rules($pdo); },
+        ],
+        6 => [
+            'description' => 'Benutzerrechte: SuperAdmin für die Benutzerverwaltung, Konten sperren',
+            'run' => function (PDO $pdo): array { return migration_user_rights($pdo); },
         ],
     ];
 }
@@ -945,8 +1007,8 @@ function run_pending_migrations(PDO $pdo): array
                 || migration_column_exists($pdo, 'registrations', 'season_id'));
         if ($partialCompetitionRename) {
             $repairLog = migration_competitions($pdo);
-            if (!migration_column_exists($pdo, 'scores', 'motor')) {
-                $repairLog = array_merge($repairLog, migration_penalty_rules($pdo));
+            foreach (migration_pending_column_steps($pdo) as $step) {
+                $repairLog = array_merge($repairLog, $step($pdo));
             }
             migration_mark_current($pdo);
             return array_merge(['Eine unterbrochene Wettbewerbsmigration wurde fortgesetzt.'], $repairLog);
@@ -962,8 +1024,8 @@ function run_pending_migrations(PDO $pdo): array
             if (!migration_schema_is_current($pdo, false)) {
                 $repairLog = migration_competitions($pdo);
             }
-            if (!migration_column_exists($pdo, 'scores', 'motor')) {
-                $repairLog = array_merge($repairLog, migration_penalty_rules($pdo));
+            foreach (migration_pending_column_steps($pdo) as $step) {
+                $repairLog = array_merge($repairLog, $step($pdo));
             }
             migration_mark_current($pdo);
             return array_merge([

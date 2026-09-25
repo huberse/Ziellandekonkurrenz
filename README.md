@@ -19,6 +19,7 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
 - [Installation](#installation)
 - [Aktualisieren einer bestehenden Installation](#aktualisieren-einer-bestehenden-installation)
 - [Ablauf an einem Wettbewerbstag](#ablauf-an-einem-wettbewerbstag)
+- [Benutzer und Rechte](#benutzer-und-rechte)
 - [Wertung](#wertung)
 - [Einstellungen](#einstellungen)
 - [Wettbewerbe](#wettbewerbe)
@@ -38,6 +39,8 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
   Anmeldeformular.
 - **Wettkampfbüro** mit Login, erreichbar die Erfassung, Startliste, Durchgänge, Vereine,
   Modelltypen, Anmeldungen, Export und Einstellungen.
+- **Benutzerverwaltung** mit zwei Rollen: alle steuern den ganzen Wettbewerb, nur der SuperAdmin
+  verwaltet die Konten.
 - **Laufzettel als PDF**, je Durchgang zwei A4-Blätter für die geraden und die ungeraden
   Startnummern, mit Ankreuzfeldern für jede mögliche Abweichung.
 - **Eigene Strafpunktregeln je Wettbewerb** – fünf Bausteine, pro Verein einstellbar.
@@ -112,8 +115,9 @@ Datenprobleme erneut gestartet werden.
 | 3 | Saisons in Wettbewerbe umbenennen, Einstellungen pro Wettbewerb speichern |
 | 4 | Abschlussstatus und Resultatfelder ergänzen |
 | 5 | Strafpunktregeln je Wettbewerb und das Kennzeichen für den Motorstart |
+| 6 | Benutzerrechte: SuperAdmin für die Benutzerverwaltung, Konten sperren |
 
-Danach sollte `MAX(version)` in `schema_migrations` mindestens `5` sein. Ruft man eine Seite auf,
+Danach sollte `MAX(version)` in `schema_migrations` mindestens `6` sein. Ruft man eine Seite auf,
 bevor `upgrade.php` gelaufen ist, leitet die App automatisch dorthin um, statt einen
 Datenbankfehler zu zeigen.
 
@@ -124,6 +128,11 @@ für „Aussenlandung oder fehlendes Resultat" wird für Aussenlandung, Nichtant
 übernommen. Bereits gespeicherte Resultate bleiben gültig. Den Betrag für den Motorstart gab es
 bisher nicht – er ist jetzt gesetzt und sollte je Verein angepasst werden, ebenso alle anderen
 Werte unter **Einstellungen → Strafpunkte**.
+
+**Migration 6 betrifft nur die Konten.** Bestehende Benutzer bleiben mit Passwort und
+Anzeigename erhalten und dürfen weiterhin den gesamten Wettbewerb steuern. Neu ist allein die
+Rolle: Das älteste Konto wird SuperAdmin, damit die Benutzerverwaltung erreichbar ist. Siehe
+[Benutzer und Rechte](#benutzer-und-rechte).
 
 Die Dateien `admin/saisons.php` und `lib/season.php` bleiben nur als Kompatibilitätspfade für
 alte Lesezeichen erhalten. Neue URLs verwenden `competition`.
@@ -145,6 +154,43 @@ alte Lesezeichen erhalten. Neue URLs verwenden `competition`.
 9. **Vereinswertung** – öffentlich unter `vereinswertung.php`.
 10. **Wettbewerb beenden** – sobald alle Resultate erfasst sind. Der Wettbewerb bleibt als
     Archiv erhalten und lässt sich mit *Wieder öffnen* zurückholen.
+
+## Benutzer und Rechte
+
+Es gibt genau zwei Rollen:
+
+| Rolle | Darf |
+| --- | --- |
+| **SuperAdmin** | alles, was ein Benutzer darf, **plus** die Benutzerverwaltung |
+| **Benutzer** | den gesamten Wettbewerb steuern: Erfassung, Startliste, Durchgänge, Vereine, Modelltypen, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – und das eigene Passwort ändern |
+
+Alle Benutzer steuern also denselben Wettbewerb; der Unterschied betrifft nur die Konten selbst.
+Ein Benutzer kann **nicht** anlegen, ändern, sperren oder löschen – auch nicht mit einem
+abgefangenen oder manipulierten Aufruf. Die Seite **Benutzer** ist für ihn weder erreichbar noch
+in der Navigation zu sehen.
+
+Unter **Benutzer** kann der SuperAdmin je Konto:
+
+- den **Anzeigamen** ändern (erscheint oben im Kopf),
+- die Rolle zwischen Benutzer und SuperAdmin umstellen,
+- das Konto **sperren** oder wieder freigeben – ein gesperrtes Konto kann sich nicht anmelden,
+  und eine noch laufende Sitzung endet beim nächsten Aufruf, nicht erst beim Abmelden,
+- ein **neues Passwort** setzen, etwa wenn jemand das eigene vergessen hat,
+- das Konto **löschen**.
+
+Das eigene Konto und der letzte aktive SuperAdmin lassen sich weder sperren noch löschen und
+nicht in eine niedrigere Rolle stufen. Sonst gäbe es niemanden mehr, der die Konten verwalten
+kann. `diagnose.php` meldet sich, falls eine Installation keinen aktiven SuperAdmin hat.
+
+**Es gibt bewusst keine Rücksetzung per E-Mail.** Dafür müsste der Server Mails zuverlässig
+versenden, es bräuchte einen geheimen Schlüssel, und beides ist beim Betrieb auf einem
+Wettbewerbsplatz nicht gegeben – es wäre ein Weg, über den ein Konto unbemerkt neu gesetzt
+wird. Ein vergessenes Passwort setzt der SuperAdmin auf der Benutzerseite neu.
+
+Bei der Einrichtung wird das erste Konto als SuperAdmin angelegt. Bei einer bestehenden
+Installation wird das **älteste** Konto zum SuperAdmin, damit die Benutzerverwaltung erreichbar
+bleibt. Ab dann kann der SuperAdmin weitere SuperAdmins anlegen, etwa wenn ein zweiter Verein
+mit eigenem Zugang mitarbeitet.
 
 ## Wertung
 
@@ -313,6 +359,7 @@ admin/anmeldungen.php  Anmeldungen freigeben oder ablehnen
 admin/laufzettel.php   Laufzettel, HTML und PDF
 admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
+admin/benutzer.php     Benutzerverwaltung, nur für den SuperAdmin
 admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 

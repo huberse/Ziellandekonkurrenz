@@ -653,7 +653,7 @@ function competition_schema_foreign_key_count(PDO $pdo, string $table): int
     return (int) $st->fetchColumn();
 }
 
-function competition_schema_diagnostics(PDO $pdo, bool $withResultFlags = true): array
+function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true): array
 {
     $issues = [];
     try {
@@ -673,8 +673,9 @@ function competition_schema_diagnostics(PDO $pdo, bool $withResultFlags = true):
             'scores' => ['id', 'pilot_id', 'round_id', 'competition_id', 'status'],
             'registrations' => ['competition_id'],
         ];
-        if ($withResultFlags) {
+        if ($withLaterColumns) {
             $columns['scores'][] = 'motor';
+            $columns['users'] = ['id', 'username', 'is_superadmin', 'active'];
         }
         foreach ($columns as $table => $required) {
             foreach ($required as $column) {
@@ -755,11 +756,11 @@ function competition_schema_diagnostics(PDO $pdo, bool $withResultFlags = true):
 /**
  * Strikte Prüfung der kanonischen Wettbewerbsstruktur ohne Migration-Marker.
  *
- * $withResultFlags verlangt zusätzlich scores.motor. Das wird von der
- * Wettbewerbs-Migration selbst nicht erwartet, weil die Spalte erst mit der
- * späteren Motorstrafe dazukommt.
+ * $withLaterColumns verlangt zusätzlich die Spalten, die erst mit den späteren
+ * Migrationen kommen (scores.motor, users.is_superadmin, users.active). Das wird
+ * von der Wettbewerbsmigration selbst nicht erwartet, weil sie vorher läuft.
  */
-function competition_schema_is_ready(PDO $pdo, bool $withResultFlags = true): bool
+function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): bool
 {
     try {
         foreach (['competitions', 'competition_settings', 'pilots', 'rounds', 'scores', 'registrations'] as $table) {
@@ -778,8 +779,9 @@ function competition_schema_is_ready(PDO $pdo, bool $withResultFlags = true): bo
             'scores' => ['id', 'pilot_id', 'round_id', 'competition_id', 'status'],
             'registrations' => ['competition_id'],
         ];
-        if ($withResultFlags) {
+        if ($withLaterColumns) {
             $columns['scores'][] = 'motor';
+            $columns['users'] = ['id', 'username', 'is_superadmin', 'active'];
         }
         foreach ($columns as $table => $required) {
             foreach ($required as $column) {
@@ -868,7 +870,7 @@ function schema_has_competitions(): bool
             return false;
         }
         $st = db()->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations');
-        return (int) $st->fetchColumn() >= 5;
+        return (int) $st->fetchColumn() >= 6;
     } catch (Throwable $e) {
         return false;
     }
