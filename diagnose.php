@@ -98,6 +98,17 @@ if (is_file(__DIR__ . '/config.php')) {
             $st->execute();
             check('Keine abgelösten Strafpunktschlüssel mehr', $st->fetchColumn() === false,
                 'upgrade.php ausführen, das räumt die alten Schlüssel auf.');
+            $st = $pdo->prepare("SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+                                   AND COLUMN_NAME IN ('is_superadmin','active')");
+            $st->execute();
+            check('Benutzerrechte (SuperAdmin, Sperre)', count($st->fetchAll(PDO::FETCH_COLUMN)) === 2,
+                'upgrade.php ausführen.');
+            $st = $pdo->prepare('SELECT COUNT(*) FROM users WHERE is_superadmin = 1 AND active = 1');
+            $st->execute();
+            $admins = (int) $st->fetchColumn();
+            check('Mindestens ein SuperAdmin aktiv', $admins > 0,
+                'Sonst kann niemand die Benutzerverwaltung erreichen. Konto unter admin/benutzer.php prüfen.');
             $st = $pdo->prepare("SELECT COUNT(DISTINCT CONCAT(TABLE_NAME, ':', INDEX_NAME)) FROM information_schema.STATISTICS
                                  WHERE TABLE_SCHEMA = DATABASE()
                                  AND ((TABLE_NAME = 'competitions' AND INDEX_NAME = 'uq_competition_name')

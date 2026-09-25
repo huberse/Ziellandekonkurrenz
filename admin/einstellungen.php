@@ -133,25 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'adduser') {
-        $u = text_limit(post('username'), 60);
-        $p = post('password');
-        if (strlen($u) < 3 || strlen($p) < 8) {
-            flash('Benutzername ab 3, Passwort ab 8 Zeichen.', 'err');
-        } else {
-            try {
-                $st = db()->prepare('INSERT INTO users (username, password_hash, display_name) VALUES (?,?,?)');
-                $st->execute([$u, password_hash($p, PASSWORD_DEFAULT), text_limit(post('display_name'), 120) ?: null]);
-                flash('Konto angelegt.', 'ok');
-            } catch (PDOException $e) {
-                flash('Diesen Benutzernamen gibt es schon.', 'err');
-            }
-        }
+        flash('Neue Konten legt nur der SuperAdmin unter Benutzer an.', 'err');
         redirect('einstellungen.php' . $competitionQS);
     }
 
 }
 
 $users = db()->query('SELECT id, username, display_name, created_at FROM users ORDER BY username')->fetchAll();
+$isAdmin = is_superadmin();
 
 page_start('Einstellungen', 'admin', 'einstellungen.php');
 ?>
@@ -350,17 +339,18 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
     </div>
 
     <div class="panel">
-        <h3 style="margin-top:0">Weitere Zugänge</h3>
-        <p class="lead"><?= count($users) ?> Konto<?= count($users) > 1 ? 'en' : '' ?>:
+        <h3 style="margin-top:0">Konten</h3>
+        <p class="lead"><?= count($users) . (count($users) === 1 ? ' Konto' : ' Konten') ?>:
             <?= h(implode(', ', array_column($users, 'username'))) ?></p>
-        <form method="post">
-            <?= csrf_field() ?>
-            <input type="hidden" name="action" value="adduser">
-            <div class="field"><label for="nu">Benutzername</label><input type="text" id="nu" name="username" autocomplete="off"></div>
-            <div class="field"><label for="nd">Anzeigename</label><input type="text" id="nd" name="display_name"></div>
-            <div class="field"><label for="npw">Passwort</label><input type="password" id="npw" name="password" autocomplete="new-password"></div>
-            <button class="btn ghost" type="submit">Konto anlegen</button>
-        </form>
+        <?php if ($isAdmin): ?>
+            <p class="lead">Als SuperAdmin pflegst du die Konten unter
+                <a href="benutzer.php">Benutzer</a>: anlegen, Anzeigename, Rolle, Sperre, Passwort
+                und Löschen.</p>
+        <?php else: ?>
+            <p class="lead">Neue Konten, Rollen und Sperren nimmt der SuperAdmin vor. Andere Rechte
+                brauchst du nicht: Du kannst den gesamten Wettbewerb steuern und Dein Passwort
+                oben ändern.</p>
+        <?php endif; ?>
     </div>
 </div>
 

@@ -144,6 +144,8 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(60)  NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   display_name  VARCHAR(120) NULL,
+  is_superadmin TINYINT(1)   NOT NULL DEFAULT 0, -- darf die Benutzer verwalten
+  active        TINYINT(1)   NOT NULL DEFAULT 1, -- 0 = Anmeldung gesperrt
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -71,6 +71,12 @@ function page_start(string $title, string $area = 'public', string $here = '', b
             'anmeldung.php' => 'Anmeldung',
         ];
 
+    // Die Benutzerverwaltung ist dem SuperAdmin vorbehalten; für alle anderen
+    // Konten gehört der Punkt nicht in die Leiste.
+    if ($area === 'admin' && is_superadmin()) {
+        $links['benutzer.php'] = 'Benutzer';
+    }
+
     if ($area !== 'admin' && !setting_bool('club_ranking_enabled', true)) {
         unset($links['vereinswertung.php']);
     }
