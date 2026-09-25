@@ -28,6 +28,7 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
 - [Gestaltung](#gestaltung)
 - [Sicherheit und Betrieb](#sicherheit-und-betrieb)
 - [Fehlersuche](#fehlersuche)
+- [Lizenz](#lizenz)
 
 ---
 
@@ -385,3 +386,24 @@ GET https://example.org/diagnose.php
 Ein gemeldeter Hinweis `scores.motor fehlt` bedeutet: `upgrade.php` wurde noch nicht gelaufen.
 Ein Hinweis `Strafpunktregeln je Wettbewerb` bedeutet dasselbe für eine Installation, die
 teilweise migriert wurde.
+
+## Lizenz
+
+    Segelflug-Wettbewerb
+    Copyright (C) 2026  <Name oder Verein>
+
+Dieses Programm ist freie Software: Sie können es unter den Bedingungen der GNU General Public
+License, wie von der Free Software Foundation veröffentlicht, weitergeben und/oder verändern.
+
+Dieses Programm wird **ohne jede Gewähr** bereitgestellt, siehe Abschnitt „NO WARRANTY“ der
+Lizenz. Die Haftung für Schäden aus der Benutzung ist ausgeschlossen.
+
+Der vollständige Text liegt in [`LICENSE`](LICENSE). GitHub zeigt ihn oben im Repository an.
+Wer den Copyright-Namen ändern will, ersetzt die Zeile in der Datei `LICENSE` – der Lizenztext
+selbst darf nicht verändert werden.
+
+**Was das praktisch bedeutet:** wer die App benutzt, darf das. Wer sie verändert und weitergibt,
+muss das unter den gleichen Bedingungen tun und den Quelltext offenlegen. Wer sie unverändert
+weiterverbreitet, muss den Lizenztext und die Copyright-Zeile mitgeben. Eine Vereinswettbewerbs-
+Installation darf beliebig betrieben und geändert werden; es gibt keine Einschränkung durch
+Lizenzgebühren.
