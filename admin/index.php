@@ -123,7 +123,7 @@ page_start('Übersicht', 'admin', 'index.php');
             <p class="lead">Noch keine Resultate. Fang mit <a href="erfassung.php<?= $notCurrent ? '?competition=' . (int) $competition['id'] : '' ?>">Durchgang 1</a> an.</p>
         <?php else: ?>
             <table class="data">
-                <thead><tr><th>DG</th><th>Pilot</th><th class="num">Zeit</th><th class="num">Landewert</th><th class="num">Punkte</th></tr></thead>
+                <thead><tr><th class="num">DG</th><th>Pilot</th><th class="num">Zeit</th><th class="num">Landewert</th><th class="num">Punkte</th></tr></thead>
                 <tbody>
                 <?php foreach ($recent as $s): ?>
                     <tr>

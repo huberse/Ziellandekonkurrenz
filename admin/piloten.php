@@ -290,7 +290,7 @@ page_start('Piloten', 'admin', 'piloten.php');
 <div class="panel" style="padding:0">
     <div class="table-scroll">
     <table class="data">
-        <thead><tr><th>Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th>Kontakt</th><th class="num">Resultate</th><th></th></tr></thead>
+        <thead><tr><th class="num">Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th>Kontakt</th><th class="num">Resultate</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($pilots as $p): ?>
             <tr<?= $p['active'] ? '' : ' class="muted"' ?>>

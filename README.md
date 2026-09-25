@@ -406,6 +406,18 @@ Für Zeilen aus Beschriftung, Feld und Erklärung gibt es `.rule`: feste Spalten
 in einer Linie stehen, und `align-items: center` statt `baseline` – die Grundlinie eines
 `<input>` ist seine Unterkante, mit `baseline` stünde die Beschriftung sichtbar zu tief.
 
+Eine Spaltenbeschriftung steht immer so wie ihr Inhalt darunter. Wer rechtsbündige Zahlen führt,
+setzt `class="num"` auch auf die Überschrift (`<th class="num">DG 1</th>`). An einer Überschrift
+gilt davon nur die Ausrichtung, nicht die Zahlenschrift:
+
+```css
+table.data th.num, table.data th.mid { font-family: inherit; }
+```
+
+`.mid` steht für mittig, `.num` für rechtsbündig, alles ohne Klasse für linksbündig. In
+Tabellen, deren Ausrichtung über eine CSS-Regel auf die Spaltenposition läuft (`nth-child`),
+wie dem Laufzettel, gilt die Klasse nicht als Ausrichtungsangabe.
+
 ## Sicherheit und Betrieb
 
 - Anmeldung mit gehashtem Passwort, CSRF-Token auf **allen** Formularen, auch beim Abmelden.

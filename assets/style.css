@@ -264,6 +264,9 @@ table.data tbody tr:hover { background: #f7f9fb; }
 
 .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
 .mid { text-align: center; }
+/* An einer Spaltenbeschriftung zaehlt nur die Ausrichtung. Die Zahlenschrift
+   gehoert in die Zellen, sonst stuende eine Ueberschrift anders als der Rest. */
+table.data th.num, table.data th.mid { font-family: inherit; }
 .muted { color: var(--ink-soft); }
 .small { font-size: 0.84rem; }
 .nowrap { white-space: nowrap; }

@@ -51,7 +51,7 @@ page_start('Teilnehmer', 'public', 'teilnehmer.php');
 <?php else: ?>
     <div class="table-scroll">
     <table class="data">
-        <thead><tr><th>Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th></tr></thead>
+        <thead><tr><th class="num">Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th></tr></thead>
         <tbody>
         <?php foreach ($pilots as $p): ?>
             <tr>
