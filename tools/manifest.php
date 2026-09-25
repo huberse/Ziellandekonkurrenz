@@ -34,21 +34,40 @@ if ($fehlt) {
 }
 
 if (in_array('--pruefen', $argv, true)) {
-    if ($alt === $neu) {
-        echo "  manifest.json ist aktuell (" . count($neu['files']) . " Dateien, Version {$neu['version']}).\n";
-        exit(0);
-    }
-    echo "  manifest.json stimmt nicht mit dem Stand im Repository ueberein.\n";
-    if (!is_array($alt)) {
-        echo "  Es fehlt ganz oder ist unlesbar.\n";
-    } else {
-        echo "  Version alt {$alt['version']}, neu {$neu['version']}.\n";
-        foreach (manifest_vergleich($alt, $neu) as $zeile) {
-            echo "    $zeile\n";
+    $gemerkte = [];
+    if ($alt !== $neu) {
+        $gemerkte[] = 'Die Datei auf der Platte stimmt nicht mit dem Stand im Repository ueberein.';
+        if (!is_array($alt)) {
+            $gemerkte[] = 'Es fehlt ganz oder ist unlesbar.';
+        } else {
+            $gemerkte[] = 'Version alt ' . $alt['version'] . ', neu ' . $neu['version'] . '.';
+            foreach (manifest_vergleich($alt, $neu) as $zeile) {
+                $gemerkte[] = '  ' . $zeile;
+            }
         }
     }
-    echo "  Bitte php tools/manifest.php laufen lassen.\n";
-    exit(1);
+    // Auch die Fassung pruefen, die git gerade vormerken wuerde. Sonst kann
+    // ein "git add" vor dem Neuschreiben unbemerkt eine veraltete
+    // manifest.json ins Repository bringen. Geprueft wird nur, wenn die Datei
+    // auf der Platte in Ordnung ist - sonst lautet der Rat ohnehin "neu
+    // erzeugen".
+    if (!$gemerkte && is_dir($root . '/.git')) {
+        $vorgemerkt = manifest_index_lesen($root);
+        if ($vorgemerkt !== null && $vorgemerkt !== $neu) {
+            $gemerkte[] = 'Die von git vorgemerkte manifest.json ist veraltet (Version ' . $vorgemerkt['version']
+                        . ' statt ' . $neu['version'] . '). Ein "git add" wurde vor dem Neuschreiben ausgefuehrt.';
+        }
+    }
+    if ($gemerkte) {
+        echo "  manifest.json ist nicht aktuell.\n";
+        foreach ($gemerkte as $zeile) {
+            echo "    $zeile\n";
+        }
+        echo "  Reihenfolge: php tools/manifest.php, danach git add.\n";
+        exit(1);
+    }
+    echo "  manifest.json ist aktuell (" . count($neu['files']) . " Dateien, Version {$neu['version']}).\n";
+    exit(0);
 }
 
 if ($alt === $neu) {
@@ -147,6 +166,24 @@ function manifest_dateisystemlauf(string $root): array
         $alle[] = $pfad;
     }
     return $alle;
+}
+
+/** Die Fassung von manifest.json, die git gerade vorgemerkt hat. */
+function manifest_index_lesen(string $root): ?array
+{
+    if (!is_dir($root . '/.git')) {
+        return null;
+    }
+    $roh = [];
+    exec('git -C ' . escapeshellarg($root) . ' show :' . MANIFEST_DATEI . ' 2>/dev/null', $roh);
+    if (!$roh) {
+        return null;                                // noch nichts vorgemerkt
+    }
+    $daten = json_decode(implode("\n", $roh), true);
+    if (!is_array($daten) || !isset($daten['files']) || !is_array($daten['files'])) {
+        return null;
+    }
+    return ['version' => (string) ($daten['version'] ?? ''), 'files' => $daten['files']];
 }
 
 /** Dateien im Verzeichnis, die das Manifest nicht kennt. */

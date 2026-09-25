@@ -112,12 +112,15 @@ function update_http(string $url, int $maxBytes): array
     }
 
     if (function_exists('curl_init')) {
+        // Der Inhalt wird im Rueckruf selbst gesammelt. Mit gesetztem
+        // CURLOPT_WRITEFUNCTION liefert curl_exec() unter manchen
+        // cURL-Versionen nur true zurueck und nicht den Text - darauf kann
+        // man sich nicht verlassen.
+        $inhalt = '';
         $zu_viel = false;
-        $gelesen = 0;
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS      => 3,
             CURLOPT_CONNECTTIMEOUT => 8,
@@ -127,29 +130,33 @@ function update_http(string $url, int $maxBytes): array
             CURLOPT_USERAGENT      => update_kennung(),
             // Die Groesse wird unterwegs gezaehlt, damit eine riesige Antwort
             // nicht erst den Speicher fuellt.
-            CURLOPT_WRITEFUNCTION  => function ($_c, $block) use (&$zu_viel, &$gelesen, $maxBytes) {
-                $gelesen += strlen($block);
-                if ($gelesen > $maxBytes) {
+            CURLOPT_WRITEFUNCTION  => function ($_c, $block) use (&$inhalt, &$zu_viel, $maxBytes) {
+                $inhalt .= $block;
+                if (strlen($inhalt) > $maxBytes) {
                     $zu_viel = true;
                     return 0;          // bricht die Uebertragung ab
                 }
                 return strlen($block);
             },
         ]);
-        $body = curl_exec($ch);
+        curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $fehler = curl_error($ch);
+        $errno = curl_errno($ch);
         curl_close($ch);
         if ($zu_viel) {
             return ['ok' => false, 'body' => '', 'error' => 'Die Antwort ist grösser als ' . update_mb($maxBytes) . '.', 'status' => $status];
         }
-        if ($body === false) {
+        if ($errno !== 0) {
             return ['ok' => false, 'body' => '', 'error' => $fehler ?: 'Die Verbindung ist fehlgeschlagen.', 'status' => $status];
         }
         if ($status !== 200) {
             return ['ok' => false, 'body' => '', 'error' => 'Der Server antwortet mit ' . $status . '.', 'status' => $status];
         }
-        return ['ok' => true, 'body' => (string) $body, 'error' => '', 'status' => $status];
+        if ($inhalt === '') {
+            return ['ok' => false, 'body' => '', 'error' => 'Die Antwort war leer.', 'status' => $status];
+        }
+        return ['ok' => true, 'body' => $inhalt, 'error' => '', 'status' => $status];
     }
 
     if (!ini_get('allow_url_fopen')) {
@@ -782,8 +789,12 @@ function update_selbsttest(bool $mitNetz = true): array
          'hinweis' => 'Fehlt sie, ersetzt das erste Update alle Dateien ausser den geschuetzten. Ab dem zweiten Update gilt die Pruefsumme.'],
     ];
     if ($mitNetz) {
-        $antwort = update_http(update_url_raw('manifest.json'), 1048576);
-        $tests[] = ['name'    => 'GitHub erreichbar',
+        // Bewusst dieselbe Pruefung wie die Seite selbst. Ein blosses
+        // "HTTP 200" sagt nichts: es gab eine Fassung von cURL, die Status 200
+        // lieferte und trotzdem eine leere Antwort - der Selbsttest meldete
+        // damals "erreichbar", obwohl nichts ankam.
+        $antwort = update_bestand_remote();
+        $tests[] = ['name'    => 'GitHub erreichbar und Bestandsliste lesbar',
                     'ok'      => $antwort['ok'],
                     'hinweis' => $antwort['ok'] ? '' : 'Gemeldet wurde: ' . $antwort['error']];
     }
