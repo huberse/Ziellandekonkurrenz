@@ -246,7 +246,7 @@ if ($competitionCompleted): ?>
                     </select>
                 </td>
                 <td><input type="text" name="note[<?= $pid ?>]" value="<?= h($p['score_note'] ?? '') ?>" autocomplete="off"></td>
-                <td class="live" data-live><?= $has ? h(fmt_num($p['penalty'])) : '–' ?></td>
+                <td class="num live" data-live><?= $has ? h(fmt_num($p['penalty'])) : '–' ?></td>
             </tr>
         <?php endforeach; ?>
         </tbody>

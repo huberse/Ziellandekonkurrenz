@@ -87,12 +87,12 @@ $competitionQS = (int) $competition['id'] !== current_competition_id() ? '&compe
             <thead>
             <tr>
                 <th>Rang</th>
-                <th>Nr.</th>
+                <th class="num">Nr.</th>
                 <th>Pilot</th>
                 <th>Verein</th>
                 <?php if ($scope === 'alle'): ?><th>Modelltyp</th><?php endif; ?>
                 <?php foreach ($rounds as $r): ?>
-                    <th class="mid">DG <?= (int) $r['round_number'] ?></th>
+                    <th class="num">DG <?= (int) $r['round_number'] ?></th>
                 <?php endforeach; ?>
                 <th class="num">Total</th>
             </tr>
