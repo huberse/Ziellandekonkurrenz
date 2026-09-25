@@ -18,6 +18,7 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
 - [Anforderungen](#anforderungen)
 - [Installation](#installation)
 - [Aktualisieren einer bestehenden Installation](#aktualisieren-einer-bestehenden-installation)
+- [Aktualisierung von GitHub](#aktualisierung-von-github)
 - [Ablauf an einem Wettbewerbstag](#ablauf-an-einem-wettbewerbstag)
 - [Benutzer und Rechte](#benutzer-und-rechte)
 - [Wertung](#wertung)
@@ -100,6 +101,16 @@ bisherigen Daten verloren.
 
 ## Aktualisieren einer bestehenden Installation
 
+Es gibt zwei Wege. Der bequemere ist der Knopf **Aktualisierung** im Wettkampfbüro; der
+handfestere ist das Hochladen der Dateien.
+
+### Über den Aktualisierungs-Knopf
+
+Nur der SuperAdmin sieht den Punkt. Er vergleicht den Serverstand mit dem Repository und
+schreibt nur, was hier unverändert ist – siehe [Aktualisierung von GitHub](#aktualisierung-von-github).
+
+### Durch Hochladen der Dateien
+
 Neue Dateien hochladen und bestehende überschreiben. **`config.php` nicht anfassen.** Vorher ein
 Datenbank-Backup erstellen. Danach einmal `upgrade.php` aufrufen und **Jetzt aktualisieren**
 klicken, anschliessend `upgrade.php` löschen.
@@ -136,6 +147,85 @@ Rolle: Das älteste Konto wird SuperAdmin, damit die Benutzerverwaltung erreichb
 
 Die Dateien `admin/saisons.php` und `lib/season.php` bleiben nur als Kompatibilitätspfade für
 alte Lesezeichen erhalten. Neue URLs verwenden `competition`.
+
+## Aktualisierung von GitHub
+
+Unter **Aktualisierung** prüft der SuperAdmin, ob im Repository eine neuere Fassung liegt, und
+spielt sie mit einem Knopf ein. Nichts davon braucht FTP, git oder eine Shell.
+
+### Was der Knopf ersetzt – und was nicht
+
+`manifest.json` nennt jede ausgelieferte Datei mit ihrer Prüfsumme (SHA-256). Beim Update gilt
+für jede einzelne Datei:
+
+| Zustand auf dem Server | Was passiert |
+| --- | --- |
+| Datei fehlt | wird neu angelegt |
+| Datei stimmt mit `manifest.json` überein | wird ersetzt |
+| Datei wurde von Hand geändert | **bleibt stehen**, wird gemeldet |
+| Datei steht in keiner Bestandsliste | **bleibt stehen**, wird gemeldet |
+
+Eine von Hand geänderte Datei geht also nie verloren. Sie steht danach in der Liste der Dateien
+für Handarbeit und lässt sich einzeln von GitHub holen.
+
+Diese Dateien fasst der Knopf nie an: `config.php` (Zugangsdaten), `.htaccess` und `.gitignore`
+(das gehören dem Server, nicht dem Programm) sowie `assets/logo*` (die Logos sind Eigenheiten des
+Vereins). Ändern sie sich auf GitHub, erscheinen sie in der Liste der Dateien für Handarbeit.
+
+### Reihenfolge und Sicherung
+
+1. Bestandsliste von GitHub holen und mit dem Server vergleichen. Die Seite zeigt vorher an, was
+   passieren würde.
+2. Die Datei mit der neuen Fassung holen, **alle** Inhalte gegen die Bestandsliste prüfen.
+   Stimmt eines nicht, wird **nichts** geschrieben.
+3. Die zu ersetzenden Dateien in `.update/sicherung-<Zeitstempel>/` kopieren.
+4. Dateien einsetzen, die Bestandsliste zuletzt schreiben.
+5. Bei einem Fehler beim Einsetzen wird alles aus der Sicherung zurückgeholt.
+
+Die Sicherungen bleiben liegen, damit sich ein Update mit **Neueste Sicherung zurückholen** wieder
+rückgängig machen lässt. `.update/` steht in `.gitignore` und sperrt sich selbst gegen direkten
+Abruf, sowohl über die Regel in `.htaccess` als auch über eine eigene Sperrdatei im Verzeichnis.
+
+### Die Datenbank bleibt unberührt
+
+Der Knopf schreibt nur Programmdateien. Ändert eine neue Fassung auch das Datenbankschema, meldet
+er das nach dem Einspielen und verweist auf `upgrade.php`. Das ist Absicht: Migrationen können
+Daten umschreiben und gehören nicht in einen Knopf, den man im Ernstfall anklickt.
+
+### Voraussetzungen auf dem Server
+
+Die Seite **Aktualisierung** zeigt einen Selbsttest an. Nötig sind:
+
+| Voraussetzung | Wofür |
+| --- | --- |
+| PHP 7.4 oder neuer | `hash_equals`, `Throwable` |
+| `ZipArchive` | die neue Fassung entpacken |
+| `curl` oder `allow_url_fopen` | GitHub erreichen |
+| Schreibrecht im Programmverzeichnis | Dateien einsetzen, `.update/` anlegen |
+
+Fehlt eine, bleibt die Seite bedienbar und zeigt den Grund. Die restliche Anwendung läuft
+unbeeinflusst weiter.
+
+### Nach dem Einspielen
+
+`diagnose.php` prüft, ob `manifest.json` zur Fassung in `lib/version.php` passt und ob die Dateien
+zu den eingetragenen Prüfsummen passen. Beides sollte in Ordnung sein; Abweichungen sind in der
+Regel Dateien, die jemand von Hand angefasst hat.
+
+### Beim Entwickeln
+
+Nach jeder Änderung an einer ausgelieferten Datei:
+
+```
+php tools/manifest.php            # manifest.json neu erzeugen
+php tools/manifest.php --pruefen  # nur vergleichen, Rückgabe 1 bei Abweichung
+```
+
+Neue Dateien müssen vorher mit `git add` erfasst sein – das Skript meldet sich sonst mit
+„Diese Dateien liegen im Verzeichnis, stehen aber nicht im Manifest“. Ohne diesen Hinweis würde
+eine neue Datei beim Update stillschweigend fehlen.
+
+Zugleich mit `manifest.json` wird `APP_VERSION` in `lib/version.php` hochgezählt.
 
 ## Ablauf an einem Wettbewerbstag
 
@@ -360,6 +450,7 @@ admin/laufzettel.php   Laufzettel, HTML und PDF
 admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
 admin/benutzer.php     Benutzerverwaltung, nur für den SuperAdmin
+admin/aktualisieren.php Aktualisierung von GitHub, nur für den SuperAdmin
 admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 
@@ -377,8 +468,12 @@ lib/layout.php         Kopf, Navigation, Bedienhilfen
 lib/helpers.php        Hilfsfunktionen und Eingabeprüfung
 lib/auth.php           Anmeldung des Wettkampfbüros
 lib/migrations.php     versionierte Datenbankmigrationen
+lib/update.php         Aktualisierung von GitHub
+lib/version.php        Fassung des Programms
 lib/season.php         Kompatibilitätspfad für alte Lesezeichen
 sql/schema.sql         Tabellen und Constraints
+tools/manifest.php     erzeugt manifest.json
+manifest.json          jede ausgelieferte Datei mit ihrer Prüfsumme
 assets/                Gestaltung und Logos
 ```
 

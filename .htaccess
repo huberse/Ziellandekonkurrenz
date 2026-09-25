@@ -12,6 +12,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^(lib|sql)/ - [F,L]
+    # Sicherungen und Sperren des Aktualisierungs-Knopfes. Das Verzeichnis
+    # traegt selbst eine Sperre, damit sie auch ohne diese Regel greift.
+    RewriteRule ^\.update(/|$) - [F,L]
 </IfModule>
 
 # Hinweis: "Options -Indexes" wurde hier bewusst weggelassen. Viele Hoster erlauben diese
