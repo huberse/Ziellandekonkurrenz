@@ -410,6 +410,7 @@ function update_ausfuehren(array $plan, array $neu): array
         $bericht['fehler'][] = 'Das Verzeichnis .update liess sich nicht anlegen.';
         return $bericht;
     }
+    update_ordner_sperren(update_dir());
     if (!update_sperre_setzen()) {
         $bericht['fehler'][] = 'Es laeuft bereits ein Update, oder die Sperre ist nicht schreibbar.';
         return $bericht;
@@ -717,27 +718,31 @@ function update_rueckgaengig(): array
     if (!$sicherungen) {
         return ['ok' => false, 'text' => 'Es gibt keine Sicherung zum Zurueckholen.'];
     }
-    $basis = update_sicherungen()[0]['pfad'];
+    $basis = $sicherungen[0]['pfad'];
+    $notiz = is_file($basis . '/sicherung.json')
+        ? json_decode((string) file_get_contents($basis . '/sicherung.json'), true)
+        : null;
+    $liste = is_array($notiz) && is_array($notiz['dateien'] ?? null) ? $notiz['dateien'] : [];
+    if (!$liste) {
+        return ['ok' => false, 'text' => 'In dieser Sicherung steht keine Dateiliste.'];
+    }
     if (!update_sperre_setzen()) {
         return ['ok' => false, 'text' => 'Es laeuft bereits ein Update.'];
     }
     try {
         $zurueck = 0;
         $fehler = [];
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($basis, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
-        );
-        foreach ($iterator as $eintrag) {
-            if ($eintrag->getFilename() === 'sicherung.json') {
-                continue;
+        foreach ($liste as $pfad) {
+            $pfad = (string) $pfad;
+            $quelle = $basis . '/' . $pfad;
+            if (!is_file($quelle)) {
+                continue;                               // gab es vorher nicht
             }
-            $pfad = str_replace('\\', '/', substr($eintrag->getPathname(), strlen($basis) + 1));
-            // Die Form wird geprueft. manifest.json ist damit zugelassen: die
-            // Sicherung enthaelt sie, damit ein zurueckgeholter Stand wieder
-            // als installiert gilt. Geschuetzte Dateien stehen nie in einer
-            // Sicherung, und auch wenn: sie nur zurueckzuholen waere harmlos.
-            if (!update_pfad_erlaubt($pfad) || !update_datei_schreiben($pfad, (string) file_get_contents($eintrag->getPathname()))) {
+            // Genau die Liste, die gesichert wurde - nicht den Inhalt des
+            // Verzeichnisses. Sonst wuerde beim Zurueckholen alles
+            // mitgenommen, was dort inzwischen liegt.
+            if (!update_pfad_erlaubt($pfad)
+                || !update_datei_schreiben($pfad, (string) file_get_contents($quelle))) {
                 $fehler[] = $pfad;
                 continue;
             }
@@ -820,27 +825,38 @@ function update_selbsttest(bool $mitNetz = true): array
     return $tests;
 }
 
-/** Verzeichnis anlegen, mit einer Datei, die den Zugriff sperrt. */
+/** Verzeichnis anlegen. */
 function update_verzeichnis_anlegen(string $pfad): bool
 {
     if (!is_dir($pfad) && !@mkdir($pfad, 0755, true) && !is_dir($pfad)) {
         return false;
     }
-    if (!is_writable($pfad)) {
-        return false;
-    }
-    // Das Verzeichnis sperrt sich selbst gegen direkten Abruf. Die Regel in
-    // .htaccess greift fuer .update nur, wenn sie dort auch steht - deshalb
-    // bekommt es eine eigene.
+    return is_writable($pfad);
+}
+
+/**
+ * Das Verzeichnis gegen direkten Abruf sperren.
+ *
+  * Nur fuer .update. Gilt auch fuer die Sicherungen darin, weil die Regel
+ * * an die Unterverzeichnisse vererbt wird.
+ *
+ * Frueher schrieb update_verzeichnis_anlegen() in jedes angelegte Verzeichnis
+ * eine Sperrdatei. Das waere zweimal schiefgegangen: eine neu hinzukommende
+ * Programmdatei in einem neuen Verzeichnis haette dieses Verzeichnis gesperrt,
+ * und die Sicherung haette beim Zurueckholen eine "Require all denied" nach
+ * admin/ und lib/ kopiert.
+ */
+function update_ordner_sperren(string $pfad): void
+{
     $sperre = $pfad . '/.htaccess';
-    if (!is_file($sperre)) {
-        @file_put_contents($sperre,
-            "# Von der Aktualisierung angelegt: niemand soll Sicherungen oder Sperren\n"
-          . "# direkt abrufen koennen.\n"
-          . "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
-          . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n");
+    if (is_file($sperre)) {
+        return;
     }
-    return true;
+    @file_put_contents($sperre,
+        "# Von der Aktualisierung angelegt: niemand soll Sicherungen oder Sperren\n"
+      . "# direkt abrufen koennen.\n"
+      . "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
+      . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n");
 }
 
 function update_mb(int $bytes): string
