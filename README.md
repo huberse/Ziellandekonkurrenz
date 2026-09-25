@@ -390,7 +390,7 @@ teilweise migriert wurde.
 ## Lizenz
 
     Segelflug-Wettbewerb
-    Copyright (C) 2026  <Name oder Verein>
+    Copyright (C) 2026  Serge Huber, Pascal Schmidlin (MFV Brislach)
 
 Dieses Programm ist freie Software: Sie können es unter den Bedingungen der GNU General Public
 License, wie von der Free Software Foundation veröffentlicht, weitergeben und/oder verändern.
