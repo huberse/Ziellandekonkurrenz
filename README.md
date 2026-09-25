@@ -230,6 +230,12 @@ eine neue Datei beim Update stillschweigend fehlen.
 
 Zugleich mit `manifest.json` wird `APP_VERSION` in `lib/version.php` hochgezählt.
 
+`tools/aufrufe_pruefen.php` sucht Aufrufe von Namen, die es weder im Projekt noch in PHP gibt, und
+Aufrufe über eine Variable, der im File nie etwas zugewiesen wird. Beides fällt beim Lesen nicht auf
+und `php -l` meldet nichts – ein Aufruf wie `$name($x)` sieht aus wie ein Funktionsaufruf und
+scheitert erst zur Laufzeit. Beide Werkzeuge laufen nur auf der Kommandozeile; vom Browser aufgerufen
+weisen sie sich mit 403 ab.
+
 ## Ablauf an einem Wettbewerbstag
 
 1. **Einstellungen** – Name, Datum, Ort und die Strafpunkt-Regeln prüfen.
@@ -476,6 +482,7 @@ lib/version.php        Fassung des Programms
 lib/season.php         Kompatibilitätspfad für alte Lesezeichen
 sql/schema.sql         Tabellen und Constraints
 tools/manifest.php     erzeugt manifest.json
+tools/aufrufe_pruefen.php  sucht Aufrufe von Namen, die es nicht gibt
 manifest.json          jede ausgelieferte Datei mit ihrer Prüfsumme
 assets/                Gestaltung und Logos
 ```
