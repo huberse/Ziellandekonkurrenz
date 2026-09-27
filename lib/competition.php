@@ -553,6 +553,55 @@ function registration_read_back(int $registrationId, int $competitionId): ?array
     return $st->fetch() ?: null;
 }
 
+/**
+ * Alle Verwendungen eines Vereins, nach Tabelle: ['pilots' => 10, ...].
+ *
+ * Ein Verein haengt an vier Stellen: an die Piloten einer Startliste, an
+ * Anmeldungen, an Wettkämpfe als Veranstalter und an Konten. Jede davon
+ * waere beim Loeschen still verloren, deshalb werden alle gezaehlt und
+ * benannt statt nur die Piloten.
+ */
+function club_verwendungen(PDO $pdo, int $clubId): array
+{
+    if ($clubId <= 0) {
+        return [];
+    }
+    $tabellen = [
+        // [Tabelle, Singular, Plural] - beide Formen stehen hier, weil sich
+        // "Pilot" nicht durch ein angehaengtes n bilden laesst.
+        'pilots'        => ['Pilot in der Startliste', 'Piloten in der Startliste'],
+        'registrations' => ['Anmeldung',            'Anmeldungen'],
+        'competitions'  => ['Wettbewerb als Veranstalter', 'Wettbewerbe als Veranstalter'],
+        'users'         => ['Konto',                'Konten'],
+    ];
+    $gefunden = [];
+    foreach ($tabellen as $tabelle => $formen) {
+        // Der Spaltenname heisst ueberall club_id, die Pruefung aber auch, was
+        // bei einer Tabelle ohne diese Spalte passiert.
+        $st = $pdo->prepare("SELECT COUNT(*) FROM $tabelle WHERE club_id = ?");
+        $st->execute([$clubId]);
+        $anzahl = (int) $st->fetchColumn();
+        if ($anzahl > 0) {
+            $gefunden[$tabelle] = [
+                'anzahl' => $anzahl,
+                'text'  => $anzahl === 1 ? $formen[0] : $formen[1],
+            ];
+        }
+    }
+    return $gefunden;
+}
+
+/** Den Befund aus club_verwendungen() in einen Satz fassen. */
+function club_verwendungen_text(array $verwendungen): string
+{
+    $teile = [];
+    foreach ($verwendungen as $eintrag) {
+        $teile[] = (int) $eintrag['anzahl'] . ' ' . $eintrag['text'];
+    }
+    $letzter = array_pop($teile);
+    return implode(', ', $teile) . ($teile ? ' und ' : '') . $letzter . '.';
+}
+
 function global_category_used_in_completed(string $category, int $categoryId): bool
 {
     $column = $category === 'club' ? 'club_id' : ($category === 'model_type' ? 'model_type_id' : null);

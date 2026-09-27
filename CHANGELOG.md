@@ -15,6 +15,9 @@ diese Liste an, wenn sie ein Update anbietet.
   daran nichts ändern.
 - Diese Aktualisierungsseite zeigt jetzt die Änderungsliste statt einer
   Aufzählung der ausgetauschten Dateien.
+- Ein Verein lässt sich nur noch löschen, wenn nirgends mehr etwas an ihm
+  hängt. Geprüft werden Piloten, Anmeldungen, Wettbewerbe als Veranstalter und
+  Konten; vorher wurden die Piloten beim Löschen still verwaist.
 - Das Update bringt `install.php` und `config.sample.php` nicht mehr mit. Beide
   gehören zur Ersteinrichtung und werden auf einem betriebenen Server nicht
   gebraucht. Im Repository bleiben sie, damit eine frische Installation
