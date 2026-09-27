@@ -336,8 +336,7 @@ function update_changelog_zerlegen(string $text): array
 {
     $abschnitte = [];
     $aktuell = null;
-    $zeile = null;
-    $letzteZeile = null;
+    $letzterIndex = null;
 
     $abschliessen = static function () use (&$abschnitte, &$aktuell): void {
         if ($aktuell !== null && $aktuell['punkte']) {
@@ -355,29 +354,37 @@ function update_changelog_zerlegen(string $text): array
                 'datum' => trim((string) ($treffer[2] ?? '')),
                 'punkte' => [],
             ];
-            $zeile = null;
-            $letzteZeile = null;
+            $letzterIndex = null;
             continue;
         }
         if ($aktuell === null) {
             continue;                       // Text vor der ersten Ueberschrift
         }
         if (preg_match('/^(\s*)-\s+(.*)$/u', $roh, $treffer)) {
-            $ebene = strlen(str_replace("\t", '  ', $treffer[1])) >= 2 ? 1 : 0;
-            $zeile = ['text' => trim($treffer[2]), 'unter' => []];
-            $aktuell['punkte'][] = $zeile;
-            $letzteZeile = $zeile;
+            $aktuell['punkte'][] = ['text' => trim($treffer[2])];
+            $letzterIndex = count($aktuell['punkte']) - 1;
             continue;
         }
-        // Fortsetzungszeile eines Punktes, mit zwei Leerzeichen eingerückt.
-        if ($letzteZeile !== null && $roh !== '' && strncmp($roh, '  ', 2) === 0) {
-            $letzteZeile['text'] .= ' ' . trim($roh);
+        // Fortsetzungszeile eines Punktes, mit zwei Leerzeichen eingerückt. Wichtig
+        // ist der Index und nicht die letzte Zeile selbst: PHP kopiert Arrays beim
+        // Zuweisen, ein Anhaengen an eine Kopie bliebe ohne Wirkung - der Punkt
+        // kaeme dann nur bis zum ersten Zeilenumbruch an.
+        if ($letzterIndex !== null && $roh !== '' && strncmp($roh, '  ', 2) === 0) {
+            $aktuell['punkte'][$letzterIndex]['text'] .= ' ' . trim($roh);
             continue;
         }
-        $letzteZeile = null;
-        $zeile = null;
+        $letzterIndex = null;
         if (trim($roh) !== '') {
-            $aktuell['punkte'][] = ['text' => trim($roh), 'unter' => [], 'absatz' => true];
+            // Eine Zeile ohne Aufzaehlungszeichen gehoert zu einem Absatz. Solche
+            // Absaetze kommen in einer Aenderungsliste vor ("Der erste Schritt
+            // ..."), und sie duerfen nicht zu Listenpunkten werden. Aufeinander
+            // folgende Zeilen werden deshalb zu einem Absatz zusammengefasst.
+            $vorher = $aktuell['punkte'][count($aktuell['punkte']) - 1] ?? null;
+            if ($vorher !== null && !empty($vorher['absatz'])) {
+                $aktuell['punkte'][count($aktuell['punkte']) - 1]['text'] .= ' ' . trim($roh);
+            } else {
+                $aktuell['punkte'][] = ['text' => trim($roh), 'absatz' => true];
+            }
         }
     }
     $abschliessen();
@@ -411,10 +418,18 @@ function update_changelog_seit(array $abschnitte, ?string $von, string $bis): ar
  * Gibt es fuer den Sprung eine Aenderungsliste?
  *
  * Ohne Liste faellt die Seite auf die Dateiaufzaehlung zurueck, statt eine
- * leere Anzeige zu zeigen.
+ * leere Anzeige zu zeigen. Steht der Server schon auf dem Zielstand, gibt es
+ * nichts zu zeigen - dann soll die Seite auch nicht behaupten, es gaebe etwas.
+ *
+ * Der Zielstand gehoert ausdruecklich zur Anzeige: wer von 1.9.3 auf 1.9.4 geht,
+ * braucht die Liste von 1.9.4. Deshalb wird hier strenger geprueft als in
+ * update_changelog_seit() - dort ist die obere Grenze einschliesslich.
  */
 function update_changelog_vorhanden(array $abschnitte, ?string $von, string $bis): bool
 {
+    if ($von !== null && $von !== '' && version_compare($von, $bis, 'ge')) {
+        return false;                      // Ziel ist nicht neuer als der Stand
+    }
     return update_changelog_seit($abschnitte, $von, $bis) !== [];
 }
 

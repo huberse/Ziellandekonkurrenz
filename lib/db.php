@@ -172,5 +172,6 @@ function setting_defaults(): array
         'registration_sender_email' => '',
         'registration_sender_name'  => '',
         'public_results'           => '1',
+        'region_club_id'           => '0',  // 0 = keiner; sonst der Verein, der die Regioliste sieht
     ];
 }

@@ -287,7 +287,23 @@ function migration_legacy_schema(PDO $pdo): array
     // Reparatur auch dann ausführen, wenn ein früherer Migrationsversuch genau hier abgebrochen wurde.
     migration_ensure_pilot_map($pdo);
     $pdo->prepare('UPDATE pilots SET season_id = ? WHERE season_id IS NULL')->execute([$seasonId]);
-    $pilotRows = $pdo->query('SELECT id, season_id, bib_number, first_name, last_name, club_id, email, phone, model_type_id, model_name, notes, active, created_at FROM pilots')->fetchAll();
+
+    // Die Kontaktspalten wurden mit Migration 10 entfernt. Diese Migration
+    // kopiert Piloten aus der Saisonszeit und kann bei einer Installation, die
+    // schon weit fortgeschritten ist, erneut laufen. Sie darf deshalb ohne die
+    // Spalten auskommen, statt an ihnen zu scheitern.
+    $mitKontakt = migration_column_exists($pdo, 'pilots', 'email')
+        || migration_column_exists($pdo, 'pilots', 'phone');
+    $kontakt = $mitKontakt ? ', email, phone' : '';
+    $kontaktMuster = $mitKontakt
+        ? ' AND (email <=> ?) AND (phone <=> ?)'
+        : '';
+    if (!$mitKontakt) {
+        $log[] = 'Kontaktspalten sind nicht mehr vorhanden; die Pilotkopie läuft ohne sie.';
+    }
+    $pilotSpalten = 'id, season_id, bib_number, first_name, last_name, club_id'
+        . $kontakt . ', model_type_id, model_name, notes, active, created_at';
+    $pilotRows = $pdo->query("SELECT $pilotSpalten FROM pilots")->fetchAll();
     $seasonOf = $pdo->prepare('SELECT DISTINCT r.season_id FROM scores s
                                JOIN rounds r ON r.id = s.round_id
                                WHERE s.pilot_id = ? ORDER BY r.season_id');
@@ -301,12 +317,12 @@ function migration_legacy_schema(PDO $pdo): array
     $targetExists = $pdo->prepare('SELECT id FROM pilots WHERE id = ? AND season_id = ?');
     $findCopy = $pdo->prepare('SELECT id FROM pilots
                                WHERE season_id = ? AND first_name = ? AND last_name = ? AND (bib_number <=> ?)
-                                 AND (club_id <=> ?) AND (email <=> ?) AND (phone <=> ?)
+                                 AND (club_id <=> ?)' . $kontaktMuster . '
                                  AND (model_type_id <=> ?) AND (model_name <=> ?) AND (notes <=> ?)
                                ORDER BY id LIMIT 1');
     $copyPilot = $pdo->prepare('INSERT INTO pilots
-        (season_id, bib_number, first_name, last_name, club_id, email, phone, model_type_id, model_name, notes, active, created_at)
-        SELECT ?, bib_number, first_name, last_name, club_id, email, phone, model_type_id, model_name, notes, active, created_at
+        (season_id, bib_number, first_name, last_name, club_id' . $kontakt . ', model_type_id, model_name, notes, active, created_at)
+        SELECT ?, bib_number, first_name, last_name, club_id' . $kontakt . ', model_type_id, model_name, notes, active, created_at
         FROM pilots WHERE id = ?');
     $repoint = $pdo->prepare('UPDATE scores s JOIN rounds r ON r.id = s.round_id
                               SET s.pilot_id = ? WHERE s.pilot_id = ? AND r.season_id = ?');
@@ -341,11 +357,18 @@ function migration_legacy_schema(PDO $pdo): array
                 }
             }
             if (!$copyId) {
-                $findCopy->execute([
+                $muster = [
                     $scoreSeason, $pilot['first_name'], $pilot['last_name'], $pilot['bib_number'],
-                    $pilot['club_id'], $pilot['email'], $pilot['phone'], $pilot['model_type_id'],
-                    $pilot['model_name'], $pilot['notes'],
-                ]);
+                    $pilot['club_id'],
+                ];
+                if ($mitKontakt) {
+                    $muster[] = $pilot['email'];
+                    $muster[] = $pilot['phone'];
+                }
+                $muster[] = $pilot['model_type_id'];
+                $muster[] = $pilot['model_name'];
+                $muster[] = $pilot['notes'];
+                $findCopy->execute($muster);
                 if ($findCopy->fetchColumn()) {
                     throw new RuntimeException('Mehrdeutige Pilotkopie für Quelle ' . $originalId
                         . ' und Wettbewerb ' . $scoreSeason . ' gefunden; bitte manuell prüfen.');
@@ -990,6 +1013,13 @@ function migration_pending_column_steps(PDO $pdo): array
             $steps[] = static function (PDO $pdo): array { return migration_crash_landing($pdo); };
         }
     }
+    if (migration_table_exists($pdo, 'competitions') && !migration_column_exists($pdo, 'competitions', 'region')) {
+        $steps[] = static function (PDO $pdo): array { return migration_region($pdo); };
+    }
+    if (migration_column_exists($pdo, 'pilots', 'email') || migration_column_exists($pdo, 'pilots', 'phone')
+        || migration_column_exists($pdo, 'registrations', 'email') || migration_column_exists($pdo, 'registrations', 'phone')) {
+        $steps[] = static function (PDO $pdo): array { return migration_kontaktdaten_weg($pdo); };
+    }
     return $steps;
 }
 
@@ -1028,7 +1058,95 @@ function migration_definitions(): array
             'description' => 'Bruchlandung als eigener Ausgang mit eigener Feststrafe',
             'run' => function (PDO $pdo): array { return migration_crash_landing($pdo); },
         ],
+        9 => [
+            'description' => 'Regiocup: Wettbewerbe einem Jahr und der Region zuordnen',
+            'run' => function (PDO $pdo): array { return migration_region($pdo); },
+        ],
+        10 => [
+            'description' => 'Kontaktdaten der Piloten entfernen',
+            'run' => function (PDO $pdo): array { return migration_kontaktdaten_weg($pdo); },
+        ],
     ];
+}
+
+/**
+ * Der Regiocup braucht zwei Dinge: ein Kuerzel, an dem ein Wettbewerb als
+ * Regionalwettbewerb erkannt wird, und den Verein, dessen Mitglieder die
+ * Regiorangliste sehen duerfen, wenn die Ergebnisse sonst nicht oeffentlich sind.
+ *
+ * Beides ist zunaechst leer: kein Wettbewerb zaehlt zum Regiocup, bis ihn der
+ * SuperAdmin ankreuzt. Das Jahr steht bewusst nicht in einer Spalte, sondern im
+ * competition_date – sonst muesste es beim Kopieren eines Wettbewerbs mit
+ * geaendert werden und die beiden Wettbewerbe eines Jahres koennten auseinanderlaufen.
+ */
+function migration_region(PDO $pdo): array
+{
+    $log = [];
+    if (migration_table_exists($pdo, 'competitions') && !migration_column_exists($pdo, 'competitions', 'region')) {
+        $pdo->exec('ALTER TABLE competitions ADD COLUMN region TINYINT(1) NOT NULL DEFAULT 0 AFTER club_id');
+        $log[] = 'Spalte competitions.region wurde ergänzt (0 = zählt nicht zum Regiocup).';
+    }
+
+    if (migration_table_exists($pdo, 'settings')) {
+        $vorhanden = $pdo->prepare('SELECT svalue FROM settings WHERE skey = ?');
+        $vorhanden->execute(['region_club_id']);
+        if ($vorhanden->fetchColumn() === false) {
+            $schreiben = $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (?, ?)
+                                        ON DUPLICATE KEY UPDATE svalue = svalue');
+            $schreiben->execute(['region_club_id', '0']);
+            $log[] = 'Einstellung region_club_id wurde mit 0 angelegt; bitte unter Einstellungen den Regionsverein wählen.';
+        }
+    }
+    return $log;
+}
+
+/**
+ * Die Kontaktdaten der Piloten verschwinden.
+ *
+ * Das Anmeldeformular speichert die Adresse seit längerem nicht mehr – sie dient
+ * nur dem Versand der Bestätigung und wird danach verworfen. Die Spalten waren
+ * jedoch noch vorhanden, und die Startliste führte sie als Spalte „Kontakt" weiter.
+ * Übrig geblieben sind Altbestände aus der Zeit, als das Formular die Adresse
+ * übernommen hat.
+ *
+ * Die Spalten werden entfernt, nicht geleert: das Löschen der Werte wäre derselbe
+ * unwiderrufliche Schritt, nur bliebe der Ballast danach als leere Spalte stehen
+ * und man könnte sich nicht mehr sicher sein, dass nichts nachgetragen wird.
+ *
+ * Die Absenderadresse (registration_sender_email) bleibt unberührt – die gehört dem
+ * Verein und wird für die Bestätigung gebraucht.
+ */
+function migration_kontaktdaten_weg(PDO $pdo): array
+{
+    $log = [];
+    $betroffen = [];
+    foreach (['pilots' => ['email', 'phone'], 'registrations' => ['email', 'phone']] as $tabelle => $spalten) {
+        if (!migration_table_exists($pdo, $tabelle)) {
+            continue;
+        }
+        foreach ($spalten as $spalte) {
+            if (!migration_column_exists($pdo, $tabelle, $spalte)) {
+                continue;
+            }
+            $betroffen[$tabelle][$spalte] = (int) $pdo->query(
+                "SELECT COUNT(*) FROM `$tabelle` WHERE `$spalte` IS NOT NULL AND `$spalte` <> ''"
+            )->fetchColumn();
+            $pdo->exec("ALTER TABLE `$tabelle` DROP COLUMN `$spalte`");
+        }
+        if (!empty($betroffen[$tabelle])) {
+            $stueck = [];
+            foreach ($betroffen[$tabelle] as $spalte => $anzahl) {
+                $stueck[] = $spalte . ': ' . $anzahl . ' Einträge';
+            }
+            $gesamt = array_sum($betroffen[$tabelle]);
+            $log[] = "Aus $tabelle entfernt – " . implode(', ', $stueck)
+                . ($gesamt > 0 ? '. Diese Angaben sind damit unwiderruflich weg.' : '.');
+        }
+    }
+    if (!$betroffen) {
+        $log[] = 'Kontaktspalten waren nicht mehr vorhanden.';
+    }
+    return $log;
 }
 
 /**

@@ -173,9 +173,13 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
                     <?php endif; ?>
                 </h4>
                 <ul style="margin:0;padding-left:20px">
-                    <?php foreach ($abschnitt['punkte'] as $punkt): ?>
-                        <li style="margin-bottom:4px"><?= h($punkt['text']) ?></li>
-                    <?php endforeach; ?>
+                    <?php foreach ($abschnitt['punkte'] as $punkt):
+                        if (!empty($punkt['absatz'])) { ?>
+                            <li style="margin-bottom:4px;list-style:none;margin-left:-14px"><?= h($punkt['text']) ?></li>
+                        <?php } else { ?>
+                            <li style="margin-bottom:4px"><?= h($punkt['text']) ?></li>
+                        <?php }
+                    endforeach; ?>
                 </ul>
             </div>
         <?php endforeach; ?>

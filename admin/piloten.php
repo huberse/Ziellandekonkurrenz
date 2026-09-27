@@ -38,8 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'first_name' => text_limit(post('first_name'), 80),
                 'last_name'  => text_limit(post('last_name'), 80),
                 'club_id'    => post('club_id') !== '' ? (int) post('club_id') : club_id_for_name(text_limit(post('club_new'), 120)),
-                'email'      => text_limit(post('email'), 160) ?: null,
-                'phone'      => text_limit(post('phone'), 40) ?: null,
                 'model_type_id' => post('model_type_id') !== '' ? (int) post('model_type_id') : null,
                 'model_name' => text_limit(post('model_name'), 120) ?: null,
                 'notes'      => text_limit(post('notes'), 255) ?: null,
@@ -62,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($id) {
                 $sql = 'UPDATE pilots SET bib_number=:bib_number, first_name=:first_name, last_name=:last_name,
-                        club_id=:club_id, email=:email, phone=:phone, model_type_id=:model_type_id, model_name=:model_name,
+                        club_id=:club_id, model_type_id=:model_type_id, model_name=:model_name,
                         notes=:notes, active=:active WHERE id=:id AND competition_id=:competition_id';
                 $st = $pdo->prepare($sql);
                 $st->execute($data + ['id' => $id]);
@@ -75,8 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $successMessage = 'Pilot gespeichert.';
             } else {
-                $st = $pdo->prepare('INSERT INTO pilots (bib_number, first_name, last_name, club_id, email, phone, model_type_id, model_name, notes, active, competition_id)
-                                     VALUES (:bib_number,:first_name,:last_name,:club_id,:email,:phone,:model_type_id,:model_name,:notes,:active,:competition_id)');
+                $st = $pdo->prepare('INSERT INTO pilots (bib_number, first_name, last_name, club_id, model_type_id, model_name, notes, active, competition_id)
+                                     VALUES (:bib_number,:first_name,:last_name,:club_id,:model_type_id,:model_name,:notes,:active,:competition_id)');
                 $st->execute($data);
                 $successMessage = 'Pilot für den Wettbewerb „' . $competition['name'] . '“ aufgenommen.';
             }
@@ -103,16 +101,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 LEFT JOIN model_types t ON t.id = p.model_type_id
                                 WHERE p.active = 1 AND p.competition_id = ? ORDER BY t.sort_order, t.name, RAND()');
             $st->execute([$competition['id']]);
-            $up = $pdo->prepare('UPDATE pilots SET bib_number = ? WHERE id = ? AND competition_id = ?');
-            $n = 0;
-            foreach ($st as $row) {
-                $pilotId = (int) $row['id'];
-                do {
-                    $bib = str_pad((string) (++$n), 2, '0', STR_PAD_LEFT);
-                } while (competition_bib_number_exists((int) $competition['id'], $bib, $pilotId));
-                $up->execute([$bib, $pilotId, $competition['id']]);
+            $pilotIds = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+            if (!$pilotIds) {
+                $successMessage = 'Es sind keine aktiven Piloten in der Startliste – es wurde nichts geändert.';
+            } else {
+                // Nur die Nummern, die ausserhalb dieser Auswahl vergeben sind, sind
+                // gesperrt. Die Piloten in der Auswahl bekommen neue Nummern und
+                // dürfen einander deshalb nicht blockieren: sonst schiebt sich jede
+                // alte Nummer eines noch nicht umnummerierten Piloten als Lücke in
+                // die Reihe, und aus drei Piloten werden 02, 04 und 05.
+                // Nummern inaktiver Piloten bleiben gesperrt, weil der eindeutige
+                // Index über Wettbewerb und Startnummer Doppelungen nicht zulässt.
+                $in = implode(',', array_fill(0, count($pilotIds), '?'));
+                $gesperrt = $pdo->prepare("SELECT p.bib_number, p.first_name, p.last_name
+                                           FROM pilots p
+                                           WHERE p.competition_id = ? AND p.id NOT IN ($in)
+                                             AND p.bib_number IS NOT NULL AND p.bib_number <> ''
+                                           ORDER BY p.bib_number");
+                $gesperrt->execute(array_merge([(int) $competition['id']], $pilotIds));
+                $belegt = [];
+                $halter = [];
+                foreach ($gesperrt->fetchAll(PDO::FETCH_ASSOC) as $zeile) {
+                    $nummer = trim((string) $zeile['bib_number']);
+                    $belegt[$nummer] = true;
+                    $halter[$nummer] = trim(($zeile['first_name'] ?? '') . ' ' . ($zeile['last_name'] ?? ''));
+                }
+
+                $neu = [];
+                $n = 0;
+                $uebersprungen = [];
+                foreach ($pilotIds as $pilotId) {
+                    while (true) {
+                        $bib = str_pad((string) (++$n), 2, '0', STR_PAD_LEFT);
+                        if (!isset($belegt[$bib])) {
+                            break;
+                        }
+                        $uebersprungen[$bib] = $halter[$bib] ?? 'unbekannt';
+                    }
+                    $belegt[$bib] = true;
+                    $neu[$pilotId] = $bib;
+                }
+
+                // Die neuen Nummern werden in zwei Schritten gesetzt. Zuerst werden
+                // die alten der Piloten in dieser Auswahl geleert, danach bekommen
+                // sie die neuen. Man kann sie nicht einzeln überschreiben: die
+                // erste Vergabe wäre mitten in der Runde doppelt belegt, solange der
+                // bisherige Inhaber dieser Nummer noch nicht umgestellt ist – der
+                // eindeutige Index über Wettbewerb und Startnummer lässt das nicht
+                // zu. Leere Werte sind mehrfach erlaubt, deshalb geht das.
+                // Eine eigene Transaktion ist nicht nötig: der ganze Aufruf läuft
+                // bereits in einer, und PDO kennt keine verschachtelten. Scheitert
+                // etwas, rollt der äußere Lauf zurück und die Startnummer bleibt so,
+                // wie sie war.
+                $leeren = $pdo->prepare("UPDATE pilots SET bib_number = NULL
+                                          WHERE competition_id = ? AND id IN ($in)");
+                $leeren->execute(array_merge([(int) $competition['id']], $pilotIds));
+                $up = $pdo->prepare('UPDATE pilots SET bib_number = ? WHERE id = ? AND competition_id = ?');
+                foreach ($neu as $pilotId => $bib) {
+                    $up->execute([$bib, $pilotId, $competition['id']]);
+                }
+                $successMessage = count($pilotIds) . ' Startnummern neu und zufällig vergeben, gruppiert nach Modelltyp.';
+                if ($uebersprungen) {
+                    $stueck = [];
+                    foreach ($uebersprungen as $nummer => $name) {
+                        $stueck[] = $nummer . ' (' . ($name !== '' ? $name : 'ohne Namen') . ')';
+                    }
+                    $successMessage .= ' Die Nummern ' . implode(', ', $stueck)
+                        . ' sind gesperrt, weil sie an inaktiven Piloten hängen – deshalb entstehen Lücken.'
+                        . ' Wer sie frei haben will, muss die Startnummer dieses Piloten ändern oder ihn löschen.';
+                }
             }
-            $successMessage = "$n Startnummern neu und zufällig vergeben, gruppiert nach Modelltyp.";
 
         } elseif ($action === 'import') {
             $raw = post('csv');
@@ -290,14 +348,6 @@ page_start('Piloten', 'admin', 'piloten.php');
                 <label for="mo">Modell</label>
                 <input type="text" id="mo" name="model_name" value="<?= h($edit['model_name'] ?? '') ?>">
             </div>
-            <div class="field">
-                <label for="em">E-Mail</label>
-                <input type="email" id="em" name="email" value="<?= h($edit['email'] ?? '') ?>">
-            </div>
-            <div class="field">
-                <label for="ph">Telefon</label>
-                <input type="tel" id="ph" name="phone" value="<?= h($edit['phone'] ?? '') ?>">
-            </div>
         </div>
         <div class="field">
             <label for="no">Bemerkung</label>
@@ -337,7 +387,7 @@ page_start('Piloten', 'admin', 'piloten.php');
 <div class="panel" style="padding:0">
     <div class="table-scroll">
     <table class="data">
-        <thead><tr><th class="num">Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th>Kontakt</th><th class="num">Resultate</th><th></th></tr></thead>
+        <thead><tr><th class="num">Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th class="num">Resultate</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($pilots as $p): ?>
             <tr<?= $p['active'] ? '' : ' class="muted"' ?>>
@@ -349,7 +399,6 @@ page_start('Piloten', 'admin', 'piloten.php');
                 <td class="small"><?= h($p['club_name'] ?: '') ?></td>
                 <td class="small"><?= h($p['model_type_name'] ?: '–') ?></td>
                 <td class="small"><?= h($p['model_name'] ?: '') ?></td>
-                <td class="small muted"><?= h($p['email'] ?: $p['phone'] ?: '') ?></td>
                 <td class="num"><?= (int) $p['score_count'] ?></td>
                 <td class="nowrap no-print">
                     <?php if ($competitionCompleted): ?>

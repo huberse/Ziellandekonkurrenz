@@ -114,10 +114,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Diese Startnummer ist in diesem Wettbewerb bereits vergeben.');
             }
 
-            $ins = $pdo->prepare('INSERT INTO pilots (bib_number, first_name, last_name, club_id, email, phone, model_type_id, model_name, notes, competition_id)
-                                  VALUES (?,?,?,?,?,?,?,?,?,?)');
-            $ins->execute([$bib, $firstName, $lastName, $clubId, text_limit((string) $reg['email'], 160) ?: null,
-                text_limit((string) $reg['phone'], 40) ?: null, $modelTypeId, text_limit((string) $reg['model_name'], 120) ?: null,
+            // Die Kontaktdaten wandern bewusst nicht mit in die Startliste: sie
+            // werden nirgends gebraucht und sollen nicht gespeichert bleiben.
+            $ins = $pdo->prepare('INSERT INTO pilots (bib_number, first_name, last_name, club_id, model_type_id, model_name, notes, competition_id)
+                                  VALUES (?,?,?,?,?,?,?,?)');
+            $ins->execute([$bib, $firstName, $lastName, $clubId, $modelTypeId, text_limit((string) $reg['model_name'], 120) ?: null,
                 text_limit((string) $reg['notes'], 255) ?: null, $pilotCompetitionId]);
             $pid = (int) $pdo->lastInsertId();
 
@@ -251,7 +252,7 @@ page_start('Anmeldungen', 'admin', 'anmeldungen.php');
 <?php else: ?>
     <div class="table-scroll">
     <table class="data">
-        <thead><tr><th>Eingegangen</th><?php if ($showAll): ?><th>Wettbewerb</th><?php endif; ?><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th>Kontakt</th><th>Bemerkung</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Eingegangen</th><?php if ($showAll): ?><th>Wettbewerb</th><?php endif; ?><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th>Bemerkung</th><th>Status</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($regs as $r):
             $regCompetitionId = $r['competition_id'] !== null ? (int) $r['competition_id'] : (int) $competition['id'];
@@ -267,9 +268,6 @@ page_start('Anmeldungen', 'admin', 'anmeldungen.php');
                 <td class="small"><?= h($r['club_name'] ?: $r['club'] ?: '') ?><?= $r['club_id'] === null && $r['club'] ? ' <span class="tag live">neu</span>' : '' ?></td>
                 <td class="small"><?= h($r['model_type_name'] ?: '–') ?></td>
                 <td class="small"><?= h($r['model_name'] ?: '') ?></td>
-                <td class="small muted"><?= ($r['email'] || $r['phone'])
-                        ? h(trim((string) $r['email'] . ' ' . (string) $r['phone']))
-                        : '<span class="muted">–</span>' ?></td>
                 <td class="small muted"><?= h(mb_strimwidth((string) $r['notes'], 0, 60, '…')) ?></td>
                 <td>
                     <?php if ($regCompleted): ?><span class="tag off">abgeschlossen</span>
