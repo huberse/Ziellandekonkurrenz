@@ -109,6 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setting_set('registration_open', isset($_POST['registration_open']) ? '1' : '0');
             setting_set('club_ranking_enabled', isset($_POST['club_ranking_enabled']) ? '1' : '0');
             setting_set('public_results', isset($_POST['public_results']) ? '1' : '0');
+            $regionClub = (int) post('region_club_id', '0');
+            setting_set('region_club_id', (string) ($regionClub > 0 ? $regionClub : 0));
             $pdo->commit();
             flash('Einstellungen gespeichert. Bereits erfasste Punkte bleiben stehen – bei geänderten Regeln unter Durchgänge neu berechnen.', 'ok');
         } catch (Throwable $e) {
@@ -299,6 +301,22 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
             <input type="number" id="csc" name="club_scoring_count" min="1" max="10" value="<?= (int) setting('club_scoring_count') ?>">
             <p class="hint">Die besten dieser Anzahl ergeben zusammen das Vereinsresultat. Vereine mit weniger
                 gewerteten Piloten erscheinen ausser Konkurrenz.</p>
+        </div>
+    </fieldset>
+
+    <fieldset id="regiocup">
+        <legend>Regiocup</legend>
+        <div class="field" style="max-width:420px">
+            <label for="rci">Verein, der die Regiorangliste sehen darf</label>
+            <select id="rci" name="region_club_id">
+                <option value="0" <?= (int) setting('region_club_id') === 0 ? 'selected' : '' ?>>niemand</option>
+                <?php foreach (all_clubs() as $c): ?>
+                    <option value="<?= (int) $c['id'] ?>" <?= (int) setting('region_club_id') === (int) $c['id'] ? 'selected' : '' ?>><?= h($c['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <p class="hint">Die Mitglieder dieses Vereins sehen und exportieren die Regiorangliste auch dann,
+                wenn die Rangliste sonst nicht öffentlich ist. Für alle anderen gilt die Einstellung
+                „Rangliste ist öffentlich sichtbar“.</p>
         </div>
     </fieldset>
 

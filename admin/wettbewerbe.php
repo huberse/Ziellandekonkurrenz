@@ -32,10 +32,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $clubId = $clubId > 0 ? $clubId : -1;
             }
             try {
-                $id = create_competition($name, $count, $target > 0 ? $target : 180, true, $clubId);
+                $id = create_competition($name, $count, $target > 0 ? $target : 180, true, $clubId,
+                                        isset($_POST['region']));
                 $competitionQS = '';
                 $wer = $clubId !== null && $clubId > 0 ? 'Veranstalter: ' . club_name($clubId) . '. ' : '';
-                flash("Wettbewerb „{$name}“ angelegt und aktiv gesetzt. {$wer}Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.", 'ok');
+                $auch = isset($_POST['region']) ? ' Zählt zum Regiocup des Jahres.' : '';
+                flash("Wettbewerb „{$name}“ angelegt und aktiv gesetzt. {$wer}{$auch}Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.", 'ok');
             } catch (Throwable $e) {
                 flash($e instanceof DomainException
                     ? $e->getMessage()
@@ -68,6 +70,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             require_competition_access((int) post('id'));
             reopen_competition((int) post('id'));
             flash('Wettbewerb wieder geöffnet.', 'ok');
+        } catch (Throwable $e) {
+            flash($e->getMessage(), 'err');
+        }
+    } elseif ($action === 'region') {
+        // Ein Wettbewerb kann nachträglich in den Regiocup aufgenommen oder
+        // daraus genommen werden - das Jahr steht im Datum, nicht im Namen.
+        $id = (int) post('id');
+        $an = isset($_POST['region']) ? 1 : 0;
+        try {
+            require_competition_access($id);
+            $pdo = db();
+            $st = $pdo->prepare('UPDATE competitions SET region = ? WHERE id = ?');
+            $st->execute([$an, $id]);
+            if ($st->rowCount() !== 1 && !find_competition($id)) {
+                throw new RuntimeException('Wettbewerb nicht gefunden.');
+            }
+            flash($an
+                ? 'Der Wettbewerb zählt jetzt zum Regiocup seines Jahres.'
+                : 'Der Wettbewerb zählt nicht mehr zum Regiocup.', 'ok');
         } catch (Throwable $e) {
             flash($e->getMessage(), 'err');
         }
@@ -213,6 +234,13 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
             </div>
             <?php endif; ?>
         </div>
+        <div class="check">
+            <input type="checkbox" id="rg" name="region" value="1">
+            <label for="rg">Dieser Wettbewerb zählt zum Regiocup</label>
+            <p class="hint">Für die Regiowertung zählt das Jahr aus dem Wettbewerbsdatum, nicht der Name.
+                Lass das Feld leer, wenn es ein Wettbewerb ohne Regiopunkte ist – später lässt sich das
+                jederzeit ändern.</p>
+        </div>
         <button class="btn big" type="submit">Wettbewerb anlegen und aktivieren</button>
     </form>
 </div>
@@ -300,6 +328,16 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                         <button class="btn small" type="submit">◉ Aktivieren</button>
                     </form>
                 <?php endif; ?>
+                <form method="post" style="display:inline">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="region">
+                    <input type="hidden" name="id" value="<?= $sid ?>">
+                    <input type="hidden" name="competition" value="<?= $sid ?>">
+                    <input type="hidden" name="region" value="<?= ((int) ($s['region'] ?? 0)) === 1 ? '0' : '1' ?>">
+                    <button class="btn ghost small" type="submit"
+                            title="<?= ((int) ($s['region'] ?? 0)) === 1 ? 'Zählt zum Regiocup – zum Entfernen klicken' : 'Zählt nicht zum Regiocup – zum Aufnehmen klicken' ?>"
+                    ><?= ((int) ($s['region'] ?? 0)) === 1 ? '🏆 Regiocup' : '○ Regiocup' ?></button>
+                </form>
                 <?php if ($counts['scores'] === 0 && !$completed): ?>
                     <button class="btn danger small" type="submit" form="delform<?= $sid ?>"
                             data-confirm-click="Wettbewerb <?= h($s['name']) ?> ohne Resultate löschen?">✕ Löschen</button>

@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS competitions (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   name       VARCHAR(160) NOT NULL,
   club_id    INT          NULL, -- Vereinszugehörigkeit; NULL = Altbestand ohne Zuordnung
+  region     TINYINT(1)   NOT NULL DEFAULT 0, -- 1 = zählt zum Regiocup dieses Jahres
   is_current TINYINT(1)   NOT NULL DEFAULT 0,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   completed_at DATETIME   NULL, -- NULL = offen, gesetzter Zeitpunkt = abgeschlossen
@@ -62,8 +63,6 @@ CREATE TABLE IF NOT EXISTS pilots (
   first_name  VARCHAR(80)  NOT NULL,
   last_name   VARCHAR(80)  NOT NULL,
   club_id     INT          NULL,
-  email       VARCHAR(160) NULL,
-  phone       VARCHAR(40)  NULL,
   model_type_id    INT          NULL,
   model_name  VARCHAR(120) NULL,
   notes       VARCHAR(255) NULL,
@@ -127,8 +126,6 @@ CREATE TABLE IF NOT EXISTS registrations (
   last_name  VARCHAR(80)  NOT NULL,
   club_id    INT          NULL,
   club       VARCHAR(120) NULL,
-  email      VARCHAR(160) NULL, -- Altbestand: das Anmeldeformular speichert keine Adresse
-  phone      VARCHAR(40)  NULL, -- Altbestand, wird nicht mehr erhoben
   model_type_id   INT          NULL,
   model_name VARCHAR(120) NULL,
   notes      VARCHAR(500) NULL,

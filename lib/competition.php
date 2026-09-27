@@ -360,7 +360,7 @@ function seed_competition_settings(int $competitionId, ?int $sourceCompetitionId
  * ausdrücklich, null übernimmt den eigenen Verein und erlaubt – falls
  * vorhanden – einen Wettbewerb ohne Vereinszuordnung.
  */
-function create_competition(string $name, int $roundsCount, int $targetTime, bool $makeCurrent = false, ?int $clubId = null): int
+function create_competition(string $name, int $roundsCount, int $targetTime, bool $makeCurrent = false, ?int $clubId = null, bool $region = false): int
 {
     $pdo = db();
     $pdo->beginTransaction();
@@ -376,8 +376,8 @@ function create_competition(string $name, int $roundsCount, int $targetTime, boo
                 throw new DomainException('Dieser Verein existiert nicht.');
             }
         }
-        $st = $pdo->prepare('INSERT INTO competitions (name, club_id) VALUES (?, ?)');
-        $st->execute([$name, $clubId]);
+        $st = $pdo->prepare('INSERT INTO competitions (name, club_id, region) VALUES (?, ?, ?)');
+        $st->execute([$name, $clubId, $region ? 1 : 0]);
         $competitionId = (int) $pdo->lastInsertId();
 
         $sourceCompetitionId = null;
@@ -1014,6 +1014,27 @@ function schema_has_competitions(): bool
         }
         $st = db()->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations');
         return (int) $st->fetchColumn() >= 8;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+/**
+ * Der Regiocup braucht die Spalte competitions.region. Diese Prüfung steht
+ * getrennt von schema_has_competitions(), damit eine Installation, die den
+ * Regiocup nicht nutzt, nicht auf jede andere Seite warten muss.
+ */
+function schema_has_region(): bool
+{
+    try {
+        if (!schema_has_competitions()) {
+            return false;
+        }
+        $st = db()->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations');
+        if ((int) $st->fetchColumn() < 9) {
+            return false;
+        }
+        return competition_schema_column_exists(db(), 'competitions', 'region');
     } catch (Throwable $e) {
         return false;
     }

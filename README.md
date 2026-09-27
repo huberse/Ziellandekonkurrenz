@@ -195,12 +195,24 @@ Seite gelangen kann:
 ```markdown
 ## 1.9.1
 - Punkt eins
+  Fortsetzung mit zwei Leerzeichen eingerückt
 - Punkt zwei
 ```
+
+Die Fortsetzungszeile ist wichtig: ohne die zwei Leerzeichen wäre der Punkt beim ersten
+Zeilenumbruch abgeschnitten. Eine Zeile ohne Aufzählungszeichen wird zu einem Absatz und
+steht dann ohne Aufzählungszeichen da – so lassen sich einleitende Sätze schreiben, ohne
+dass sie als Punkt erscheinen. Text vor der ersten `##`-Überschrift wird nicht gelesen und
+eignet sich für Vorbemerkungen.
 
 `## 1.9.1 – 27.09.2026` erlaubt zusätzlich ein Datum, das neben der Fassung steht. Fehlt die
 Liste, passt sie nicht zum Sprung, oder ist GitHub nicht erreichbar, fällt die Seite auf die
 Aufzählung der Dateien zurück – eine leere Anzeige gibt es nicht.
+
+Die Liste reicht zurück bis **1.1.0**, weil dort die Aktualisierung dazukam. Wer von einem
+sehr alten Stand kommt, sieht deshalb eine lange Liste. Das ist beabsichtigt: sonst ginge
+die Vereinszugehörigkeit aus 1.9.0 unter, und wer sie nicht kennt, sperrt sich beim
+Zuordnen der Wettbewerbe selbst aus.
 
 Die Liste für **Dateien, die stehen bleiben**, bleibt bestehen: dort braucht der SuperAdmin den
 Namen der Datei, die er von Hand übernehmen muss.
@@ -437,6 +449,8 @@ Unter **Einstellungen** werden die Einstellungen des ausgewählten Wettbewerbs b
 - Öffentlichkeit der Resultate
 - Vereinswertung: Anzahl der gewerteten Piloten je Verein
 - Anmeldeformular: offen oder geschlossen, Text über dem Formular, Absenderadresse
+- Regiocup: welcher Verein die Regiorangliste sehen und exportieren darf, auch wenn
+  die Ergebnisse sonst nicht öffentlich sind
 - Passwort des eigenen Kontos und weitere Zugänge
 
 Die Einstellungen gelten nur für den Wettbewerb, der oben ausgewählt ist. Beim Anlegen eines
@@ -459,6 +473,13 @@ Beim Anlegen werden die Einstellungen des gerade ausgewählten Wettbewerbs als V
 So haben zwei Vereinswettbewerbe unterschiedliche Regeln, ohne dass die bestehenden
 Wettbewerbe verändert werden. Ausgenommen ist die Absenderadresse der Anmeldebestätigung: sie
 gehört jedem Verein selbst und wird bewusst nicht vererbt.
+
+**Zum Regiocup.** Beim Anlegen lässt sich ankreuzen, ob der Wettbewerb zur Regiowertung des
+Jahres zählt; auf der Wettbewerbsseite schaltet der Knopf **🏆 Regiocup** das jederzeit um.
+Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen – ein „Erlencup 2027“ mit dem Datum
+19.06.2026 zählt also für 2026. Das ist Absicht: das Datum wird beim Kopieren eines
+Wettbewerbs ohnehin mitgenommen, während der Name frei ist. Wer einen Wettbewerb umbenennt,
+verschiebt ihn damit also nicht versehentlich in ein anderes Jahr.
 
 Auf der Seite **Wettbewerbe** steht eine Karte je Wettbewerb – nebeneinander statt
 untereinander, sodass nichts vertikal durchlaufen werden muss. Jede Karte zeigt Zustand,
@@ -504,9 +525,11 @@ Wettbewerbe, die noch nicht beendet sind.
 Das Formular fragt Vorname, Name, Verein, E-Mail, Modelltyp, Modell und Bemerkung ab – ein
 Telefonfeld gibt es nicht.
 
-**Die E-Mail-Adresse wird nicht gespeichert.** Sie dient ausschliesslich der Bestätigung.
-Verschickt wird diese erst, nachdem die Anmeldung gespeichert *und wieder aus der Datenbank
-gelesen* wurde – eine Bestätigung ohne Eintrag kann es dadurch nicht geben. Die Absenderadresse
+**Die E-Mail-Adresse wird nicht gespeichert.** Sie dient ausschliesslich der Bestätigung und wird
+danach verworfen – die Spalte dazu gibt es in der Datenbank nicht mehr. Auch beim Freigeben der
+Anmeldung wird nichts davon in die Startliste übernommen. Verschickt wird die Bestätigung erst,
+nachdem die Anmeldung gespeichert *und wieder aus der Datenbank gelesen* wurde – eine Bestätigung
+ohne Eintrag kann es dadurch nicht geben. Die Absenderadresse
 steht pro Wettbewerb unter **Einstellungen → Anmeldung**; ohne sie wird nichts verschickt, die
 Anmeldung geht aber trotzdem ein.
 
@@ -554,6 +577,7 @@ diagnose.php           Fehlersuche – danach löschen
 
 lib/competition.php    Wettbewerbe, Kontext der Einstellungen, Abschlussstatus
 lib/scoring.php        Strafpunkte, Rangliste, Vereinswertung
+lib/region.php         Regiowertung: FIS-Punkte, beste vier von fünf Starts
 lib/db.php             Datenbankzugriff und Einstellungen
 lib/mail.php           Anmeldebestätigung
 lib/pdf.php            abhängigkeitsfreier PDF-Generator
@@ -637,6 +661,17 @@ stehen nur die Konto-Nummer, CSRF- und Formular-Token sowie kurze Meldungstexte.
 Deshalb gibt es **kein Einwilligungs-Banner**: Es wird nichts einwilligungsbedürftiges gesetzt.
 Statt eines nutzlosen „Akzeptieren"-Knopfes steht auf der Anmeldeseite ein kurzer Hinweis, was die
 Sitzung ist. Ein Banner wäre erst nötig, wenn Analyse oder Tracking hinzukäme.
+
+**Es werden keine Kontaktdaten gespeichert.** Das Anmeldeformular fragt die E-Mail-Adresse ab, weil
+die Anmeldebestätigung verschickt wird – danach wird sie verworfen. In der Datenbank steht sie
+nicht. Dasselbe gilt für Telefonnummern: sie werden gar nicht erst erhoben. Auch die Startliste
+führt keine Spalte *Kontakt* mehr, und beim Freigeben einer Anmeldung wandern keine Adressen in
+den Wettbewerb. Die Adressspalten der Datenbank sind mit Migration 10 entfallen, mitsamt aller
+Altbestände, die das frühere Formular übernommen hatte.
+
+Einzig die **Absenderadresse** ist gespeichert: sie gehört dem Verein, wird unter
+*Einstellungen → Anmeldung* gesetzt und steht in jeder Bestätigung. Sie ist keine Angabe über
+eine Person.
 
 Offen bleibt allein die Webstatistik des Hosters – die gehört zum Betreiber, nicht zum Programm.
 
