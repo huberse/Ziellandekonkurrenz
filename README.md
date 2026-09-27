@@ -619,6 +619,23 @@ wie dem Laufzettel, gilt die Klasse nicht als Ausrichtungsangabe.
   abgeschlossenen Wettbewerben verwendet wurden. Ein Verein wird zusätzlich nicht gelöscht,
   solange Piloten, Anmeldungen, Wettbewerbe oder Konten an ihm hängen.
 
+### Cookies und Datenschutz
+
+Die Anwendung setzt **kein Tracking-Cookie** und lädt nichts von fremden Servern: keine
+Analyse, keine Werbung, keine eingebetteten Karten oder Videos, keine externen Schriften, kein
+Fingerabdruck, keine IP in der Sitzung.
+
+Es gibt genau **ein** Cookie, `PHPSESSID` – die Sitzung, damit die Anmeldung erhalten bleibt.
+Sie ist technisch notwendig; ohne sie könnte sich niemand einloggen. Sie wird mit `httponly` und
+`samesite=Lax` gesetzt, sowie mit `secure`, sobald die Seite über HTTPS läuft. In der Sitzung
+stehen nur die Konto-Nummer, CSRF- und Formular-Token sowie kurze Meldungstexte.
+
+Deshalb gibt es **kein Einwilligungs-Banner**: Es wird nichts einwilligungsbedürftiges gesetzt.
+Statt eines nutzlosen „Akzeptieren"-Knopfes steht auf der Anmeldeseite ein kurzer Hinweis, was die
+Sitzung ist. Ein Banner wäre erst nötig, wenn Analyse oder Tracking hinzukäme.
+
+Offen bleibt allein die Webstatistik des Hosters – die gehört zum Betreiber, nicht zum Programm.
+
 ## Fehlersuche
 
 Antwortet eine Seite mit einem 500-Fehler, `diagnose.php` hochladen und aufrufen. Die Datei prüft

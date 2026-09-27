@@ -170,6 +170,8 @@ main.wide { max-width: 1500px; }
 .login-card { width: 100%; max-width: 380px; }
 .login-back { text-align: center; margin: 18px 0 0; font-size: 0.9rem; }
 
+/* .login-note steht am Dateiende, weil es nach .hint kommen muss. */
+
 /* Schmale Seiten wie das Anmeldeformular: mittig und gut lesbar. */
 .narrow { max-width: 720px; margin-left: auto; margin-right: auto; }
 
@@ -779,4 +781,14 @@ legend { font-weight: 600; padding: 0 6px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+/* Steht am Ende, damit es den allgemeinen .hint nicht überschreibt: der
+   Hinweis zur Sitzung auf der Anmeldeseite braucht mehr Abstand zur Trennlinie
+   als die kurzen Feldhinweise. */
+.login-note {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  line-height: 1.5;
 }

@@ -37,6 +37,11 @@ page_start('Anmelden', 'admin', '', false, false);
             </div>
             <button class="btn big" type="submit" style="width:100%">Anmelden</button>
         </form>
+        <p class="hint login-note">
+            Beim Anmelden wird eine Sitzung angelegt, damit du angemeldet bleibst. Sie ist
+            technisch nötig – ohne sie ginge die Anmeldung nicht. Weitere Daten werden nicht
+            gespeichert und nichts wird an Dritte übertragen.
+        </p>
         <p class="login-back"><a href="../index.php">← zur Rangliste</a></p>
     </div>
 </div>

@@ -15,6 +15,9 @@ diese Liste an, wenn sie ein Update anbietet.
   daran nichts ändern.
 - Diese Aktualisierungsseite zeigt jetzt die Änderungsliste statt einer
   Aufzählung der ausgetauschten Dateien.
+- Die Anmeldeseite erklärt, was die Sitzung ist. Es wird kein
+  Einwilligungs-Banner eingeblendet, weil die Anwendung kein Tracking-Cookie
+  setzt und nichts von fremden Servern lädt – es gibt nichts einwilligen.
 - Ein Verein lässt sich nur noch löschen, wenn nirgends mehr etwas an ihm
   hängt. Geprüft werden Piloten, Anmeldungen, Wettbewerbe als Veranstalter und
   Konten; vorher wurden die Piloten beim Löschen still verwaist.
