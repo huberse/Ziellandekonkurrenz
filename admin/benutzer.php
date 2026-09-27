@@ -6,11 +6,20 @@ require_once __DIR__ . '/../lib/layout.php';
 require_once __DIR__ . '/../lib/auth.php';
 $me = require_superadmin();
 
-$users = db()->query('SELECT u.id, u.username, u.display_name, u.club_id, u.is_superadmin, u.active, u.created_at,
-                              c.name AS club_name
-                       FROM users u
-                       LEFT JOIN clubs c ON c.id = u.club_id
-                       ORDER BY u.is_superadmin DESC, u.username')->fetchAll();
+// Vor der Vereins-Migration gibt es users.club_id noch nicht. Dann laeuft die
+// Abfrage ohne die Spalte, damit die Benutzerverwaltung bis zum Upgrade
+// erreichbar bleibt und nicht an einem SQL-Fehler haengt.
+try {
+    $users = db()->query('SELECT u.id, u.username, u.display_name, u.club_id, u.is_superadmin, u.active, u.created_at,
+                                  c.name AS club_name
+                           FROM users u
+                           LEFT JOIN clubs c ON c.id = u.club_id
+                           ORDER BY u.is_superadmin DESC, u.username')->fetchAll();
+} catch (PDOException $e) {
+    $users = db()->query('SELECT id, username, display_name, is_superadmin, active, created_at
+                          FROM users
+                          ORDER BY is_superadmin DESC, username')->fetchAll();
+}
 $byId = [];
 foreach ($users as $row) {
     $byId[(int) $row['id']] = $row;
