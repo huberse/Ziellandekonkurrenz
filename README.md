@@ -482,8 +482,12 @@ Ein gezielter Aufruf funktioniert mit `index.php?competition=2`. Die frühere Fo
 **Ein Verein, einmal angelegt.** Vereine und Modelltypen bleiben global, die Wettbewerbe sind
 datenseitig getrennt. Ein Verein lässt sich deshalb nur löschen, wenn **nirgends** mehr etwas an
 ihm hängt – geprüft werden alle vier Verwendungen: Piloten in der Startliste, Anmeldungen,
-Wettbewerbe, an denen er als Veranstalter steht, und Konten. Solange eine davon besteht, ist der
-Knopf gesperrt und nennt den Grund samt dem Weg, der aufräumt.
+Wettbewerbe, an denen er als Veranstalter steht, und Konten.
+
+Der Knopf **Löschen** bleibt immer bedienbar; steht nichts dagegen, fragt er wie bisher nach.
+Hängt noch etwas am Verein, nennt die Meldung genau die Anzahlen – „3 Piloten in der Startliste
+und 1 Anmeldung“ – und den Weg, der aufräumt. Im Raster steht das bewusst nicht: sonst steht
+jeder Verein mit seinen Piloten und Konten da, ohne dass man etwas tun muss.
 
 Zwei Einträge für denselben Verein werden über **Doppelten Verein zusammenlegen** zusammengeführt:
 die Piloten wandern zum Zielverein, der Doppeleintrag verschwindet. Beides ist für Vereine

@@ -119,12 +119,6 @@ $clubs = db()->prepare('SELECT c.*,
 $clubs->execute([(int) $competition['id']]);
 $clubs = $clubs->fetchAll();
 
-// Verwendungen je Verein, damit der Knopf vorab weiss, ob er zu sperren hat.
-$verwendungen = [];
-foreach ($clubs as $c) {
-    $verwendungen[(int) $c['id']] = club_verwendungen(db(), (int) $c['id']);
-}
-
 $count = (int) setting_num('club_scoring_count', 3);
 
 page_start('Vereine', 'admin', 'vereine.php');
@@ -150,7 +144,7 @@ page_start('Vereine', 'admin', 'vereine.php');
     <div class="panel" style="padding:0">
         <div class="table-scroll">
         <table class="data dense">
-            <thead><tr><th>Name</th><th>Kürzel</th><th>Ort</th><th>Reihenfolge</th><th class="mid">Zur Auswahl</th><th class="num">Piloten <?= h($competition['name']) ?></th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Kürzel</th><th>Ort</th><th>Reihenfolge</th><th class="mid">Zur Auswahl</th><th class="num" title="Aktive Piloten im gewählten Wettbewerb">Piloten</th><th></th></tr></thead>
             <tbody>
             <?php foreach ($clubs as $c): $cid = (int) $c['id']; ?>
                 <tr>
@@ -161,17 +155,13 @@ page_start('Vereine', 'admin', 'vereine.php');
                     <td class="mid"><input type="checkbox" name="active_by_id[<?= $cid ?>]" <?= $c['active'] ? 'checked' : '' ?>></td>
                     <td class="num<?= (int) $c['pilot_count'] < $count ? ' cell-missing' : '' ?>"><?= (int) $c['pilot_count'] ?></td>
                     <td class="no-print">
-                        <?php $bezug = $verwendungen[$cid] ?? [];
-                        if ($bezug): ?>
-                            <button class="btn danger" type="submit" name="delete_id" value="<?= $cid ?>" disabled
-                                    title="Noch verknüpft: <?= h(trim(club_verwendungen_text($bezug), '.')) ?>">Löschen</button>
-                            <span class="small muted nowrap" style="display:block">
-                                <?= h(trim(club_verwendungen_text($bezug), '.')) ?>
-                            </span>
-                        <?php else: ?>
-                            <button class="btn danger" type="submit" name="delete_id" value="<?= $cid ?>"
-                                    data-confirm-click="<?= h($c['name']) ?> löschen? Der Verein ist nirgends verknüpft.">Löschen</button>
-                        <?php endif; ?>
+                        <?php // Kein Sperren und kein Infotext neben dem Knopf: sonst
+                              // steht schon im Raster, wer dran hängt. Der Knopf
+                              // bleibt immer bedienbar, und der Server nennt beim
+                              // Drücken die genauen Anzahlen und den Weg, der
+                              // aufräumt - für jeden Verein anders. ?>
+                        <button class="btn danger" type="submit" name="delete_id" value="<?= $cid ?>"
+                                data-confirm-click="<?= h($c['name']) ?> löschen?">Löschen</button>
                     </td>
                 </tr>
             <?php endforeach; ?>
