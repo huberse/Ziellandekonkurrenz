@@ -571,16 +571,48 @@ function update_ausfuehren(array $plan, array $neu): array
         // speichert rohe Dateien bis zu fuenf Minuten zwischen, das Archiv
         // dagegen nicht. Genau das ist hier zu melden, statt spaeter
         // "Inhalt passt nicht" zu sagen.
+        //
+        // Verglichen werden nicht nur die Fassungsnummern, sondern auch die
+        // Pruefsummen: innerhalb einer Fassung kann die Bestandsliste
+        // geaendert worden sein, und eine veraltete Rohdatei traegt dann
+        // zwar dieselbe Nummer, aber andere Summen. Ohne diesen zweiten
+        // Vergleich bliebe der Widerspruch unbemerkt und endete als
+        // "Datei passt nicht zur Bestandsliste" - eine Meldung, die dann
+        // am falschen Ort suchen laesst.
         $drin = update_zip_lesen($zip, $praefix . 'manifest.json', 2097152);
         if ($drin !== null) {
             $innen = json_decode($drin, true);
             $versionDrin = is_array($innen) ? (string) ($innen['version'] ?? '') : '';
+            $dateienDrin = (is_array($innen) && is_array($innen['files'] ?? null)) ? $innen['files'] : [];
+            $abweichend = [];
+            foreach ($neu['files'] as $pfad => $summe) {
+                if (!isset($dateienDrin[$pfad])) {
+                    $abweichend[] = $pfad;
+                } elseif (!hash_equals((string) $dateienDrin[$pfad], (string) $summe)) {
+                    $abweichend[] = $pfad;
+                }
+            }
+            foreach ($dateienDrin as $pfad => $__) {
+                if (!isset($neu['files'][$pfad])) {
+                    $abweichend[] = $pfad;
+                }
+            }
             if ($versionDrin !== '' && $versionDrin !== $neu['version']) {
                 $zip->close();
                 @unlink($zipPfad);
                 $bericht['fehler'][] = 'GitHub antwortet mit zwei verschiedenen Staenden: die Bestandsliste nennt '
                     . $neu['version'] . ', im Archiv steckt ' . $versionDrin . '. Rohdateien werden bis zu '
                     . '5 Minuten zwischengespeichert, das Archiv nicht. In ein paar Minuten erneut versuchen.';
+                return $bericht;
+            }
+            if ($abweichend) {
+                $zip->close();
+                @unlink($zipPfad);
+                $bericht['fehler'][] = 'Die Bestandsliste von GitHub ist aelter als das Archiv, obwohl beide '
+                    . $neu['version'] . ' nennen: ' . count($abweichend) . ' Datei(en) haben unterschiedliche '
+                    . 'Pruefsummen (' . implode(', ', array_slice($abweichend, 0, 4))
+                    . (count($abweichend) > 4 ? ' und weitere' : '') . '). Rohdateien werden bis zu 5 Minuten '
+                    . 'zwischengespeichert, das Archiv nicht. In ein paar Minuten erneut versuchen.';
                 return $bericht;
             }
         }

@@ -3,6 +3,17 @@
 Was sich zwischen den Fassungen geändert hat. Die Aktualisierungsseite zeigt
 diese Liste an, wenn sie ein Update anbietet.
 
+## 1.9.2
+
+- Wenn GitHub eine veraltete Bestandsliste und zugleich ein frisches Archiv
+  liefert, meldet die Aktualisierungsseite das jetzt ausdrücklich, statt an
+  einer scheinbar unbeteiligten Datei zu scheitern. Vorher wurde der
+  Widerspruch nur an der Fassungsnummer erkannt.
+- *Fassung 1.9.1 war für den Aktualisierungsweg nicht zu gebrauchen und ist
+  deshalb übersprungen: Sie ist im Repository mehrfach mit derselben Nummer
+  erschienen. Bitte auf 1.9.1 verbleiben; es gibt keine Unterschiede zur
+  jetzigen Fassung außer dem hier Beschriebenen.*
+
 ## 1.9.1
 
 - Startnummern neu vergeben und CSV-Export stehen jetzt dort, wo sie hingehören:

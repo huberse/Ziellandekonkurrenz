@@ -15,7 +15,14 @@ declare(strict_types=1);
  */
 
 // Version des Programms.
-const APP_VERSION = '1.9.1';
+//
+// Wichtig fuer die Aktualisierung: zu einem Zeitpunkt darf es nur EINEN Commit
+// mit dieser Fassung geben. Waere dieselbe Nummer mehrfach vergeben, koennte
+// GitHub eine veraltete Bestandsliste und ein frisches Archiv liefern, ohne
+// dass der Versionsvergleich es merkt - der Knopf scheitert dann an einer
+// scheinbar unbeteiligten Datei. Nach dem Hochladen deshalb keine weitere
+// Aenderung mit derselben Nummer; notfalls auf 1.9.2 hochzaehlen.
+const APP_VERSION = '1.9.2';
 
 // Quelle der Aktualisierungen. Feste Angaben, keine Eingabe aus dem Formular:
 // sonst wuerde die Seite zur Bruecke fuer beliebige Ziele.
