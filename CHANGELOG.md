@@ -5,6 +5,11 @@ diese Liste an, wenn sie ein Update anbietet.
 
 ## 1.9.2
 
+- Die Anzeige der Vereine ist schmaler: Die Spaltenüberschrift heisst nur noch
+  „Piloten" statt den ganzen Wettbewerbsnamen zu wiederholen.
+- Der Knopf **Löschen** bei den Vereinen ist nicht mehr gesperrt und trägt
+  keinen Infotext mehr. Wer ihn drückt, bekommt die genauen Anzahlen der
+  Verknüpfungen und den Weg, der aufräumt – je Verein anders.
 - Wenn GitHub eine veraltete Bestandsliste und zugleich ein frisches Archiv
   liefert, meldet die Aktualisierungsseite das jetzt ausdrücklich, statt an
   einer scheinbar unbeteiligten Datei zu scheitern. Vorher wurde der
