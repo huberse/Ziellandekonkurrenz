@@ -145,6 +145,17 @@ Anzeigename erhalten und dürfen weiterhin den gesamten Wettbewerb steuern. Neu 
 Rolle: Das älteste Konto wird SuperAdmin, damit die Benutzerverwaltung erreichbar ist. Siehe
 [Benutzer und Rechte](#benutzer-und-rechte).
 
+**Migration 7 führt die Vereinszugehörigkeit ein.** Bestehende Konten und Wettbewerbe bleiben
+zunächst ohne Verein (siehe [Vereinszugehörigkeit](#vereinszugehoerigkeit)); der SuperAdmin weist
+sie unter **Benutzer** zu. Neu angelegte Wettbewerbe gehören automatisch dem Verein dessen, der
+sie angelegt hat.
+
+**Migration 8 ergänzt die Bruchlandung und vereinfacht das Erfassen.** Die Spalte `scores.status`
+erhält den neuen Wert `crash`, und jeder Wettbewerb bekommt den Betrag `penalty_crash` – zuerst
+übernommen aus dem bisherigen Sammelwert für „Aussenlandung oder fehlendes Resultat", also in der
+Regel 100 Punkte. **Nach dem Update den Betrag unter Einstellungen → Strafpunkte je Verein
+prüfen.** Bereits gespeicherte Resultate bleiben gültig und behalten ihre Punkte.
+
 Die Dateien `admin/saisons.php` und `lib/season.php` bleiben nur als Kompatibilitätspfade für
 alte Lesezeichen erhalten. Neue URLs verwenden `competition`.
 
@@ -301,8 +312,9 @@ damit jeder Verein seine eigenen Zahlen haben kann. Es gibt genau fünf Baustein
 | Zeitabweichung | `penalty_per_second` | Punkte je Sekunde Abweichung von der Zielzeit |
 | Landepunkte | `penalty_per_meter` | Punkte je Landewert-Einheit |
 | Strafe Aussenlandung | `penalty_outlanding` | fester Betrag |
+| Strafe Bruchlandung | `penalty_crash` | fester Betrag |
 | Strafe nicht angetreten | `penalty_not_started` | fester Betrag |
-| Strafe Motor angelassen | `penalty_motor` | fester Betrag, bei einer Aussenlandung zusätzlich |
+| Strafe Motor angelassen | `penalty_motor` | fester Betrag, bei einem festen Ausgang zusätzlich |
 
 Es gibt **keine Obergrenze**: eine grosse Zeitabweichung oder ein weit entfernter Landepunkt
 kostet unbegrenzt Punkte. Die festen Strafen wirken ohnehin als Gesamtbetrag.
@@ -313,17 +325,25 @@ Zwei Regeln, die man leicht falsch liest:
 gleich viel – es gibt nur einen Satz je Sekunde.
 
 **Der Motor ist eine Zusatzstrafe, keine eigene Ergebnisart.** Bei einem geflogenen Flug ersetzt
-sie Zeit und Landewert, gezählt wird allein die Motorstrafe. Bei einer Aussenlandung oder einem
-Nichtantritt kommt sie zur jeweiligen Feststrafe dazu.
+sie Zeit und Landewert, gezählt wird allein die Motorstrafe. Bei einer Aussenlandung, einer
+Bruchlandung oder einem Nichtantritt kommt sie zur jeweiligen Feststrafe dazu.
 
-| Auswahl beim Erfassen | Punkte |
+Beim Erfassen gibt es vier Ankreuzfelder, genau wie im Laufzettel. **Kein Feld heisst „geflogen"**,
+der Flug wird dann nach Flugzeit und Landewert gewertet:
+
+| Angekreuzte Felder | Punkte |
 | --- | --- |
-| geflogen | Zeitabweichung + Landepunkte |
+| keine | Zeitabweichung + Landepunkte |
 | nicht angetreten | `penalty_not_started` |
 | Aussenlandung | `penalty_outlanding` |
-| Motor angelassen | `penalty_motor` |
-| Aussenlandung & Motor angelassen | `penalty_outlanding` + `penalty_motor` |
-| kein Eintrag | die Zeile bleibt ohne Resultat |
+| Bruchlandung | `penalty_crash` |
+| Aussenlandung & Motor | `penalty_outlanding` + `penalty_motor` |
+| Bruchlandung & Motor | `penalty_crash` + `penalty_motor` |
+| Motor allein | `penalty_motor` (kein gültiger Flug) |
+| keine Felder, keine Zeit, kein Landewert | die Zeile bleibt ohne Resultat |
+
+Kombiniert werden kann alles; tritt eine Bruch- oder Aussenlandung mit „nicht angetreten"
+zusammen auf, zählt die Bruch- beziehungsweise Aussenlandung.
 
 Der Landewert ist eine Zahl: entweder die Distanz in Metern zum Landepunkt oder direkt eine
 Punktzahl aus der Landetabelle.
@@ -339,16 +359,19 @@ mit den aktuellen Regeln des Wettbewerbs nach – auch die festen Strafen und de
 
 ### Laufzettel
 
-Je Durchgang entstehen zwei A4-Blätter. Neben Flugzeit und Landewert hat jede Zeile drei
+Je Durchgang entstehen zwei A4-Blätter. Neben Flugzeit und Landewert hat jede Zeile vier
 Ankreuzfelder:
 
 - **nicht angetreten**
 - **Aussenlandung**
+- **Bruchlandung** – das Modell ist beim Landen zerstört
 - **Motor angelassen** – bei einem elektrischen Modell wurde der Motor angelassen
 
-Kein Feld angekreuzt heisst „geflogen". Aussenlandung und Motor zusammen ergeben
-„Aussenlandung & Motor angelassen". Die Bezeichnungen stehen in der Kopfzeile, die Punkte für
-jedes Feld in der Legende darunter, damit der Zeitnehmer sie nicht nachschlagen muss.
+Kein Feld angekreuzt heisst „geflogen". Die Felder dürfen einzeln oder zusammen angekreuzt
+werden; der Motor kommt zu jedem Ausgang dazu. Die Bezeichnungen stehen in der Kopfzeile, die
+Punkte für jedes Feld in der Legende darunter, damit der Zeitnehmer sie nicht nachschlagen muss.
+Weil die vier Felder in den Satzspiegel passen müssen, ist die Kopfzeile kurzfomatiert
+(„nicht angetr.", „Aussenland.", „Bruchland.", „Motor"); die Legende nennt sie ausgeschrieben.
 
 `admin/laufzettel.php` bietet den PDF-Download an; die HTML-Ansicht ist der Druck-Fallback.
 

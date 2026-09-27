@@ -6,11 +6,15 @@ require_once __DIR__ . '/../lib/layout.php';
 $me = require_login();
 $competition = resolve_competition_param(competition_request_param());
 $competitionCompleted = competition_is_completed((int) $competition['id']);
-$competitions = all_competitions();
+$competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+    if (!can_manage_competition((int) $competition['id'])) {
+        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+        redirect('index.php');
+    }
     $action = post('action');
 
     if ($action === 'settings') {
@@ -21,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors = [];
         $numberKeys = [
             'penalty_per_second', 'penalty_per_meter',
-            'penalty_outlanding', 'penalty_not_started', 'penalty_motor',
+            'penalty_outlanding', 'penalty_crash', 'penalty_not_started', 'penalty_motor',
         ];
         $numbers = [];
         foreach ($numberKeys as $key) {
@@ -220,6 +224,11 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
                     <span class="rule-note">nicht gelandet</span>
                 </div>
                 <div class="rule">
+                    <label for="pc">Bruchlandung</label>
+                    <input type="text" id="pc" name="penalty_crash" value="<?= h(setting('penalty_crash')) ?>" inputmode="decimal">
+                    <span class="rule-note">Modell beschädigt</span>
+                </div>
+                <div class="rule">
                     <label for="pn">Nicht angetreten</label>
                     <input type="text" id="pn" name="penalty_not_started" value="<?= h(setting('penalty_not_started')) ?>" inputmode="decimal">
                     <span class="rule-note">auch ohne Resultat</span>
@@ -247,6 +256,7 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
             <?= $abweichung ?> &times; <?= h(fmt_num($jeSekunde, 2)) ?> + <?= $landwert ?> &times; <?= h(fmt_num($jeLandwert, 2)) ?>
             = <b><?= h(fmt_num(round($zeitPunkte + $landPunkte, 2))) ?></b> Punkte.
             Fest: Aussenlandung <?= h(fmt_num(setting_num('penalty_outlanding'))) ?>,
+            Bruchlandung <?= h(fmt_num(setting_num('penalty_crash'))) ?>,
             nicht angetreten <?= h(fmt_num(setting_num('penalty_not_started'))) ?>,
             Motor <?= h(fmt_num(setting_num('penalty_motor'))) ?>,
             Aussenlandung mit Motor <?= h(fmt_num(round(setting_num('penalty_outlanding') + setting_num('penalty_motor'), 2))) ?>.

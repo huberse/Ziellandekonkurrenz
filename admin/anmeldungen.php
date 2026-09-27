@@ -6,7 +6,7 @@ require_once __DIR__ . '/../lib/layout.php';
 require_login();
 $competition = resolve_competition_param(competition_request_param());
 $competitionCompleted = competition_is_completed((int) $competition['id']);
-$competitions = all_competitions();
+$competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $completedCompetitionIds = [];
 foreach ($competitions as $knownCompetition) {
     if ($knownCompetition['completed_at'] !== null) {
@@ -43,6 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $st->execute([$id]);
     $reg = $st->fetch();
     $regCompetitionId = $reg ? ($reg['competition_id'] !== null ? (int) $reg['competition_id'] : (int) $competition['id']) : 0;
+    if ($reg && $regCompetitionId > 0 && !can_manage_competition($regCompetitionId)) {
+        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+        redirect('anmeldungen.php' . $listQS);
+    }
     if (($competitionCompleted && (!$showAll || ($reg && $regCompetitionId === (int) $competition['id'])))
         || ($reg && $regCompetitionId > 0 && isset($completedCompetitionIds[$regCompetitionId]))) {
         flash('Dieser Wettbewerb ist abgeschlossen. Anmeldungen können nicht mehr geändert werden.', 'err');
@@ -199,6 +203,16 @@ $args = [];
 if (!$showAll) {
     $sql .= ' WHERE r.competition_id = ?';
     $args[] = $competition['id'];
+} elseif (!is_superadmin()) {
+    // Nur SuperAdmins sehen Anmeldungen aller Vereine; normale Benutzer nur
+    // die ihres eigenen Vereins sowie Altbestand ohne Vereinszuordnung.
+    $clubId = user_club_id();
+    if ($clubId === null) {
+        $sql .= ' WHERE (r.competition_id IS NULL OR sea.club_id IS NULL)';
+    } else {
+        $sql .= ' WHERE (r.competition_id IS NULL OR sea.club_id = ? OR sea.club_id IS NULL)';
+        $args[] = $clubId;
+    }
 }
 $sql .= " ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, r.created_at DESC";
 $st = db()->prepare($sql);

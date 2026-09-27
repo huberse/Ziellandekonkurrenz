@@ -540,16 +540,16 @@ function migration_ensure_completion_fields(PDO $pdo): array
     }
 
     if (!migration_column_exists($pdo, 'scores', 'status')) {
-        $pdo->exec("ALTER TABLE scores ADD COLUMN status ENUM('flown','dnf','dns') NOT NULL DEFAULT 'flown'");
+        $pdo->exec("ALTER TABLE scores ADD COLUMN status ENUM('flown','dnf','dns','crash') NOT NULL DEFAULT 'flown'");
         $log[] = 'Spalte scores.status wurde ergänzt.';
     } else {
         $invalid = $pdo->query("SELECT DISTINCT status FROM scores
-                                WHERE status IS NULL OR status NOT IN ('flown','dnf','dns')")->fetchAll(PDO::FETCH_COLUMN);
+                                WHERE status IS NULL OR status NOT IN ('flown','dnf','dns','crash')")->fetchAll(PDO::FETCH_COLUMN);
         if ($invalid) {
             throw new RuntimeException('scores.status enthält unbekannte Werte; bitte vor der Migration prüfen: '
                 . implode(', ', array_map('strval', $invalid)));
         }
-        $pdo->exec("ALTER TABLE scores MODIFY COLUMN status ENUM('flown','dnf','dns') NOT NULL DEFAULT 'flown'");
+        $pdo->exec("ALTER TABLE scores MODIFY COLUMN status ENUM('flown','dnf','dns','crash') NOT NULL DEFAULT 'flown'");
     }
     return $log;
 }
@@ -766,7 +766,7 @@ function migration_penalty_rules(PDO $pdo): array
         'penalty_per_second_over', 'penalty_per_second_under', 'penalty_not_flown',
         'max_time_penalty', 'max_landing_penalty',
     ];
-    $newKeys = ['penalty_per_second', 'penalty_outlanding', 'penalty_not_started', 'penalty_motor'];
+    $newKeys = ['penalty_per_second', 'penalty_outlanding', 'penalty_crash', 'penalty_not_started', 'penalty_motor'];
     $allKeys = array_merge($legacyKeys, $newKeys);
     $placeholders = implode(', ', array_fill(0, count($allKeys), '?'));
 
@@ -822,6 +822,7 @@ function migration_penalty_rules(PDO $pdo): array
         $highest = max($overC ?? 0, $underC ?? 0);
         $seconds = $pick($values['penalty_per_second'] ?? null, $highest > 0 ? $highest : 1);
         $outlanding = $pick($values['penalty_outlanding'] ?? null, $notFlownC ?? 100);
+        $crash = $pick($values['penalty_crash'] ?? null, $notFlownC ?? 100);
         $notStarted = $pick($values['penalty_not_started'] ?? null, $notFlownC ?? 100);
         $motor = $pick($values['penalty_motor'] ?? null, $notFlownC ?? 100);
 
@@ -838,6 +839,7 @@ function migration_penalty_rules(PDO $pdo): array
             $globalRewrite = [
                 'penalty_per_second' => (string) $seconds,
                 'penalty_outlanding' => (string) $outlanding,
+                'penalty_crash' => (string) $crash,
                 'penalty_not_started' => (string) $notStarted,
                 'penalty_motor' => (string) $motor,
             ];
@@ -847,6 +849,7 @@ function migration_penalty_rules(PDO $pdo): array
                                 ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)');
         $write->execute([$competitionId, 'penalty_per_second', (string) $seconds]);
         $write->execute([$competitionId, 'penalty_outlanding', (string) $outlanding]);
+        $write->execute([$competitionId, 'penalty_crash', (string) $crash]);
         $write->execute([$competitionId, 'penalty_not_started', (string) $notStarted]);
         $write->execute([$competitionId, 'penalty_motor', (string) $motor]);
     }
@@ -917,6 +920,36 @@ function migration_user_rights(PDO $pdo): array
 }
 
 /**
+ * Vereinszugehörigkeit für Konten und Wettbewerbe. Jeder Benutzer kann einem
+ * Verein zugeordnet werden; ein angelegter Wettbewerb gehört automatisch dem
+ * Verein seines Erstellers. Nur SuperAdmins und Benutzer des gleichen Vereins
+ * dürfen einen Wettbewerb steuern.
+ *
+ * Bestehende Zeilen bleiben ohne Verein (NULL); das ist der Altbestand, der
+ * für alle Konten sichtbar bleibt.
+ */
+function migration_club_ownership(PDO $pdo): array
+{
+    $log = [];
+    if (!migration_table_exists($pdo, 'clubs')) {
+        throw new RuntimeException('Die Tabelle clubs fehlt; die Vereinszuordnung kann nicht vorbereitet werden.');
+    }
+    if (migration_table_exists($pdo, 'users') && !migration_column_exists($pdo, 'users', 'club_id')) {
+        $pdo->exec('ALTER TABLE users ADD COLUMN club_id INT NULL AFTER display_name');
+        $pdo->exec('ALTER TABLE users ADD CONSTRAINT fk_user_club FOREIGN KEY (club_id)
+                    REFERENCES clubs(id) ON DELETE SET NULL');
+        $log[] = 'Spalte users.club_id wurde ergänzt.';
+    }
+    if (migration_table_exists($pdo, 'competitions') && !migration_column_exists($pdo, 'competitions', 'club_id')) {
+        $pdo->exec('ALTER TABLE competitions ADD COLUMN club_id INT NULL AFTER name');
+        $pdo->exec('ALTER TABLE competitions ADD CONSTRAINT fk_competition_club FOREIGN KEY (club_id)
+                    REFERENCES clubs(id) ON DELETE SET NULL');
+        $log[] = 'Spalte competitions.club_id wurde ergänzt.';
+    }
+    return $log;
+}
+
+/**
  * Migrationen, die ausschliesslich Spalten ergänzen. Sie hängen an keiner
  * anderen Migration und sind idempotent, deshalb lassen sie sich auch dann
  * nachholen, wenn die Wettbewerbsstruktur schon vollständig steht – etwa wenn
@@ -936,6 +969,26 @@ function migration_pending_column_steps(PDO $pdo): array
         && (!migration_column_exists($pdo, 'users', 'is_superadmin')
             || !migration_column_exists($pdo, 'users', 'active'))) {
         $steps[] = static function (PDO $pdo): array { return migration_user_rights($pdo); };
+    }
+    if (migration_table_exists($pdo, 'users') && !migration_column_exists($pdo, 'users', 'club_id')) {
+        $steps[] = static function (PDO $pdo): array { return migration_club_ownership($pdo); };
+    }
+    if (migration_table_exists($pdo, 'competitions') && !migration_column_exists($pdo, 'competitions', 'club_id')) {
+        $steps[] = static function (PDO $pdo): array { return migration_club_ownership($pdo); };
+    }
+    if (migration_table_exists($pdo, 'scores')) {
+        $statusType = '';
+        try {
+            $st = $pdo->prepare("SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores' AND COLUMN_NAME = 'status'");
+            $st->execute();
+            $statusType = strtolower(str_replace(' ', '', (string) $st->fetchColumn()));
+        } catch (PDOException $e) {
+            $statusType = '';
+        }
+        if ($statusType !== '' && $statusType !== "enum('flown','dnf','dns','crash')") {
+            $steps[] = static function (PDO $pdo): array { return migration_crash_landing($pdo); };
+        }
     }
     return $steps;
 }
@@ -967,7 +1020,65 @@ function migration_definitions(): array
             'description' => 'Benutzerrechte: SuperAdmin für die Benutzerverwaltung, Konten sperren',
             'run' => function (PDO $pdo): array { return migration_user_rights($pdo); },
         ],
+        7 => [
+            'description' => 'Vereinszugehörigkeit: Konten und Wettbewerbe gehören einem Verein',
+            'run' => function (PDO $pdo): array { return migration_club_ownership($pdo); },
+        ],
+        8 => [
+            'description' => 'Bruchlandung als eigener Ausgang mit eigener Feststrafe',
+            'run' => function (PDO $pdo): array { return migration_crash_landing($pdo); },
+        ],
     ];
+}
+
+/**
+ * Die Bruchlandung kommt als eigener Ausgang dazu: scores.status bekommt den
+ * Wert `crash`, und jeder Wettbewerb erhält den Betrag `penalty_crash`. Für den
+ * Betrag wird der bisherige Sammelwert für „Aussenlandung oder fehlendes
+ * Resultat" übernommen, damit kein Verein mit einem anderen Wert startet als
+ * vorher; wer einen anderen Betrag möchte, stellt ihn unter Einstellungen ein.
+ */
+function migration_crash_landing(PDO $pdo): array
+{
+    $log = [];
+    if (!migration_table_exists($pdo, 'scores')) {
+        throw new RuntimeException('Die Tabelle scores fehlt; die Bruchlandung kann nicht ergänzt werden.');
+    }
+    if (!migration_column_exists($pdo, 'scores', 'status')) {
+        throw new RuntimeException('scores.status fehlt; die Bruchlandung kann nicht ergänzt werden.');
+    }
+    $invalid = $pdo->query("SELECT DISTINCT status FROM scores
+                            WHERE status IS NULL OR status NOT IN ('flown','dnf','dns')")->fetchAll(PDO::FETCH_COLUMN);
+    if ($invalid) {
+        throw new RuntimeException('scores.status enthält unbekannte Werte; bitte vor der Migration prüfen: '
+            . implode(', ', array_map('strval', $invalid)));
+    }
+    $pdo->exec("ALTER TABLE scores MODIFY COLUMN status ENUM('flown','dnf','dns','crash') NOT NULL DEFAULT 'flown'");
+    $log[] = 'scores.status kennt jetzt zusätzlich crash (Bruchlandung).';
+
+    // Der bisherige Sammelwert gilt als Ausgangswert, danach ist er je Verein
+    // unter Einstellungen → Strafpunkte einsehbar und änderbar.
+    $fallback = '100';
+    $row = $pdo->query("SELECT svalue FROM settings WHERE skey = 'penalty_not_flown'")->fetchColumn();
+    if ($row !== false && is_numeric($row) && is_finite((float) $row) && (float) $row >= 0 && (float) $row <= 999999.99) {
+        $fallback = (string) (float) $row;
+    }
+    $write = $pdo->prepare('INSERT INTO settings (skey, svalue) VALUES (?, ?)
+                            ON DUPLICATE KEY UPDATE svalue = svalue');
+    $write->execute(['penalty_crash', $fallback]);
+
+    if (migration_table_exists($pdo, 'competitions')
+        && migration_table_exists($pdo, 'competition_settings')) {
+        $rows = $pdo->query('SELECT DISTINCT competition_id FROM competition_settings')->fetchAll(PDO::FETCH_COLUMN);
+        $perCompetition = $pdo->prepare('INSERT INTO competition_settings (competition_id, skey, svalue) VALUES (?, ?, ?)
+                                         ON DUPLICATE KEY UPDATE svalue = svalue');
+        foreach ($rows as $competitionId) {
+            $perCompetition->execute([(int) $competitionId, 'penalty_crash', $fallback]);
+        }
+    }
+    $log[] = "Strafpunkte für die Bruchlandung wurden mit {$fallback} Punkten angelegt; "
+        . 'bitte je Verein unter Einstellungen → Strafpunkte prüfen.';
+    return $log;
 }
 
 function run_pending_migrations(PDO $pdo): array

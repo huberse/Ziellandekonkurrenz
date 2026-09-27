@@ -45,6 +45,10 @@ $competitionQS = '?competition=' . $competition['id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+    if (!can_manage_competition((int) $competition['id'])) {
+        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+        redirect('index.php');
+    }
     if ($competitionCompleted) {
         flash('Dieser Wettbewerb ist abgeschlossen. Durchgänge und Wertung sind gesperrt.', 'err');
         redirect('wettbewerbe.php?competition=' . (int) $competition['id']);

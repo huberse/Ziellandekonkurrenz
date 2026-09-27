@@ -8,6 +8,7 @@ require_login();
 $what = get('was', 'rangliste');
 $typeId = get('typ') !== '' && get('typ') !== 'alle' ? (int) get('typ') : null;
 $competition = resolve_competition_param(competition_request_param());
+require_competition_access((int) $competition['id']);
 
 $competitionSlug = preg_replace('/[^A-Za-z0-9_-]+/', '_', $competition['name']);
 $file = ($competitionSlug ?: 'Wettbewerb') . '_' . $what . '_' . date('Y-m-d') . '.csv';

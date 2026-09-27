@@ -8,28 +8,34 @@ function build_runsheet_pdf(array $sheets, array $meta): string
     $pdf = new SimplePdf();
     $margin = 28.0;
     $contentWidth = $pdf->width() - (2 * $margin);
-    // Die drei Ankreuzfelder bekommen zusammen gut ein Drittel der Breite, damit
-    // ihre Beschriftung ohne Abschneiden in die Spalte passt (Summe 539 pt). Die
-    // Titel kommen aus runsheet_penalty_boxes(), damit PDF, HTML und Legende
-    // niemals unterschiedliche Bezeichnungen zeigen.
+    // Die Ankreuzfelder bekommen zusammen ein Drittel der Breite, damit ihre
+    // Beschriftung ohne Abschneiden in die Spalte passt. Die Anteile sind
+    // fest und ihre Summe wird auf die tatsächliche Seitenbreite verteilt –
+    // eine vierte Box (Bruchlandung) sprengt das Blatt nicht mehr. Die Titel
+    // kommen aus runsheet_penalty_boxes(), damit PDF, HTML und Legende niemals
+    // unterschiedliche Bezeichnungen zeigen.
     $boxes = runsheet_penalty_boxes();
-    $columns = [
-        ['title' => 'Nr.', 'width' => 26.0],
-        ['title' => 'Pilot / Verein', 'width' => 150.0],
-        ['title' => 'Modell', 'width' => 78.0],
-        ['title' => 'Flugzeit', 'width' => 62.0],
-        ['title' => 'Landewert', 'width' => 52.0],
-    ];
+    $checkShare = 0.33;
+    $checkWidth = $contentWidth * $checkShare / max(1, count($boxes));
+    $textWidth = $contentWidth * (1 - $checkShare);
+    $weights = ['Nr.' => 0.05, 'Pilot / Verein' => 0.42, 'Modell' => 0.22, 'Flugzeit' => 0.18, 'Landewert' => 0.13];
+    $columns = [];
+    $weightSum = array_sum($weights);
+    foreach ($weights as $title => $weight) {
+        $columns[] = ['title' => $title, 'width' => $textWidth * $weight / $weightSum];
+    }
     foreach ($boxes as $box) {
-        $columns[] = ['title' => $box['label'], 'width' => 57.0, 'check' => true, 'titleSize' => 7.0];
+        // Der Spaltenkopf ist schmal; die ausgeschriebene Bezeichnung steht in
+        // der Legende darunter, hier genügt die kurze Form.
+        $columns[] = ['title' => $box['short'], 'width' => $checkWidth, 'check' => true, 'titleSize' => 7.0];
     }
     $legend = [];
     foreach ($boxes as $box) {
         $legend[] = $box['label'] . ' ' . fmt_num(fixed_penalty($box['setting']));
     }
-    $penaltyNote = 'Abweichung vom Ziel ankreuzen – kein Feld = geflogen · '
+    $penaltyNote = 'kein Feld = geflogen · '
         . implode(' · ', $legend)
-        . ' · Aussenlandung und Motor zusammen ergeben die Summe';
+        . ' · Aussenlandung, Bruchlandung und Motor kommen zum Wert dazu';
 
     // Beschriftung so gross wie möglich, aber nie breiter als ihre Spalte: erst
     // die Schriftgrösse verkleinern, und wenn das nicht reicht, kürzen. Damit kann

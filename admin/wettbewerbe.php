@@ -15,7 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = text_limit(post('name'), 160);
         $count = (int) post('rounds_count', '5');
         $targetValue = parse_time(post('target_time'));
-        if ($name === '') {
+        if (!is_superadmin() && user_club_id() === null) {
+            flash('Deinem Konto ist noch kein Verein zugeordnet. Bitte wende dich an den SuperAdmin.', 'err');
+        } elseif ($name === '') {
             flash('Der Wettbewerb braucht einen Namen, zum Beispiel das Jahr.', 'err');
         } elseif ($targetValue === null || !is_finite($targetValue) || $targetValue <= 0 || $targetValue > 999999.9) {
             flash('Die Zielzeit muss zwischen 0 und 999999.9 Sekunden liegen.', 'err');
@@ -35,14 +37,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!find_competition($id)) {
                 throw new RuntimeException('Wettbewerb nicht gefunden.');
             }
+            require_competition_access($id);
             set_current_competition($id);
             $competitionQS = '';
-            flash('Wettbewerb aktiviert. Erfassung und Ranglisten zeigen jetzt diesen Wettbewerb.', 'ok');
+            flash('Wettbewerb aktiviert. Erfassung und Rangliste zeigen jetzt diesen Wettbewerb.', 'ok');
         } catch (Throwable $e) {
             flash($e->getMessage(), 'err');
         }
     } elseif ($action === 'complete') {
         try {
+            require_competition_access((int) post('id'));
             complete_competition((int) post('id'));
             flash('Wettbewerb abgeschlossen. Die Ergebnisse bleiben gespeichert und sind jetzt gesperrt.', 'ok');
         } catch (Throwable $e) {
@@ -50,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'reopen') {
         try {
+            require_competition_access((int) post('id'));
             reopen_competition((int) post('id'));
             flash('Wettbewerb wieder geöffnet.', 'ok');
         } catch (Throwable $e) {
@@ -59,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int) post('id');
         $name = text_limit(post('name'), 160);
         if ($name !== '') {
+            require_competition_access($id);
             $pdo = db();
             try {
                 $pdo->beginTransaction();
@@ -86,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int) post('id');
         $pdo = db();
         try {
+            require_competition_access($id);
             $pdo->beginTransaction();
             $check = $pdo->prepare('SELECT * FROM competitions WHERE id = ? FOR UPDATE');
             $check->execute([$id]);
@@ -136,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('wettbewerbe.php' . $competitionQS);
 }
 
-$competitions = all_competitions();
+$competitions = accessible_competitions();
 $countsById = competition_counts();
 $progressById = [];
 foreach ($competitions as $s) {
@@ -146,6 +153,10 @@ foreach ($competitions as $s) {
 page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
 ?>
 <h2>Wettbewerbe</h2>
+<?php if (!is_superadmin() && user_club_id() === null): ?>
+    <div class="flash err">Deinem Konto ist noch kein Verein zugeordnet. Du kannst keine Wettbewerbe anlegen oder
+        bearbeiten, bis der SuperAdmin dir einen Verein zuweist.</div>
+<?php endif; ?>
 <p class="lead">Ein Wettbewerb hat eine eigene Startliste, eigene Durchgänge und eigene Einstellungen; Vereine und
     Modelltypen bleiben über alle Wettbewerbe bestehen. Ein neuer Wettbewerb beginnt leer – jeder Pilot meldet sich
     für ihn wieder neu an. Sobald für jeden Piloten in jedem gewerteten Durchgang ein Resultat vorliegt, kann der

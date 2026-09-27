@@ -17,7 +17,12 @@ function current_user(): ?array
     static $user = null;
     if ($user === null) {
         try {
-            $st = db()->prepare('SELECT * FROM users WHERE id = ?');
+            $st = db()->prepare(
+                'SELECT u.*, c.name AS club_name
+                 FROM users u
+                 LEFT JOIN clubs c ON c.id = u.club_id
+                 WHERE u.id = ?'
+            );
             $st->execute([$_SESSION['uid']]);
             $found = $st->fetch() ?: null;
             $user = ($found && (int) ($found['active'] ?? 1) === 1) ? $found : null;
@@ -76,6 +81,62 @@ function superadmin_count(): int
     $st = db()->prepare('SELECT COUNT(*) FROM users WHERE is_superadmin = 1 AND active = 1');
     $st->execute();
     return (int) $st->fetchColumn();
+}
+
+/**
+ * Vereins-ID des aktuellen Kontos. NULL bedeutet: keinem Verein zugeordnet.
+ * Solange das Konto nicht einem Verein angehört, darf es keine Wettbewerbe
+ * anlegen oder steuern – es sei denn, es ist SuperAdmin.
+ */
+function user_club_id(): ?int
+{
+    $u = current_user();
+    if (!$u) {
+        return null;
+    }
+    return isset($u['club_id']) && $u['club_id'] !== null ? (int) $u['club_id'] : null;
+}
+
+/**
+ * Darf das aktuelle Konto diesen Wettbewerb steuern und bearbeiten?
+ *
+ * SuperAdmins dürfen alles. Benutzer dürfen nur Wettbewerbe ihres eigenen
+ * Vereins. Wettbewerbe ohne Vereinszuordnung (Altbestand) bleiben für alle
+ * sichtbar, damit keine Installation ausgesperrt wird.
+ */
+function can_manage_competition(int $competitionId): bool
+{
+    $u = current_user();
+    if (!$u) {
+        return false;
+    }
+    if ((int) ($u['is_superadmin'] ?? 0) === 1) {
+        return true;
+    }
+    try {
+        $st = db()->prepare('SELECT club_id FROM competitions WHERE id = ?');
+        $st->execute([$competitionId]);
+        $competitionClubId = $st->fetchColumn();
+    } catch (PDOException $e) {
+        return false;
+    }
+    if ($competitionClubId === false || $competitionClubId === null) {
+        // Altbestand ohne Vereinszuordnung: für alle sichtbar.
+        return true;
+    }
+    return user_club_id() === (int) $competitionClubId;
+}
+
+/**
+ * Wächter für Admin-Seiten, die einen bestimmten Wettbewerb betreffen.
+ * Ohne Zugriff wird eine Meldung ausgegeben und umgeleitet.
+ */
+function require_competition_access(int $competitionId): void
+{
+    if (!can_manage_competition($competitionId)) {
+        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+        redirect('index.php');
+    }
 }
 
 function login(string $username, string $password): bool

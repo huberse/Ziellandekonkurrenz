@@ -6,13 +6,17 @@ require_once __DIR__ . '/../lib/layout.php';
 require_once __DIR__ . '/../lib/auth.php';
 $me = require_superadmin();
 
-$users = db()->query('SELECT id, username, display_name, is_superadmin, active, created_at
-                      FROM users ORDER BY is_superadmin DESC, username')->fetchAll();
+$users = db()->query('SELECT u.id, u.username, u.display_name, u.club_id, u.is_superadmin, u.active, u.created_at,
+                              c.name AS club_name
+                       FROM users u
+                       LEFT JOIN clubs c ON c.id = u.club_id
+                       ORDER BY u.is_superadmin DESC, u.username')->fetchAll();
 $byId = [];
 foreach ($users as $row) {
     $byId[(int) $row['id']] = $row;
 }
 $adminCount = superadmin_count();
+$clubs = db()->query('SELECT id, name FROM clubs ORDER BY name')->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -22,15 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = text_limit(post('username'), 60);
         $display = text_limit(post('display_name'), 120);
         $password = post('password');
+        $clubId = (int) post('club_id', '0') ?: null;
         if (!preg_match('/^[A-Za-z0-9._-]{3,60}$/', $username)) {
             flash('Der Benutzername braucht 3 bis 60 Zeichen aus Buchstaben, Ziffern, Punkt, Unterstrich oder Bindestrich.', 'err');
         } elseif (strlen($password) < 8) {
             flash('Das Passwort braucht mindestens 8 Zeichen.', 'err');
         } else {
             try {
-                $st = db()->prepare('INSERT INTO users (username, password_hash, display_name, is_superadmin)
-                                     VALUES (?, ?, ?, ?)');
-                $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), $display ?: null,
+                $st = db()->prepare('INSERT INTO users (username, password_hash, display_name, club_id, is_superadmin)
+                                     VALUES (?, ?, ?, ?, ?)');
+                $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), $display ?: null, $clubId,
                               isset($_POST['is_superadmin']) ? 1 : 0]);
                 flash('Konto ' . $username . ' angelegt.', 'ok');
             } catch (PDOException $e) {
@@ -91,8 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $display = text_limit(post('display_name'), 120);
-    db()->prepare('UPDATE users SET display_name = ?, is_superadmin = ?, active = ? WHERE id = ?')
-        ->execute([$display ?: null, $super ? 1 : 0, $active ? 1 : 0, $id]);
+    $clubId = (int) post('club_id', '0') ?: null;
+    db()->prepare('UPDATE users SET display_name = ?, club_id = ?, is_superadmin = ?, active = ? WHERE id = ?')
+        ->execute([$display ?: null, $clubId, $super ? 1 : 0, $active ? 1 : 0, $id]);
     if ($newPassword !== '') {
         db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
             ->execute([password_hash($newPassword, PASSWORD_DEFAULT), $id]);
@@ -101,6 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $geaendert = [];
     if ($display !== (string) ($target['display_name'] ?? '')) {
         $geaendert[] = 'Anzeigename';
+    }
+    if ($clubId !== ($target['club_id'] !== null ? (int) $target['club_id'] : null)) {
+        $geaendert[] = 'Verein';
     }
     if ((int) $super !== (int) $wasSuper) {
         $geaendert[] = 'Rolle';
@@ -147,6 +156,17 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                 <p class="hint">Mindestens 8 Zeichen. Es gibt bewusst keine Rücksetzung per E-Mail;
                     ein vergessenes Passwort setzt der SuperAdmin hier neu.</p>
             </div>
+            <div class="field">
+                <label for="nc">Verein</label>
+                <select id="nc" name="club_id">
+                    <option value="0">keinem Verein zugeordnet</option>
+                    <?php foreach ($clubs as $club): ?>
+                        <option value="<?= (int) $club['id'] ?>"><?= h($club['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="hint">Nur Benutzer des gleichen Vereins dürfen die Wettbewerbe
+                    dieses Vereins steuern und bearbeiten.</p>
+            </div>
             <div class="check" style="margin-top:26px">
                 <input type="checkbox" id="ns" name="is_superadmin" value="1">
                 <label for="ns">SuperAdmin – darf selbst Benutzer verwalten</label>
@@ -180,6 +200,7 @@ page_start('Benutzer', 'admin', 'benutzer.php');
             <tr>
                 <th>Konto</th>
                 <th>Anzeigename</th>
+                <th>Verein</th>
                 <th class="mid">SuperAdmin</th>
                 <th class="mid">aktiv</th>
                 <th>Passwort neu setzen</th>
@@ -195,6 +216,7 @@ page_start('Benutzer', 'admin', 'benutzer.php');
             $super = (int) $u['is_superadmin'] === 1;
             $active = (int) $u['active'] === 1;
             $soleAdmin = $super && $active && $adminCount <= 1;
+            $clubId = $u['club_id'] !== null ? (int) $u['club_id'] : 0;
         ?>
             <tr<?= $active ? '' : ' class="cell-missing"' ?>>
                 <td>
@@ -207,6 +229,15 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                     <input type="text" form="<?= $fid ?>" name="display_name" maxlength="120"
                            style="min-width:11rem" value="<?= h($u['display_name'] ?? '') ?>"
                            aria-label="Anzeigename von <?= h($u['username']) ?>">
+                </td>
+                <td>
+                    <select form="<?= $fid ?>" name="club_id" style="min-width:11rem"
+                            aria-label="Verein von <?= h($u['username']) ?>">
+                        <option value="0">keinem Verein</option>
+                        <?php foreach ($clubs as $club): ?>
+                            <option value="<?= (int) $club['id'] ?>"<?= $clubId === (int) $club['id'] ? ' selected' : '' ?>><?= h($club['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </td>
                 <td class="mid">
                     <?php if ($isSelf): ?>
