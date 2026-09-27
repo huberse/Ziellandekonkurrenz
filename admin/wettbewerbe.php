@@ -23,12 +23,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('Die Zielzeit muss zwischen 0 und 999999.9 Sekunden liegen.', 'err');
         } else {
             $target = (int) round($targetValue);
+            // Nur der SuperAdmin waehlt den Veranstalter; -1 bedeutet
+            // ausdruecklich "ohne Verein". Alle anderen bekommen ihren
+            // eigenen Verein automatisch und koennen nichts anderes waehlen.
+            $clubId = null;
+            if (is_superadmin()) {
+                $clubId = (int) post('club_id', '-1');
+                $clubId = $clubId > 0 ? $clubId : -1;
+            }
             try {
-                $id = create_competition($name, $count, $target > 0 ? $target : 180, true);
+                $id = create_competition($name, $count, $target > 0 ? $target : 180, true, $clubId);
                 $competitionQS = '';
-                flash("Wettbewerb „{$name}“ angelegt und aktiv gesetzt. Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.", 'ok');
+                $wer = $clubId !== null && $clubId > 0 ? 'Veranstalter: ' . club_name($clubId) . '. ' : '';
+                flash("Wettbewerb „{$name}“ angelegt und aktiv gesetzt. {$wer}Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.", 'ok');
             } catch (Throwable $e) {
-                flash('Der Wettbewerb konnte nicht angelegt werden. Bitte Eingaben und Datenbank prüfen.', 'err');
+                flash($e instanceof DomainException
+                    ? $e->getMessage()
+                    : 'Der Wettbewerb konnte nicht angelegt werden. Bitte Eingaben und Datenbank prüfen.', 'err');
             }
         }
     } elseif ($action === 'activate') {
@@ -184,6 +195,23 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                 <label for="tt">Standard-Zielzeit</label>
                 <input type="text" id="tt" name="target_time" value="<?= h(fmt_time(setting_num('default_target_time', 180))) ?>">
             </div>
+            <?php if (is_superadmin()): ?>
+            <div class="field">
+                <label for="cv">Veranstalter</label>
+                <select id="cv" name="club_id">
+                    <option value="">– ohne Verein –</option>
+                    <?php foreach (all_clubs() as $club): ?>
+                        <option value="<?= (int) $club['id'] ?>"><?= h($club['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="hint">Nur die Konten dieses Vereins dürfen den Wettbewerb steuern und bearbeiten.</p>
+            </div>
+            <?php else: ?>
+            <div class="field">
+                <label>Veranstalter</label>
+                <p class="hint" style="margin:0">Wird automatisch dein Verein: <b><?= h((string) (current_user()['club_name'] ?? '')) ?></b></p>
+            </div>
+            <?php endif; ?>
         </div>
         <button class="btn big" type="submit">Wettbewerb anlegen und aktivieren</button>
     </form>

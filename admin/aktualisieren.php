@@ -79,6 +79,20 @@ $neuDa = $remote['ok'] && $versionHier !== null && $remote['manifest']['version'
 $zuSchreiben = $plan !== null ? update_plan_umfang($plan) : 0;
 $sicherungen = update_sicherungen();
 
+// Die Aenderungsliste sagt mehr als eine Aufzaehlung der ausgetauschten
+// Dateien. Sie wird nur geholt, wenn es etwas zu tun gibt, und die Seite
+// faellt sonst auf die Dateiliste zurueck.
+$changelog = ['ok' => false, 'abschnitte' => [], 'error' => ''];
+$zeigeAenderungen = false;
+if ($plan !== null && $zuSchreiben > 0) {
+    $changelog = update_changelog();
+    $zeigeAenderungen = $changelog['ok']
+        && update_changelog_vorhanden($changelog['abschnitte'], $versionHier, $remote['manifest']['version']);
+}
+$aenderungen = $zeigeAenderungen
+    ? update_changelog_seit($changelog['abschnitte'], $versionHier, $remote['manifest']['version'])
+    : [];
+
 /** Was mit einer Datei passiert, in einer Zeile: Text und Begruendung. */
 function update_zeile_text(string $art, string $pfad, $wert, ?string $altVersion): array
 {
@@ -137,46 +151,31 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
 
 <?php if ($plan !== null && $zuSchreiben > 0): ?>
 <div class="panel">
-    <h3>Was beim Update passiert</h3>
-    <p class="hint"><?= h(update_plan_beschreibung($plan)) ?></p>
+    <h3>Was sich aendert</h3>
 
-    <table class="data dense">
-        <thead>
-            <tr>
-                <th>Datei</th>
-                <th>Was damit geschieht</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php
-        $arten = [
-            'ersetzen'  => 'tag live',
-            'neu'       => 'tag on',
-            'geaendert' => 'tag off',
-            'unbekannt' => 'tag off',
-            'von_hand'  => 'tag',
-            'weg'       => 'tag',
-        ];
-        foreach ($arten as $art => $klasse):
-            foreach ($plan[$art] as $pfad => $wert):
-                [$text, $grund] = update_zeile_text($art, $pfad, $wert, $versionHier);
-        ?>
-            <tr<?= in_array($art, ['ersetzen', 'neu'], true) ? '' : ' class="cell-missing"' ?>>
-                <td><code><?= h($pfad) ?></code></td>
-                <td>
-                    <span class="<?= h($klasse) ?>"><?= h($text) ?></span>
-                    <span class="small muted"><?= h($grund) ?></span>
-                </td>
-            </tr>
-        <?php endforeach; endforeach; ?>
-        </tbody>
-    </table>
-
-    <?php if ($plan['von_hand'] || $plan['geaendert'] || $plan['unbekannt'] || $plan['weg']): ?>
-        <p class="hint">Was stehen bleibt, musst du selbst uebernehmen. Jede Datei liegt einzeln
-            auf GitHub unter
-            <code>https://github.com/<?= h(APP_REPO) ?>/blob/<?= h(APP_BRANCH) ?>/&lt;Pfad&gt;</code>.</p>
+    <?php if ($zeigeAenderungen): ?>
+        <?php foreach ($aenderungen as $abschnitt): ?>
+            <div style="margin-bottom:18px">
+                <h4 style="margin:0 0 6px">
+                    Fassung <?= h($abschnitt['version']) ?>
+                    <span class="tag live">neu</span>
+                    <?php if ($abschnitt['datum'] !== ''): ?>
+                        <span class="small muted"><?= h($abschnitt['datum']) ?></span>
+                    <?php endif; ?>
+                </h4>
+                <ul style="margin:0;padding-left:20px">
+                    <?php foreach ($abschnitt['punkte'] as $punkt): ?>
+                        <li style="margin-bottom:4px"><?= h($punkt['text']) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endforeach; ?>
+    <?php else: ?>
+        <p class="hint">Fuer diesen Sprung liegt keine Aenderungsliste vor – daher die
+            Aufzaehlung der Dateien: <?= h(update_plan_beschreibung($plan)) ?></p>
     <?php endif; ?>
+
+    <p class="hint"><?= h(update_plan_beschreibung($plan)) ?></p>
 
     <form method="post" action="aktualisieren.php"
           onsubmit="return confirm('Jetzt <?= $zuSchreiben ?> Datei(en) einspielen?');">
@@ -188,11 +187,14 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
 </div>
 <?php endif; ?>
 
-<?php if ($plan !== null && $zuSchreiben === 0 && ($plan['von_hand'] || $plan['weg'] || $plan['geaendert'] || $plan['unbekannt'])): ?>
+<?php // Dateien, die der Knopf nicht anfasst. Das bleibt eine Liste mit
+      // Dateinamen: hier muss der SuperAdmin wissen, welche Datei er von Hand
+      // uebernehmen muss. ?>
+<?php if ($plan !== null && ($plan['von_hand'] || $plan['geaendert'] || $plan['unbekannt'] || $plan['weg'])): ?>
 <div class="panel">
-    <h3>Dateien fuer Handarbeit</h3>
-    <p class="hint">An den Programmdateien ist nichts zu tun. Diese Dateien wurden auf GitHub
-        geaendert, der Knopf fasst sie aber nicht an.</p>
+    <h3>Dateien, die stehen bleiben</h3>
+    <p class="hint">Diese Dateien werden von Hand geaendert, sind geschuetzt oder werden
+        nicht mehr gebraucht. Der Knopf fasst sie nicht an.</p>
     <table class="data dense">
         <thead><tr><th>Datei</th><th>Grund</th></tr></thead>
         <tbody>
@@ -202,13 +204,15 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
         foreach ($plan[$art] as $pfad => $wert):
             [$text, $grund] = update_zeile_text($art, $pfad, $wert, $versionHier);
     ?>
-        <tr>
-            <td><code><?= h($pfad) ?></code></td>
-            <td><span class="small"><?= h($text) ?></span> <span class="small muted"><?= h($grund) ?></span></td>
-        </tr>
+            <tr>
+                <td><code><?= h($pfad) ?></code></td>
+                <td><span class="small"><?= h($text) ?></span> <span class="small muted"><?= h($grund) ?></span></td>
+            </tr>
     <?php endforeach; endforeach; ?>
         </tbody>
     </table>
+    <p class="hint">Jede Datei liegt einzeln auf GitHub unter
+        <code>https://github.com/<?= h(APP_REPO) ?>/blob/<?= h(APP_BRANCH) ?>/&lt;Pfad&gt;</code>.</p>
 </div>
 <?php endif; ?>
 

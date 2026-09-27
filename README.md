@@ -253,11 +253,13 @@ weisen sie sich mit 403 ab.
 2. **Modelltypen** – Segler, Elektro, weitere. Die Rangliste wird je Modelltyp ausgewertet.
 3. **Vereine** – alle teilnehmenden Vereine, für Auswahl und Vereinswertung.
 4. **Piloten** – nur für den gewählten Wettbewerb: einzeln, als Liste aus Excel oder über
-   freigegebene Anmeldungen. *Startnummern zufällig neu vergeben* nummeriert alle aktiven
-   Piloten dieses Wettbewerbs nach Modelltyp und Zufall neu.
+   freigegebene Anmeldungen. Über der Startliste liegen *Startnummern neu vergeben* (nummeriert
+   alle aktiven Piloten dieses Wettbewerbs nach Modelltyp und Zufall neu) und *Startliste als CSV*
+   (Startnummer, Vor- und Nachname, Verein, Modelltyp, Modell – für die Aufkleber; die erste
+   Zeile nennt den Wettbewerb, damit sich mehrere Bogen auseinanderhalten lassen).
 5. **Durchgänge** – Anzahl einstellen, Zielzeit je Durchgang anpassen, Wertung aktivieren.
 6. **Laufzettel als PDF** – ausdrucken. Je Durchgang zwei Blätter, eines für die ungeraden und
-   eines für die geraden Startnummern, jeweils mit Flugzeit, Landewert und drei Ankreuzfeldern.
+   eines für die geraden Startnummern, jeweils mit Flugzeit, Landewert und vier Ankreuzfeldern.
 7. **Resultate erfassen** – ein Durchgang pro Seite, eine Zeile pro Pilot. Flugzeit als `2:58`
    oder `178`. Die Strafpunkte stehen live in der letzten Spalte.
 8. **Rangliste** – öffentlich unter `index.php`, je Modelltyp oder alle zusammen.
@@ -271,22 +273,34 @@ Es gibt genau zwei Rollen:
 
 | Rolle | Darf |
 | --- | --- |
-| **SuperAdmin** | alles, was ein Benutzer darf, **plus** die Benutzerverwaltung |
-| **Benutzer** | den gesamten Wettbewerb steuern: Erfassung, Startliste, Durchgänge, Vereine, Modelltypen, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – und das eigene Passwort ändern |
+| **SuperAdmin** | alles, was ein Benutzer darf, **plus** die Benutzerverwaltung – und **alle** Vereine sehen |
+| **Benutzer** | die Wettbewerbe **seines Vereins** steuern: Erfassung, Startliste, Durchgänge, Vereine, Modelltypen, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – und das eigene Passwort ändern |
 
-Alle Benutzer steuern also denselben Wettbewerb; der Unterschied betrifft nur die Konten selbst.
-Ein Benutzer kann **nicht** anlegen, ändern, sperren oder löschen – auch nicht mit einem
-abgefangenen oder manipulierten Aufruf. Die Seite **Benutzer** ist für ihn weder erreichbar noch
-in der Navigation zu sehen.
+Die Zugehörigkeit zum Verein entscheidet, wer welchen Wettbewerb steuern darf. Ein Benutzer
+kann **nicht** anlegen, ändern, sperren oder löschen – auch nicht mit einem abgefangenen oder
+manipulierten Aufruf. Die Seite **Benutzer** ist für ihn weder erreichbar noch in der Navigation
+zu sehen.
 
 Unter **Benutzer** kann der SuperAdmin je Konto:
 
 - den **Anzeigamen** ändern (erscheint oben im Kopf),
+- den **Verein** zuweisen, in dem das Konto arbeitet,
 - die Rolle zwischen Benutzer und SuperAdmin umstellen,
 - das Konto **sperren** oder wieder freigeben – ein gesperrtes Konto kann sich nicht anmelden,
   und eine noch laufende Sitzung endet beim nächsten Aufruf, nicht erst beim Abmelden,
 - ein **neues Passwort** setzen, etwa wenn jemand das eigene vergessen hat,
 - das Konto **löschen**.
+
+### Der Veranstalter eines Wettbewerbs
+
+Ein Wettbewerb gehört genau einem Verein. Beim Anlegen wählt **nur der SuperAdmin** den
+Veranstalter aus; jedes andere Konto bekommt automatisch den eigenen Verein zugeteilt und kann
+daran nichts ändern. Danach steuern nur die Konten dieses Vereins den Wettbewerb, alle anderen
+werden bei jedem Zugriff auf ihren eigenen Wettbewerb umgeleitet. SuperAdmins sehen und ändern
+alles.
+
+Wettbewerbe aus dem Altbestand haben zunächst **keinen** Verein und sind für alle Konten
+sichtbar. Nach der Zuordnung im Wettbewerb gelten sie nur noch für den jeweiligen Verein.
 
 Das eigene Konto und der letzte aktive SuperAdmin lassen sich weder sperren noch löschen und
 nicht in eine niedrigere Rolle stufen. Sonst gäbe es niemanden mehr, der die Konten verwalten
