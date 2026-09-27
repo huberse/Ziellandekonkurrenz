@@ -146,9 +146,9 @@ Rolle: Das älteste Konto wird SuperAdmin, damit die Benutzerverwaltung erreichb
 [Benutzer und Rechte](#benutzer-und-rechte).
 
 **Migration 7 führt die Vereinszugehörigkeit ein.** Bestehende Konten und Wettbewerbe bleiben
-zunächst ohne Verein (siehe [Vereinszugehörigkeit](#vereinszugehoerigkeit)); der SuperAdmin weist
-sie unter **Benutzer** zu. Neu angelegte Wettbewerbe gehören automatisch dem Verein dessen, der
-sie angelegt hat.
+zunächst ohne Verein (siehe [Der Veranstalter eines Wettbewerbs](#der-veranstalter-eines-wettbewerbs));
+der SuperAdmin weist sie unter **Benutzer** zu. Neu angelegte Wettbewerbe gehören dem Verein
+dessen, der sie angelegt hat; ab 1.9.1 wählt beim Anlegen allein der SuperAdmin den Veranstalter.
 
 **Migration 8 ergänzt die Bruchlandung und vereinfacht das Erfassen.** Die Spalte `scores.status`
 erhält den neuen Wert `crash`, und jeder Wettbewerb bekommt den Betrag `penalty_crash` – zuerst
@@ -182,6 +182,28 @@ für Handarbeit und lässt sich einzeln von GitHub holen.
 Diese Dateien fasst der Knopf nie an: `config.php` (Zugangsdaten), `.htaccess` und `.gitignore`
 (das gehören dem Server, nicht dem Programm) sowie `assets/logo*` (die Logos sind Eigenheiten des
 Vereins). Ändern sie sich auf GitHub, erscheinen sie in der Liste der Dateien für Handarbeit.
+
+### Was sich ändert
+
+Statt 19 Dateipfaden zeigt die Seite **Was sich aendert** – einen Satz je Änderung, aus
+`CHANGELOG.md` im Repository. Die Seite liest daraus genau die Abschnitte zwischen der installierten
+und der angebotenen Fassung, ein Sprung über mehrere Versionen fasst also alles zusammen.
+
+Gelesen wird absichtlich nur eine eigene, sehr einfache Form, damit aus der Liste kein HTML in die
+Seite gelangen kann:
+
+```markdown
+## 1.9.1
+- Punkt eins
+- Punkt zwei
+```
+
+`## 1.9.1 – 27.09.2026` erlaubt zusätzlich ein Datum, das neben der Fassung steht. Fehlt die
+Liste, passt sie nicht zum Sprung, oder ist GitHub nicht erreichbar, fällt die Seite auf die
+Aufzählung der Dateien zurück – eine leere Anzeige gibt es nicht.
+
+Die Liste für **Dateien, die stehen bleiben**, bleibt bestehen: dort braucht der SuperAdmin den
+Namen der Datei, die er von Hand übernehmen muss.
 
 ### Reihenfolge und Sicherung
 
@@ -239,7 +261,9 @@ Neue Dateien müssen vorher mit `git add` erfasst sein – das Skript meldet sic
 „Diese Dateien liegen im Verzeichnis, stehen aber nicht im Manifest“. Ohne diesen Hinweis würde
 eine neue Datei beim Update stillschweigend fehlen.
 
-Zugleich mit `manifest.json` wird `APP_VERSION` in `lib/version.php` hochgezählt.
+Zugleich mit `manifest.json` wird `APP_VERSION` in `lib/version.php` **von Hand** hochgezählt – das
+Skript liest die Fassung nur und schreibt sie nicht. Für jede veröffentlichte Änderung gehören
+`APP_VERSION` und ein Abschnitt in `CHANGELOG.md` zusammen.
 
 `tools/aufrufe_pruefen.php` sucht Aufrufe von Namen, die es weder im Projekt noch in PHP gibt, und
 Aufrufe über eine Variable, der im File nie etwas zugewiesen wird. Beides fällt beim Lesen nicht auf
@@ -521,6 +545,7 @@ sql/schema.sql         Tabellen und Constraints
 tools/manifest.php     erzeugt manifest.json
 tools/aufrufe_pruefen.php  sucht Aufrufe von Namen, die es nicht gibt
 manifest.json          jede ausgelieferte Datei mit ihrer Prüfsumme
+CHANGELOG.md           was sich je Fassung geändert hat
 assets/                Gestaltung und Logos
 ```
 
