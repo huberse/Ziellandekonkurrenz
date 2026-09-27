@@ -3,21 +3,24 @@
 Was sich zwischen den Fassungen geändert hat. Die Aktualisierungsseite zeigt
 diese Liste an, wenn sie ein Update anbietet.
 
-## 1.9.2
+## 1.9.3
 
-- Die Anzeige der Vereine ist schmaler: Die Spaltenüberschrift heisst nur noch
+- Die Vereinsliste ist schmaler: Die Spaltenüberschrift heisst nur noch
   „Piloten" statt den ganzen Wettbewerbsnamen zu wiederholen.
 - Der Knopf **Löschen** bei den Vereinen ist nicht mehr gesperrt und trägt
   keinen Infotext mehr. Wer ihn drückt, bekommt die genauen Anzahlen der
-  Verknüpfungen und den Weg, der aufräumt – je Verein anders.
+  Verknüpfungen und den Weg, der aufräumt – je Verein anders. Vorher stand
+  jeder Verein mit seinen Piloten und Konten im Raster, auch wenn niemand
+  etwas zu tun hatte.
+- Das Nachprüfen der Verwendungen kostet 28 Abfragen pro Seitenaufruf
+  weniger.
+
+## 1.9.2
+
 - Wenn GitHub eine veraltete Bestandsliste und zugleich ein frisches Archiv
   liefert, meldet die Aktualisierungsseite das jetzt ausdrücklich, statt an
   einer scheinbar unbeteiligten Datei zu scheitern. Vorher wurde der
   Widerspruch nur an der Fassungsnummer erkannt.
-- *Fassung 1.9.1 war für den Aktualisierungsweg nicht zu gebrauchen und ist
-  deshalb übersprungen: Sie ist im Repository mehrfach mit derselben Nummer
-  erschienen. Bitte auf 1.9.1 verbleiben; es gibt keine Unterschiede zur
-  jetzigen Fassung außer dem hier Beschriebenen.*
 
 ## 1.9.1
 
