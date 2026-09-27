@@ -15,6 +15,10 @@ diese Liste an, wenn sie ein Update anbietet.
   daran nichts ändern.
 - Diese Aktualisierungsseite zeigt jetzt die Änderungsliste statt einer
   Aufzählung der ausgetauschten Dateien.
+- Das Update bringt `install.php` und `config.sample.php` nicht mehr mit. Beide
+  gehören zur Ersteinrichtung und werden auf einem betriebenen Server nicht
+  gebraucht. Im Repository bleiben sie, damit eine frische Installation
+  weiterhin gelingt.
 
 ## 1.9.0
 

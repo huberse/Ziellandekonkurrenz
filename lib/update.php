@@ -63,6 +63,14 @@ function update_manifest_pfad(): string
  * Betreiber koennen dort eigene Anweisungen hinterlegt haben, die ein
  * Ueberschreiben still verschwinden liesse. Die Logos sind Eigenheiten des
  * Vereins.
+ *
+ * install.php und config.sample.php gehoeren zur Ersteinrichtung und werden
+ * bei einem Update nicht gebraucht: die Datenbank ist längst angelegt und
+ * config.php liegt längst ausgefüllt da. Würden sie mitkommen, schöbe der
+ * Knopf bei jedem Update eine Installationsdatei nach, die auf einem
+ * betriebenen Server nichts zu tun hat – und die nach einem gelungenen Setup
+ * ohnehin gelöscht gehört. Beide bleiben im Repository, damit eine frische
+ * Installation über das Hochladen der Dateien weiterhin gelingt.
  */
 function update_geschuetzt(): array
 {
@@ -72,6 +80,8 @@ function update_geschuetzt(): array
         '.gitignore'               => 'Repository-Regeln',
         'assets/logo.png'          => 'Vereinslogo',
         'assets/logo_nordwest.jpg' => 'Vereinslogo',
+        'install.php'              => 'nur zur Ersteinrichtung',
+        'config.sample.php'        => 'nur zur Ersteinrichtung',
     ];
 }
 
