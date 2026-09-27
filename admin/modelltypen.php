@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
 $notCurrent = (int) $competition['id'] !== current_competition_id();
 $competitionQS = $notCurrent ? '?competition=' . (int) $competition['id'] : '';
 

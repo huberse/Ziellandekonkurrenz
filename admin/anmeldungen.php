@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $completedCompetitionIds = [];

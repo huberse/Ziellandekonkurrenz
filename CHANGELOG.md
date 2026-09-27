@@ -10,6 +10,29 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.5
+
+- **Flugzeit und Landewert lassen sich immer eintragen**, auch wenn ein Kästchen
+  gesetzt ist. Vorher wurden die beiden Felder gesperrt und der eingegebene Wert
+  beim Speichern verworfen – wer eine Aussenlandung nach 3:20 Landewert 15 hatte,
+  konnte beides nicht festhalten. Die Strafpunkte rechnen weiterhin nach der
+  festen Regel; gespeichert wird der nachgemessene Flug jetzt trotzdem.
+  Beim freien Flug bleibt die Flugzeit Pflicht, sonst gibt es nichts zu rechnen.
+- **Der Wettbewerb aus der Adresse wird wieder beachtet**, und zwar überall.
+  `anmeldung.php`, `index.php`, `teilnehmer.php` und `vereinswertung.php` zeigten
+  bei `?competition=` immer den aktiven Wettbewerb. Ursache war, dass die
+  Wettbewerbsauswahl die *Verwaltungs*prüfung benutzte, und die beantwortet für
+  Besucher ohne Anmeldung immer mit „nein“. Wer zwei Wettbewerbe zur Anmeldung
+  offen hatte, sah deshalb bei beiden denselben Anmeldetext, dieselbe Rangliste
+  und dieselbe Teilnehmerliste – und ein Lesezeichen auf einen bestimmten
+  Wettbewerb brachte nichts.
+  Sichtbarkeit und Zugriff sind jetzt getrennt: jeder Wettbewerb ist öffentlich
+  sichtbar, die Verwaltungsseiten fragen den Zugriff ausdrücklich ab und werden
+  auf einen eigenen Wettbewerb umgeleitet, wenn sie den nicht führen dürfen.
+  Geprüft mit zwei Vereinen, zwei Wettbewerben und einem Konto des einen Vereins:
+  auf keiner Verwaltungsseite erscheint etwas vom Wettbewerb des anderen, auf den
+  öffentlichen Seiten dagegen jeder Wettbewerb – angemeldet wie abgemeldet.
+
 ## 1.9.4
 
 Der erste Schritt zum Regiocup. Die Regiorangliste selbst kommt erst mit

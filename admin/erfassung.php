@@ -5,7 +5,11 @@ require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
 
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
+// Startliste, Resultate und Einstellungen gehören genau diesem Wettbewerb.
+// Die Prüfung steht hier und nicht versteckt in resolve_competition_param(),
+// wo sie auch die öffentlichen Seiten betroffen hätte.
+require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $rounds = all_rounds($competition['id']);
 if (!$rounds) {
@@ -45,10 +49,6 @@ $boxes = runsheet_penalty_boxes();
 /* ---------- Speichern ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    if (!can_manage_competition((int) $competition['id'])) {
-        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
-        redirect('index.php');
-    }
     if ($competitionCompleted) {
         flash('Dieser Wettbewerb ist abgeschlossen. Die Resultate können nicht mehr geändert werden.', 'err');
         redirect('wettbewerbe.php?competition=' . (int) $competition['id']);
@@ -106,24 +106,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
 
-        if ($st === 'flown') {
-            $time = parse_time($rawTime);
-            if ($time === null || !is_finite($time) || $time < 0 || $time > 999999.9) {
-                $problems[] = 'Pilot ' . $pid . ': Flugzeit muss eine Zahl zwischen 0 und 999999.9 sein.';
-                continue;
-            }
-            if ($rawDist === '') {
-                $dist = 0.0;
-            } elseif (!is_numeric($rawDist) || !is_finite((float) $rawDist)
-                || (float) $rawDist < 0 || (float) $rawDist > 99999.9) {
-                $problems[] = 'Pilot ' . $pid . ': Landewert muss eine Zahl zwischen 0 und 99999.9 sein.';
-                continue;
-            } else {
-                $dist = (float) $rawDist;
-            }
-        } else {
-            $time = null;
+        // Flugzeit und Landewert lassen sich immer eintragen, auch neben einem
+        // festen Ausgang. Wer eine Aussenlandung nach 3:20 Landewert 15 hatte,
+        // trägt beides ein – die Strafpunkte rechnen weiterhin nach der
+        // festen Regel, aber der nachgemessene Flug geht nicht verloren.
+        $time = $rawTime === '' ? null : parse_time($rawTime);
+        if ($rawTime !== '' && ($time === null || !is_finite($time) || $time < 0 || $time > 999999.9)) {
+            $problems[] = 'Pilot ' . $pid . ': Flugzeit muss eine Zahl zwischen 0 und 999999.9 sein.';
+            continue;
+        }
+        if ($rawDist === '') {
             $dist = null;
+        } elseif (!is_numeric($rawDist) || !is_finite((float) $rawDist)
+            || (float) $rawDist < 0 || (float) $rawDist > 99999.9) {
+            $problems[] = 'Pilot ' . $pid . ': Landewert muss eine Zahl zwischen 0 und 99999.9 sein.';
+            continue;
+        } else {
+            $dist = (float) $rawDist;
+        }
+
+        // Beim freien Flug bleibt die Zeit Pflicht – ohne sie gibt es nichts zu
+        // rechnen. Neben einem festen Ausgang ist sie freiwillig.
+        if ($st === 'flown') {
+            if ($time === null) {
+                $problems[] = 'Pilot ' . $pid . ': Für einen geflogenen Start wird die Flugzeit gebraucht.';
+                continue;
+            }
+            // Wie bisher: ein leerer Landewert zählt als Null, nicht als unbekannt.
+            $dist = $dist ?? 0.0;
         }
 
         [$tp, $lp, $total] = calc_penalty($st, $time, $dist, $target, $hasMotor);
@@ -371,11 +381,11 @@ if ($competitionCompleted): ?>
     };
     // Angetreten, solange kein fester Ausgang angekreuzt ist.
     var flew = !flags.not_started && !flags.outlanding && !flags.crash;
-    timeEl.disabled = !flew;
-    distEl.disabled = !flew;
-
-    var t = flew ? parseTime(timeEl.value) : null;
-    var d = flew ? parseFloat((distEl.value || '0').replace(',', '.')) : 0;
+    // Zeit und Landewert bleiben immer bedienbar. Wer eine Aussenlandung nach
+    // 3:20 Landewert 15 hatte, soll beides eintragen können – die Strafpunkte
+    // rechnen weiterhin nach der festen Regel.
+    var t = parseTime(timeEl.value);
+    var d = parseFloat((distEl.value || '0').replace(',', '.'));
     if (isNaN(d)) d = 0;
     var result = penaltyOf(flags, t, d);
     if (result.total === null) {

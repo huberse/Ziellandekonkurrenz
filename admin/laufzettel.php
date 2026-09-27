@@ -6,7 +6,7 @@ require_once __DIR__ . '/../lib/runsheet_pdf.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
 
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
 require_competition_access((int) $competition['id']);
 $rounds = all_rounds($competition['id']);
 $pilotStmt = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name

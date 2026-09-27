@@ -7,15 +7,15 @@ require_login();
 
 $types = all_model_types();
 $clubs = all_clubs();
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
+// Startliste, Resultate und Einstellungen gehören genau diesem Wettbewerb.
+// Die Prüfung steht hier und nicht versteckt in resolve_competition_param(),
+// wo sie auch die öffentlichen Seiten betroffen hätte.
+require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    if (!can_manage_competition((int) $competition['id'])) {
-        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
-        redirect('index.php');
-    }
     if ($competitionCompleted) {
         flash('Dieser Wettbewerb ist abgeschlossen. Startliste und Resultate sind gesperrt.', 'err');
         redirect('wettbewerbe.php?competition=' . (int) $competition['id']);
