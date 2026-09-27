@@ -5,7 +5,11 @@ require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
 
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
+// Die Seite zeigt Startliste, Fortschritt und Resultate genau dieses
+// Wettbewerbs. Die Verwaltungsprüfung steht deshalb hier und nicht versteckt in
+// resolve_competition_param(), wo sie auch die öffentlichen Seiten betroffen hätte.
+require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $resultProgress = competition_result_progress((int) $competition['id']);
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '&competition=' . (int) $competition['id'] : '';

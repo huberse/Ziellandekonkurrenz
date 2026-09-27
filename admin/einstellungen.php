@@ -4,17 +4,17 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 $me = require_login();
-$competition = resolve_competition_param(competition_request_param());
+$competition = resolve_competition_param(competition_request_param(), true);
+// Startliste, Resultate und Einstellungen gehören genau diesem Wettbewerb.
+// Die Prüfung steht hier und nicht versteckt in resolve_competition_param(),
+// wo sie auch die öffentlichen Seiten betroffen hätte.
+require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    if (!can_manage_competition((int) $competition['id'])) {
-        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
-        redirect('index.php');
-    }
     $action = post('action');
 
     if ($action === 'settings') {

@@ -161,27 +161,50 @@ function find_competition(int $id): ?array
 }
 
 /** Wettbewerb aus einem competition-Query-Parameter auflösen und Kontext setzen. */
-function resolve_competition_param(string $raw): array
+/**
+ * Der Wettbewerb aus der Anfrage, sonst der aktive.
+ *
+ * Hier wird die *Sichtbarkeit* geregelt, und die ist uneingeschränkt: jeder
+ * Wettbewerb ist öffentlich sichtbar, deshalb gilt jeder Wettbewerb aus der
+ * Adresse – auch ohne Anmeldung. Vorher lag an dieser Stelle die
+ * Verwaltungsprüfung, und die sagt für Besucher ohne Anmeldung immer „nein".
+ * Damit wurde ?competition= auf anmeldung.php, index.php, teilnehmer.php und
+ * vereinswertung.php stillschweigend übergangen: wer zwei Wettbewerbe zur
+ * Anmeldung offen hatte, sah bei beiden denselben Anmeldetext, dieselbe
+ * Rangliste und dieselbe Teilnehmerliste.
+ *
+ * Für die Verwaltung ist das anders. Wer den Wettbewerb nicht steuern darf, soll
+ * dort nichts von ihm sehen – auch nicht seinen Namen im Seitenkopf. Deshalb
+ * ruft jede Verwaltungsseite resolve_competition_param($roh, true) auf und wird
+ * dann auf einen eigenen Wettbewerb umgeleitet. Die Verwaltungsseiten prüfen den
+ * Zugriff zusätzlich selbst, mit require_competition_access() gleich danach.
+ *
+ * @param bool $verwaltung true in der Verwaltung: fremde Wettbewerbe meiden
+ */
+function resolve_competition_param(string $raw, bool $verwaltung = false): array
 {
     if ($raw !== '' && ($competition = find_competition((int) $raw))) {
-        // Zugriffskontrolle: nur SuperAdmins oder Benutzer des gleichen Vereins
-        // dürfen den Wettbewerb auswählen. Andernfalls wird ein zugänglicher
-        // Wettbewerb gesucht.
-        if (function_exists('can_manage_competition') && !can_manage_competition((int) $competition['id'])) {
-            $accessible = accessible_competitions();
-            $competition = $accessible[0] ?? current_competition();
+        if ($verwaltung && !competition_darf_verwalten($competition)) {
+            $competition = accessible_competitions()[0] ?? current_competition();
         }
         set_competition_context((int) $competition['id']);
         return $competition;
     }
     $competition = current_competition();
-    // Auch der aktive Wettbewerb muss zugänglich sein.
-    if (function_exists('can_manage_competition') && !can_manage_competition((int) $competition['id'])) {
-        $accessible = accessible_competitions();
-        $competition = $accessible[0] ?? $competition;
+    if ($verwaltung && !competition_darf_verwalten($competition)) {
+        $competition = accessible_competitions()[0] ?? $competition;
     }
     set_competition_context((int) $competition['id']);
     return $competition;
+}
+
+/** Darf das angemeldete Konto diesen Wettbewerb steuern? Ohne Konto: nein. */
+function competition_darf_verwalten(array $competition): bool
+{
+    if (!function_exists('can_manage_competition')) {
+        return true;
+    }
+    return can_manage_competition((int) $competition['id']);
 }
 
 /**

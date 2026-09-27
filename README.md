@@ -404,6 +404,12 @@ der Flug wird dann nach Flugzeit und Landewert gewertet:
 | Aussenlandung & Motor | `penalty_outlanding` + `penalty_motor` |
 | Bruchlandung & Motor | `penalty_crash` + `penalty_motor` |
 | Motor allein | `penalty_motor` (kein gültiger Flug) |
+
+**Flugzeit und Landewert bleiben immer bedienbar**, auch neben einem angekreuzten
+Feld. Wer eine Aussenlandung nach 3:20 Landewert 15 hatte, trägt beides ein – die
+Punkte rechnen weiterhin nach der festen Regel, der nachgemessene Flug geht aber
+nicht verloren. Nur beim freien Flug ist die Flugzeit Pflicht, weil ohne sie nichts
+zu rechnen wäre.
 | keine Felder, keine Zeit, kein Landewert | die Zeile bleibt ohne Resultat |
 
 Kombiniert werden kann alles; tritt eine Bruch- oder Aussenlandung mit „nicht angetreten"
@@ -497,8 +503,20 @@ verloren gehen.
 
 **Auswahl.** Die öffentlichen Seiten bieten bei mehreren Wettbewerben ein Dropdown, gruppiert
 nach *Offene Wettbewerbe* und *Abgeschlossene Wettbewerbe*, mit dem aktiven Wettbewerb oben.
-Ein gezielter Aufruf funktioniert mit `index.php?competition=2`. Die frühere Form
+Ein gezielter Aufruf funktioniert mit `index.php?competition=2` – und zwar auch ohne
+Anmeldung, denn die öffentlichen Seiten zeigen jeden Wettbewerb. Die frühere Form
 `?season=...` wird beim Lesen noch akzeptiert.
+
+Dass *Sichtbarkeit* und *Zugriff* getrennt sind, ist Absicht: jeder Wettbewerb ist öffentlich
+sichtbar, und die Verwaltungsseiten fragen den Zugriff selbst ab. Ein gemeinsamer Aufruf hatte
+beides vermischt – die Verwaltungsprüfung beantwortet für Besucher immer mit „nein“ und hätte
+damit auch die Wettbewerbsauswahl auf den öffentlichen Seiten ausser Kraft gesetzt, sodass dort
+immer der aktive Wettbewerb erschien.
+
+Deshalb ruft jede Seite unter `admin/` die Auswahl mit einem zweiten Schalter auf
+(`resolve_competition_param($roh, true)`). Wer einen Wettbewerb nennt, den das Konto nicht steuern
+darf, wird dort auf einen eigenen umgeleitet und sieht dort nichts vom fremden. Die öffentlichen
+Seiten rufen die Auswahl ohne den Schalter auf.
 
 **Ein Verein, einmal angelegt.** Vereine und Modelltypen bleiben global, die Wettbewerbe sind
 datenseitig getrennt. Ein Verein lässt sich deshalb nur löschen, wenn **nirgends** mehr etwas an
