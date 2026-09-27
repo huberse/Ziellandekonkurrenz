@@ -287,7 +287,9 @@ weisen sie sich mit 403 ab.
 
 1. **Einstellungen** – Name, Datum, Ort und die Strafpunkt-Regeln prüfen.
 2. **Modelltypen** – Segler, Elektro, weitere. Die Rangliste wird je Modelltyp ausgewertet.
-3. **Vereine** – alle teilnehmenden Vereine, für Auswahl und Vereinswertung.
+3. **Vereine** – alle teilnehmenden Vereine, für Auswahl und Vereinswertung. Ein Verein mit
+   Piloten, Anmeldungen, Wettbewerben oder Konten lässt sich nicht löschen; der Knopf nennt den
+   Grund.
 4. **Piloten** – nur für den gewählten Wettbewerb: einzeln, als Liste aus Excel oder über
    freigegebene Anmeldungen. Über der Startliste liegen *Startnummern neu vergeben* (nummeriert
    alle aktiven Piloten dieses Wettbewerbs nach Modelltyp und Zufall neu) und *Startliste als CSV*
@@ -477,10 +479,16 @@ nach *Offene Wettbewerbe* und *Abgeschlossene Wettbewerbe*, mit dem aktiven Wett
 Ein gezielter Aufruf funktioniert mit `index.php?competition=2`. Die frühere Form
 `?season=...` wird beim Lesen noch akzeptiert.
 
-**Noch kein Mandantenmodell.** Benutzer, Vereine und Modelltypen sind global; die Wettbewerbe
-sind datenseitig getrennt. Vereins- und Modelltypennamen können deshalb global gepflegt
-werden, wobei destruktive Änderungen an Kategorien blockiert werden, sobald sie in
-abgeschlossenen Wettbewerben verwendet wurden.
+**Ein Verein, einmal angelegt.** Vereine und Modelltypen bleiben global, die Wettbewerbe sind
+datenseitig getrennt. Ein Verein lässt sich deshalb nur löschen, wenn **nirgends** mehr etwas an
+ihm hängt – geprüft werden alle vier Verwendungen: Piloten in der Startliste, Anmeldungen,
+Wettbewerbe, an denen er als Veranstalter steht, und Konten. Solange eine davon besteht, ist der
+Knopf gesperrt und nennt den Grund samt dem Weg, der aufräumt.
+
+Zwei Einträge für denselben Verein werden über **Doppelten Verein zusammenlegen** zusammengeführt:
+die Piloten wandern zum Zielverein, der Doppeleintrag verschwindet. Beides ist für Vereine
+blockiert, sobald sie in einem abgeschlossenen Wettbewerb vorkommen – die historische Zuordnung
+bleibt erhalten.
 
 ## Anmeldung
 
@@ -608,7 +616,8 @@ wie dem Laufzettel, gilt die Klasse nicht als Ausrichtungsangabe.
   entsprechend selbst konfigurieren.
 - `install.php`, `upgrade.php` und `diagnose.php` nach der Einrichtung vom Server löschen.
 - Zerstörende Änderungen an Vereinen und Modelltypen werden blockiert, sobald sie in
-  abgeschlossenen Wettbewerben verwendet wurden.
+  abgeschlossenen Wettbewerben verwendet wurden. Ein Verein wird zusätzlich nicht gelöscht,
+  solange Piloten, Anmeldungen, Wettbewerbe oder Konten an ihm hängen.
 
 ## Fehlersuche
 

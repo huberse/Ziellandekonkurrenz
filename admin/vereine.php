@@ -56,18 +56,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (global_category_used_in_completed('club', $cid)) {
                 throw new DomainException('Dieser Verein wird in abgeschlossenen Wettbewerben verwendet und kann nicht gelöscht werden.');
             }
-            $st = $pdo->prepare('SELECT COUNT(*) FROM pilots WHERE club_id = ?');
-            $st->execute([$cid]);
-            $n = (int) $st->fetchColumn();
-            $club = $pdo->prepare('SELECT name FROM clubs WHERE id = ?');
-            $club->execute([$cid]);
-            $clubName = (string) ($club->fetchColumn() ?: '');
-            $up = $pdo->prepare('UPDATE registrations SET club_id = NULL, club = ? WHERE club_id = ?');
-            $up->execute([$clubName ?: null, $cid]);
+            // Ein Verein mit Bezug darf nicht weg: sonst verlieren Piloten ihre
+            // Zuordnung und – bei Wettbewerben und Konten – die ganze Verwaltung.
+            // Stattdessen heisst es: erst die Bezüge auflösen, dann löschen.
+            $bezuege = club_verwendungen($pdo, $cid);
+            if ($bezuege) {
+                throw new DomainException('Dieser Verein ist noch verknüpft und kann nicht gelöscht werden: '
+                    . club_verwendungen_text($bezuege)
+                    . ' Zuerst die Piloten und Anmeldungen woanders zuordnen, dann einen Wettbewerb'
+                    . ' unter Wettbewerbe auf einen anderen Veranstalter setzen und zuletzt die'
+                    . ' Konten unter Benutzer umhängen. Soll der Verein nur nicht mehr doppelt'
+                    . ' geführt werden, geht das schneller über „Doppelten Verein zusammenlegen".');
+            }
             $d = $pdo->prepare('DELETE FROM clubs WHERE id = ?');
             $d->execute([$cid]);
             $pdo->commit();
-            flash($n ? "Verein gelöscht. $n Piloten sind jetzt ohne Verein." : 'Verein gelöscht.', $n ? 'info' : 'ok');
+            flash('Verein gelöscht.', 'ok');
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
@@ -115,6 +119,12 @@ $clubs = db()->prepare('SELECT c.*,
 $clubs->execute([(int) $competition['id']]);
 $clubs = $clubs->fetchAll();
 
+// Verwendungen je Verein, damit der Knopf vorab weiss, ob er zu sperren hat.
+$verwendungen = [];
+foreach ($clubs as $c) {
+    $verwendungen[(int) $c['id']] = club_verwendungen(db(), (int) $c['id']);
+}
+
 $count = (int) setting_num('club_scoring_count', 3);
 
 page_start('Vereine', 'admin', 'vereine.php');
@@ -123,8 +133,13 @@ page_start('Vereine', 'admin', 'vereine.php');
 <?php if ($notCurrent): ?>
     <div class="flash info">Du bearbeitest den Wettbewerb „<?= h($competition['name']) ?>“, nicht den aktiven Wettbewerb.</div>
 <?php endif; ?>
-<p class="lead">Vereine bleiben global. Ein Verein, der in einem abgeschlossenen Wettbewerb verwendet wird,
-    kann dort nicht gelöscht oder zusammengeführt werden; die historische Zuordnung bleibt erhalten.
+<p class="lead">Vereine bleiben global. Ein Verein lässt sich nur löschen, wenn nirgends mehr etwas
+    an ihm hängt – sonst gingen Piloten, Anmeldungen, Wettbewerbe oder Konten verloren. Steht er
+    noch in einer Startliste, einer Anmeldung, als Veranstalter eines Wettbewerbs oder hinter einem
+    Konto, ist der Knopf gesperrt und nennt den Grund. Braucht ein Verein nur einen anderen Namen,
+    ändere ihn oben; sind es zwei Einträge für denselben Verein, leg sie unten zusammen.
+    Ein Verein, der in einem abgeschlossenen Wettbewerb verwendet wird, kann gar nicht erst
+    gelöscht oder zusammengeführt werden; die historische Zuordnung bleibt erhalten.
     Für die Vereinswertung zählen die <?= $count ?> besten Piloten eines Vereins.
     Ein Verein braucht also mindestens <?= $count ?> gewertete Piloten, sonst erscheint er ausser Konkurrenz.
     Die Anzahl änderst du unter <a href="einstellungen.php<?= $competitionQS ?>#vereinswertung">Einstellungen</a>.</p>
@@ -146,8 +161,17 @@ page_start('Vereine', 'admin', 'vereine.php');
                     <td class="mid"><input type="checkbox" name="active_by_id[<?= $cid ?>]" <?= $c['active'] ? 'checked' : '' ?>></td>
                     <td class="num<?= (int) $c['pilot_count'] < $count ? ' cell-missing' : '' ?>"><?= (int) $c['pilot_count'] ?></td>
                     <td class="no-print">
-                        <button class="btn danger" type="submit" name="delete_id" value="<?= $cid ?>"
-                                data-confirm-click="<?= h($c['name']) ?> löschen? Die Piloten bleiben, aber ohne Verein.">Löschen</button>
+                        <?php $bezug = $verwendungen[$cid] ?? [];
+                        if ($bezug): ?>
+                            <button class="btn danger" type="submit" name="delete_id" value="<?= $cid ?>" disabled
+                                    title="Noch verknüpft: <?= h(trim(club_verwendungen_text($bezug), '.')) ?>">Löschen</button>
+                            <span class="small muted nowrap" style="display:block">
+                                <?= h(trim(club_verwendungen_text($bezug), '.')) ?>
+                            </span>
+                        <?php else: ?>
+                            <button class="btn danger" type="submit" name="delete_id" value="<?= $cid ?>"
+                                    data-confirm-click="<?= h($c['name']) ?> löschen? Der Verein ist nirgends verknüpft.">Löschen</button>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
