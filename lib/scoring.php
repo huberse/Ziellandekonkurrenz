@@ -165,6 +165,18 @@ function all_clubs(): array
     return db()->query('SELECT * FROM clubs ORDER BY sort_order, name')->fetchAll();
 }
 
+/** Name eines Vereins zu seiner ID, fuer Meldungen. Unbekannt: null. */
+function club_name(?int $clubId): ?string
+{
+    if ($clubId === null || $clubId <= 0) {
+        return null;
+    }
+    $st = db()->prepare('SELECT name FROM clubs WHERE id = ?');
+    $st->execute([$clubId]);
+    $name = $st->fetchColumn();
+    return $name === false ? null : (string) $name;
+}
+
 /** Prüft, ob eine Startnummer in einem Wettbewerb bereits vergeben ist. */
 function competition_bib_number_exists(int $competitionId, ?string $bibNumber, ?int $exceptPilotId = null): bool
 {

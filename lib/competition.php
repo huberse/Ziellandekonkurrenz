@@ -354,15 +354,28 @@ function seed_competition_settings(int $competitionId, ?int $sourceCompetitionId
 
 /**
  * Neuen Wettbewerb mit eigenen Durchgängen und Einstellungen anlegen.
- * Der Wettbewerb gehört automatisch dem Verein des aufrufenden Kontos.
- * SuperAdmins ohne Verein legen einen Wettbewerb ohne Vereinszuordnung an.
+ *
+ * Der Wettbewerb gehört dem Verein des aufrufenden Kontos. Nur ein
+ * SuperAdmin darf einen anderen Verein wählen: $clubId setzt die Zuordnung
+ * ausdrücklich, null übernimmt den eigenen Verein und erlaubt – falls
+ * vorhanden – einen Wettbewerb ohne Vereinszuordnung.
  */
-function create_competition(string $name, int $roundsCount, int $targetTime, bool $makeCurrent = false): int
+function create_competition(string $name, int $roundsCount, int $targetTime, bool $makeCurrent = false, ?int $clubId = null): int
 {
     $pdo = db();
     $pdo->beginTransaction();
     try {
-        $clubId = function_exists('user_club_id') ? user_club_id() : null;
+        if ($clubId === null) {
+            $clubId = function_exists('user_club_id') ? user_club_id() : null;
+        } elseif ($clubId < 0) {
+            $clubId = null;                  // ausdruecklich ohne Verein
+        } else {
+            $pruef = $pdo->prepare('SELECT id FROM clubs WHERE id = ?');
+            $pruef->execute([$clubId]);
+            if (!$pruef->fetchColumn()) {
+                throw new DomainException('Dieser Verein existiert nicht.');
+            }
+        }
         $st = $pdo->prepare('INSERT INTO competitions (name, club_id) VALUES (?, ?)');
         $st->execute([$name, $clubId]);
         $competitionId = (int) $pdo->lastInsertId();

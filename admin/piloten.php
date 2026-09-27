@@ -183,6 +183,38 @@ $pilots = $st->fetchAll();
 
 $competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $notCurrent = (int) $competition['id'] !== current_competition_id();
+$inaktiv = count(array_filter($pilots, static function (array $p): bool { return empty($p['active']); }));
+
+/* ---------- Startliste als CSV zum Aufkleber drucken ---------- */
+if (get('action') === 'csv') {
+    $nurAktive = get('nur_aktive', '1') !== '0';
+    $datei = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) $competition['name']) ?: 'Wettbewerb';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $datei . '_Startliste_'
+        . date('Y-m-d') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF"); // BOM, damit Excel die Umlaute richtig zeigt
+
+    // Kopfzeile nennt zugleich den Wettbewerb: beim Ausdrucken mehrerer
+    // Aufkleberbogen ist sonst nicht erkennbar, welcher zu welchem gehoert.
+    fputcsv($out, ['Startliste', (string) $competition['name'], date('d.m.Y')], ';');
+    fputcsv($out, ['Startnummer', 'Vorname', 'Name', 'Verein', 'Modelltyp', 'Modell'], ';');
+    foreach ($pilots as $p) {
+        if ($nurAktive && empty($p['active'])) {
+            continue;
+        }
+        fputcsv($out, [
+            (string) $p['bib_number'],
+            (string) $p['first_name'],
+            (string) $p['last_name'],
+            (string) ($p['club_name'] ?: ''),
+            (string) ($p['model_type_name'] ?: ''),
+            (string) ($p['model_name'] ?: ''),
+        ], ';');
+    }
+    fclose($out);
+    exit;
+}
 
 page_start('Piloten', 'admin', 'piloten.php');
 ?>
@@ -193,14 +225,6 @@ page_start('Piloten', 'admin', 'piloten.php');
             Piloten gelten nur für diesen Wettbewerb – für einen neuen Wettbewerb meldet sich jeder wieder neu an,
             entweder über <a href="../anmeldung.php?competition=<?= (int) $competition['id'] ?>">das Anmeldeformular</a> oder hier direkt.</p>
     </div>
-    <?php if (!$competitionCompleted): ?>
-    <form method="post" class="no-print" data-confirm="Startnummern aller aktiven Piloten dieses Wettbewerbs neu und zufällig vergeben (gruppiert nach Modelltyp)?">
-        <?= csrf_field() ?>
-        <input type="hidden" name="action" value="autonumber">
-        <input type="hidden" name="competition" value="<?= (int) $competition['id'] ?>">
-        <button class="btn ghost small" type="submit">Startnummern zufällig neu vergeben</button>
-    </form>
-    <?php endif; ?>
 </div>
 
 <?php if (count($competitions) > 1): ?>
@@ -289,6 +313,25 @@ page_start('Piloten', 'admin', 'piloten.php');
         </div>
     </form>
 <?php endif; ?>
+</div>
+
+<?php // Werkzeuge fuer die Liste selbst: Startnummern und Aufkleber-Export.
+      // Sie gehoeren an die Tabelle, nicht an den Seitenkopf – dort wirken sie
+      // ohne Zusammenhang und werden leicht uebersehen. ?>
+<div class="row-between no-print" style="margin:18px 0 8px">
+    <span class="small muted"><?= count($pilots) ?> Pilot<?= count($pilots) === 1 ? '' : 'en' ?><?= $inaktiv ? ', davon ' . $inaktiv . ' inaktiv' : '' ?></span>
+    <div class="btn-row dense">
+        <?php if (!$competitionCompleted): ?>
+        <form method="post" style="display:inline"
+              data-confirm="Startnummern aller aktiven Piloten dieses Wettbewerbs neu und zufällig vergeben (gruppiert nach Modelltyp)">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="autonumber">
+            <input type="hidden" name="competition" value="<?= (int) $competition['id'] ?>">
+            <button class="btn ghost small" type="submit">↻ Startnummern neu vergeben</button>
+        </form>
+        <?php endif; ?>
+        <a class="btn ghost small" href="piloten.php?action=csv&amp;competition=<?= (int) $competition['id'] ?>">⇩ Startliste als CSV</a>
+    </div>
 </div>
 
 <div class="panel" style="padding:0">

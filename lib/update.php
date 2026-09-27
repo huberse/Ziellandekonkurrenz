@@ -296,6 +296,119 @@ function update_zip_pfad_erlaubt(string $pfad): bool
 }
 
 // ---------------------------------------------------------------------------
+// Aenderungsliste
+// ---------------------------------------------------------------------------
+
+const UPDATE_CHANGELOG = 'CHANGELOG.md';
+
+/**
+ * Die Aenderungsliste von GitHub holen und in Abschnitte zerlegen.
+ *
+ * Gelesen wird absichtlich nur eine eigene, sehr einfache Form: eine Zeile
+ * `## 1.2.3` eroeffnet einen Abschnitt, `- ` beginnt einen Punkt, zwei
+ * Leerzeichen gefolgt von `- ` einen Unterpunkt. Alles andere wird ignoriert
+ * und die Ausgabe spaeter vollstaendig maskiert. Damit kann aus der Liste kein
+ * HTML in die Seite gelangen, egal was dort steht.
+ *
+ * Rueckgabe: ['ok' => bool, 'abschnitte' => [...], 'error' => string]
+ */
+function update_changelog(): array
+{
+    $antwort = update_http(update_url_raw(UPDATE_CHANGELOG), 262144);
+    if (!$antwort['ok']) {
+        return ['ok' => false, 'abschnitte' => [], 'error' => $antwort['error']];
+    }
+    return ['ok' => true, 'abschnitte' => update_changelog_zerlegen($antwort['body']), 'error' => ''];
+}
+
+/** Den Text einer Aenderungsliste in Abschnitte zerlegen. */
+function update_changelog_zerlegen(string $text): array
+{
+    $abschnitte = [];
+    $aktuell = null;
+    $zeile = null;
+    $letzteZeile = null;
+
+    $abschliessen = static function () use (&$abschnitte, &$aktuell): void {
+        if ($aktuell !== null && $aktuell['punkte']) {
+            $abschnitte[] = $aktuell;
+        }
+        $aktuell = null;
+    };
+
+    foreach (preg_split('/\R/u', $text) ?: [] as $roh) {
+        $roh = rtrim($roh);
+        if (preg_match('/^##\s+v?(\d+(?:\.\d+)*)(?:\s*[-–—·]\s*(.+?))?\s*$/u', $roh, $treffer)) {
+            $abschliessen();
+            $aktuell = [
+                'version' => $treffer[1],
+                'datum' => trim((string) ($treffer[2] ?? '')),
+                'punkte' => [],
+            ];
+            $zeile = null;
+            $letzteZeile = null;
+            continue;
+        }
+        if ($aktuell === null) {
+            continue;                       // Text vor der ersten Ueberschrift
+        }
+        if (preg_match('/^(\s*)-\s+(.*)$/u', $roh, $treffer)) {
+            $ebene = strlen(str_replace("\t", '  ', $treffer[1])) >= 2 ? 1 : 0;
+            $zeile = ['text' => trim($treffer[2]), 'unter' => []];
+            $aktuell['punkte'][] = $zeile;
+            $letzteZeile = $zeile;
+            continue;
+        }
+        // Fortsetzungszeile eines Punktes, mit zwei Leerzeichen eingerückt.
+        if ($letzteZeile !== null && $roh !== '' && strncmp($roh, '  ', 2) === 0) {
+            $letzteZeile['text'] .= ' ' . trim($roh);
+            continue;
+        }
+        $letzteZeile = null;
+        $zeile = null;
+        if (trim($roh) !== '') {
+            $aktuell['punkte'][] = ['text' => trim($roh), 'unter' => [], 'absatz' => true];
+        }
+    }
+    $abschliessen();
+
+    return $abschnitte;
+}
+
+/**
+ * Die Abschnitte, die zwischen zwei Fassungen liegen.
+ *
+ * Von $von ausgeschlossen – dieser Stand ist ja schon da. Bis $bis
+ * eingeschlossen, das ist die Fassung, die angeboten wird. Fehlt $von, wird
+ * alles gezeigt, was es zur neuen Fassung gibt.
+ */
+function update_changelog_seit(array $abschnitte, ?string $von, string $bis): array
+{
+    $gezeigt = [];
+    foreach ($abschnitte as $abschnitt) {
+        if ($von !== null && $von !== '' && version_compare($abschnitt['version'], $von, 'le')) {
+            continue;
+        }
+        $gezeigt[] = $abschnitt;
+    }
+    usort($gezeigt, static function (array $a, array $b): int {
+        return version_compare($b['version'], $a['version']);
+    });
+    return $gezeigt;
+}
+
+/**
+ * Gibt es fuer den Sprung eine Aenderungsliste?
+ *
+ * Ohne Liste faellt die Seite auf die Dateiaufzaehlung zurueck, statt eine
+ * leere Anzeige zu zeigen.
+ */
+function update_changelog_vorhanden(array $abschnitte, ?string $von, string $bis): bool
+{
+    return update_changelog_seit($abschnitte, $von, $bis) !== [];
+}
+
+// ---------------------------------------------------------------------------
 // Vergleich
 // ---------------------------------------------------------------------------
 
