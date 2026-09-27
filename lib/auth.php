@@ -17,13 +17,22 @@ function current_user(): ?array
     static $user = null;
     if ($user === null) {
         try {
-            $st = db()->prepare(
-                'SELECT u.*, c.name AS club_name
-                 FROM users u
-                 LEFT JOIN clubs c ON c.id = u.club_id
-                 WHERE u.id = ?'
-            );
-            $st->execute([$_SESSION['uid']]);
+            // Vor der Vereins-Migration gibt es users.club_id noch nicht. Dann
+            // darf die Abfrage nicht scheitern: ein Fehler hier wuerde als
+            // abgemeldet erscheinen und damit auch den Weg zu upgrade.php
+            // versperren. Deshalb faellt die Abfrage auf die nackten
+            // Kontodaten zurueck.
+            $mitVerein = 'SELECT u.*, c.name AS club_name
+                          FROM users u
+                          LEFT JOIN clubs c ON c.id = u.club_id
+                          WHERE u.id = ?';
+            try {
+                $st = db()->prepare($mitVerein);
+                $st->execute([$_SESSION['uid']]);
+            } catch (PDOException $e) {
+                $st = db()->prepare('SELECT * FROM users WHERE id = ?');
+                $st->execute([$_SESSION['uid']]);
+            }
             $found = $st->fetch() ?: null;
             $user = ($found && (int) ($found['active'] ?? 1) === 1) ? $found : null;
         } catch (PDOException $e) {
