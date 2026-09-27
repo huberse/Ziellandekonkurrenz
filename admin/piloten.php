@@ -12,6 +12,10 @@ $competitionCompleted = competition_is_completed((int) $competition['id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+    if (!can_manage_competition((int) $competition['id'])) {
+        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+        redirect('index.php');
+    }
     if ($competitionCompleted) {
         flash('Dieser Wettbewerb ist abgeschlossen. Startliste und Resultate sind gesperrt.', 'err');
         redirect('wettbewerbe.php?competition=' . (int) $competition['id']);
@@ -177,7 +181,7 @@ $st = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name,
 $st->execute([$competition['id']]);
 $pilots = $st->fetchAll();
 
-$competitions = all_competitions();
+$competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $notCurrent = (int) $competition['id'] !== current_competition_id();
 
 page_start('Piloten', 'admin', 'piloten.php');

@@ -17,10 +17,14 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 CREATE TABLE IF NOT EXISTS competitions (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   name       VARCHAR(160) NOT NULL,
+  club_id    INT          NULL, -- Vereinszugehörigkeit; NULL = Altbestand ohne Zuordnung
   is_current TINYINT(1)   NOT NULL DEFAULT 0,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   completed_at DATETIME   NULL, -- NULL = offen, gesetzter Zeitpunkt = abgeschlossen
-  UNIQUE KEY uq_competition_name (name)
+  UNIQUE KEY uq_competition_name (name),
+  KEY idx_competition_club (club_id),
+  CONSTRAINT fk_competition_club FOREIGN KEY (club_id)
+    REFERENCES clubs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS competition_settings (
@@ -96,7 +100,7 @@ CREATE TABLE IF NOT EXISTS scores (
   pilot_id            INT            NOT NULL,
   round_id            INT            NOT NULL,
   competition_id      INT            NOT NULL,
-  status              ENUM('flown','dnf','dns') NOT NULL DEFAULT 'flown',
+  status              ENUM('flown','dnf','dns','crash') NOT NULL DEFAULT 'flown',
   motor               TINYINT(1)   NOT NULL DEFAULT 0, -- Motor angelassen, unabhängig vom Ausgang
   flight_time_seconds DECIMAL(7,1)   NULL,
   landing_value        DECIMAL(6,1)   NULL,
@@ -144,8 +148,12 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(60)  NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   display_name  VARCHAR(120) NULL,
+  club_id       INT          NULL, -- Vereinszugehörigkeit; NULL = keinem Verein zugeordnet
   is_superadmin TINYINT(1)   NOT NULL DEFAULT 0, -- darf die Benutzer verwalten
   active        TINYINT(1)   NOT NULL DEFAULT 1, -- 0 = Anmeldung gesperrt
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_username (username)
+  UNIQUE KEY uq_username (username),
+  KEY idx_user_club (club_id),
+  CONSTRAINT fk_user_club FOREIGN KEY (club_id)
+    REFERENCES clubs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

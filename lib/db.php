@@ -159,6 +159,7 @@ function setting_defaults(): array
         'penalty_per_second'       => '1',   // je Sekunde Abweichung, nach oben wie unten
         'penalty_per_meter'        => '1',   // je Landewert-Einheit
         'penalty_outlanding'       => '100', // Aussenlandung
+        'penalty_crash'            => '100', // Bruchlandung
         'penalty_not_started'      => '100', // nicht angetreten / kein Resultat
         'penalty_motor'            => '100', // Motor angelassen, bei Aussenlandung zusätzlich
         'drop_enabled'             => '1',

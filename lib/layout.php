@@ -171,6 +171,21 @@ function competition_switch(array $competitions, array $current, string $query):
     if (!$competitions) {
         return;
     }
+    // Filtere nach Vereinszugehörigkeit für Nicht-Superadmins
+    $u = current_user();
+    if ($u && (int) ($u['is_superadmin'] ?? 0) !== 1) {
+        $clubId = user_club_id();
+        $competitions = array_filter($competitions, static function (array $c) use ($clubId): bool {
+            // Altbestand ohne Vereinszuordnung bleibt für alle sichtbar
+            if (empty($c['club_id'])) {
+                return true;
+            }
+            return (int) $c['club_id'] === $clubId;
+        });
+        if (!$competitions) {
+            return;
+        }
+    }
     $currentId = (int) $current['id'];
     $activeId = current_competition_id();
     $counts = competition_pilot_counts();

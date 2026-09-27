@@ -164,12 +164,78 @@ function find_competition(int $id): ?array
 function resolve_competition_param(string $raw): array
 {
     if ($raw !== '' && ($competition = find_competition((int) $raw))) {
+        // Zugriffskontrolle: nur SuperAdmins oder Benutzer des gleichen Vereins
+        // dürfen den Wettbewerb auswählen. Andernfalls wird ein zugänglicher
+        // Wettbewerb gesucht.
+        if (function_exists('can_manage_competition') && !can_manage_competition((int) $competition['id'])) {
+            $accessible = accessible_competitions();
+            $competition = $accessible[0] ?? current_competition();
+        }
         set_competition_context((int) $competition['id']);
         return $competition;
     }
     $competition = current_competition();
+    // Auch der aktive Wettbewerb muss zugänglich sein.
+    if (function_exists('can_manage_competition') && !can_manage_competition((int) $competition['id'])) {
+        $accessible = accessible_competitions();
+        $competition = $accessible[0] ?? $competition;
+    }
     set_competition_context((int) $competition['id']);
     return $competition;
+}
+
+/**
+ * Wettbewerbe, die das aktuelle Konto sehen und steuern darf.
+ * SuperAdmins sehen alle; normale Benutzer nur die ihres eigenen Vereins
+ * sowie Altbestand ohne Vereinszuordnung.
+ */
+function accessible_competitions(): array
+{
+    try {
+        $u = current_user();
+        if (!$u) {
+            return [];
+        }
+        if ((int) ($u['is_superadmin'] ?? 0) === 1) {
+            return all_competitions();
+        }
+        $clubId = user_club_id();
+        if ($clubId === null) {
+            // Ohne Verein: nur Altbestand ohne Vereinszuordnung.
+            return db()->query('SELECT * FROM competitions WHERE club_id IS NULL ORDER BY id DESC')->fetchAll();
+        }
+        $st = db()->prepare('SELECT * FROM competitions WHERE club_id = ? OR club_id IS NULL ORDER BY id DESC');
+        $st->execute([$clubId]);
+        return $st->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Wettbewerbe, die das aktuelle Konto sehen und steuern darf, die noch nicht
+ * beendet sind. Gleiche Logik wie accessible_competitions(), aber nur offene.
+ */
+function accessible_open_competitions(): array
+{
+    try {
+        $u = current_user();
+        if (!$u) {
+            return [];
+        }
+        if ((int) ($u['is_superadmin'] ?? 0) === 1) {
+            return open_competitions();
+        }
+        $clubId = user_club_id();
+        if ($clubId === null) {
+            return db()->query('SELECT * FROM competitions WHERE club_id IS NULL AND completed_at IS NULL ORDER BY id DESC')->fetchAll();
+        }
+        $st = db()->prepare('SELECT * FROM competitions WHERE (club_id = ? OR club_id IS NULL) AND completed_at IS NULL ORDER BY id DESC');
+        $st->execute([$clubId]);
+        return $st->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
 }
 
 /** Liest competition aus GET/POST und akzeptiert die alte season-URL als Kompatibilität. */
@@ -286,14 +352,19 @@ function seed_competition_settings(int $competitionId, ?int $sourceCompetitionId
     $st->execute([$competitionId, 'competition_name', $competitionName]);
 }
 
-/** Neuen Wettbewerb mit eigenen Durchgängen und Einstellungen anlegen. */
+/**
+ * Neuen Wettbewerb mit eigenen Durchgängen und Einstellungen anlegen.
+ * Der Wettbewerb gehört automatisch dem Verein des aufrufenden Kontos.
+ * SuperAdmins ohne Verein legen einen Wettbewerb ohne Vereinszuordnung an.
+ */
 function create_competition(string $name, int $roundsCount, int $targetTime, bool $makeCurrent = false): int
 {
     $pdo = db();
     $pdo->beginTransaction();
     try {
-        $st = $pdo->prepare('INSERT INTO competitions (name) VALUES (?)');
-        $st->execute([$name]);
+        $clubId = function_exists('user_club_id') ? user_club_id() : null;
+        $st = $pdo->prepare('INSERT INTO competitions (name, club_id) VALUES (?, ?)');
+        $st->execute([$name, $clubId]);
         $competitionId = (int) $pdo->lastInsertId();
 
         $sourceCompetitionId = null;
@@ -594,7 +665,7 @@ function competition_schema_status_is_valid(PDO $pdo): bool
     }
     $type = strtolower((string) $definition['COLUMN_TYPE']);
     $type = preg_replace('/\\s+/', '', $type);
-    return $type === "enum('flown','dnf','dns')"
+    return $type === "enum('flown','dnf','dns','crash')"
         && (string) $definition['IS_NULLABLE'] === 'NO';
 }
 
@@ -675,7 +746,10 @@ function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true)
         ];
         if ($withLaterColumns) {
             $columns['scores'][] = 'motor';
-            $columns['users'] = ['id', 'username', 'is_superadmin', 'active'];
+            $columns['users'] = ['id', 'username', 'is_superadmin', 'active', 'club_id'];
+            if (competition_schema_table_exists($pdo, 'clubs')) {
+                $columns['competitions'][] = 'club_id';
+            }
         }
         foreach ($columns as $table => $required) {
             foreach ($required as $column) {
@@ -685,7 +759,7 @@ function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true)
             }
         }
         if (!competition_schema_status_is_valid($pdo)) {
-            $issues[] = 'scores.status muss ein NOT NULL ENUM mit flown, dnf und dns sein';
+            $issues[] = 'scores.status muss ein NOT NULL ENUM mit flown, dnf, dns und crash sein';
         }
         if (!competition_schema_completed_column_is_valid($pdo)) {
             $issues[] = 'competitions.completed_at muss ein nullable DATETIME sein';
@@ -781,7 +855,10 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
         ];
         if ($withLaterColumns) {
             $columns['scores'][] = 'motor';
-            $columns['users'] = ['id', 'username', 'is_superadmin', 'active'];
+            $columns['users'] = ['id', 'username', 'is_superadmin', 'active', 'club_id'];
+            if (competition_schema_table_exists($pdo, 'clubs')) {
+                $columns['competitions'][] = 'club_id';
+            }
         }
         foreach ($columns as $table => $required) {
             foreach ($required as $column) {
@@ -843,6 +920,10 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
             ['registrations', 'fk_registration_pilot', ['pilot_id'], 'pilots', ['id']],
             ['competition_settings', 'fk_competition_settings_competition', ['competition_id'], 'competitions', ['id']],
         ];
+        if ($withLaterColumns) {
+            $foreignKeys[] = ['users', 'fk_user_club', ['club_id'], 'clubs', ['id']];
+            $foreignKeys[] = ['competitions', 'fk_competition_club', ['club_id'], 'clubs', ['id']];
+        }
         foreach ($foreignKeys as [$table, $name, $columns, $referencedTable, $referencedColumns]) {
             $actual = competition_schema_foreign_key($pdo, $table, $name);
             if ($actual === null || $actual['columns'] !== $columns
@@ -870,7 +951,7 @@ function schema_has_competitions(): bool
             return false;
         }
         $st = db()->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations');
-        return (int) $st->fetchColumn() >= 6;
+        return (int) $st->fetchColumn() >= 8;
     } catch (Throwable $e) {
         return false;
     }

@@ -38,19 +38,25 @@ foreach ($pilotIdStmt as $pilotRow) {
 $typeFilter = get('typ', '');
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '&competition=' . (int) $competition['id'] : '';
 $runsheetPdfUrl = 'laufzettel.php?format=pdf' . ($competitionQS !== '' ? '&competition=' . $competition['id'] : '');
+// Die vier Ausgänge kommen aus derselben Liste wie der Laufzettel, damit
+// Bildschirm, PDF und Datenbank niemals unterschiedliche Kästchen zeigen.
+$boxes = runsheet_penalty_boxes();
 
 /* ---------- Speichern ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+    if (!can_manage_competition((int) $competition['id'])) {
+        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+        redirect('index.php');
+    }
     if ($competitionCompleted) {
         flash('Dieser Wettbewerb ist abgeschlossen. Die Resultate können nicht mehr geändert werden.', 'err');
         redirect('wettbewerbe.php?competition=' . (int) $competition['id']);
     }
 
-    $status = is_array($_POST['status'] ?? null) ? $_POST['status'] : [];
     $times  = is_array($_POST['time'] ?? null) ? $_POST['time'] : [];
     $dists  = is_array($_POST['dist'] ?? null) ? $_POST['dist'] : [];
-    $notes  = is_array($_POST['note'] ?? null) ? $_POST['note'] : [];
+    $clears = is_array($_POST['clear'] ?? null) ? $_POST['clear'] : [];
 
     $pdo = db();
     $pdo->beginTransaction();
@@ -64,29 +70,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $del = $pdo->prepare('DELETE FROM scores WHERE pilot_id = ? AND round_id = ?');
 
         $saved = 0; $cleared = 0; $problems = [];
-        $outcomes = score_outcomes();
 
-        foreach ($status as $pid => $raw) {
+        foreach ($validPilotIds as $pid => $_) {
         $pid = (int) $pid;
-        if (!isset($validPilotIds[$pid])) {
-            $problems[] = "Pilot $pid: nicht in diesem Wettbewerb.";
-            continue;
-        }
-        $outcome = is_scalar($raw) && isset($outcomes[(string) $raw]) ? (string) $raw : '';
-        $motor = $outcome !== '' ? (bool) $outcomes[$outcome]['motor'] : false;
-        $st = $outcome !== '' ? (string) $outcomes[$outcome]['status'] : '';
-        $rawTime = isset($times[$pid]) && is_scalar($times[$pid]) ? (string) $times[$pid] : '';
-        $rawDist = isset($dists[$pid]) && is_scalar($dists[$pid])
-            ? str_replace(',', '.', trim((string) $dists[$pid])) : '';
-        $note = isset($notes[$pid]) && is_scalar($notes[$pid]) ? text_limit((string) $notes[$pid], 160) : '';
 
-        if ($outcome === '' || ($outcome === 'flown' && $rawTime === '' && $rawDist === '' && $note === '')) {
+        // Ein gesetztes „löschen“ hat Vorrang vor allen anderen Feldern.
+        if (isset($clears[$pid]) && is_scalar($clears[$pid]) && $clears[$pid] === '1') {
             $del->execute([$pid, $roundId]);
             $cleared += $del->rowCount();
             continue;
         }
 
-        if ($outcome === 'flown') {
+        $checked = [];
+        foreach ($boxes as $box) {
+            $field = str_replace('penalty_', '', $box['setting']);
+            $checked[$field] = isset($_POST[$field][$pid]) && $_POST[$field][$pid] === '1';
+        }
+        $hasDns   = $checked['not_started'];
+        $hasDnf   = $checked['outlanding'];
+        $hasCrash = $checked['crash'];
+        // Der Motor ist eine Zusatzstrafe und kann zu jedem Ausgang dazukommen.
+        $hasMotor = $checked['motor'];
+
+        $rawTime = isset($times[$pid]) && is_scalar($times[$pid]) ? (string) $times[$pid] : '';
+        $rawDist = isset($dists[$pid]) && is_scalar($dists[$pid])
+            ? str_replace(',', '.', trim((string) $dists[$pid])) : '';
+
+        // Bruchlandung und Aussenlandung schlagen den Nichtantritt; tritt der
+        // Pilot an, wird der geflogene Flug gewertet.
+        $st = $hasCrash ? 'crash' : ($hasDnf ? 'dnf' : ($hasDns ? 'dns' : 'flown'));
+
+        if ($st === 'flown' && !$hasMotor && $rawTime === '' && $rawDist === '') {
+            $del->execute([$pid, $roundId]);
+            $cleared += $del->rowCount();
+            continue;
+        }
+
+        if ($st === 'flown') {
             $time = parse_time($rawTime);
             if ($time === null || !is_finite($time) || $time < 0 || $time > 999999.9) {
                 $problems[] = 'Pilot ' . $pid . ': Flugzeit muss eine Zahl zwischen 0 und 999999.9 sein.';
@@ -106,8 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dist = null;
         }
 
-        [$tp, $lp, $total] = calc_penalty($st, $time, $dist, $target, $motor);
-        $ins->execute([$pid, $roundId, $competition['id'], $st, $motor ? 1 : 0, $time, $dist, $tp, $lp, $total, $note ?: null]);
+        [$tp, $lp, $total] = calc_penalty($st, $time, $dist, $target, $hasMotor);
+        $ins->execute([$pid, $roundId, $competition['id'], $st, $hasMotor ? 1 : 0, $time, $dist, $tp, $lp, $total, null]);
         $saved++;
         }
         $pdo->commit();
@@ -131,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /* ---------- Anzeige ---------- */
 $sql = 'SELECT p.*, t.name AS model_type_name, t.sort_order, c.name AS club_name,
-               s.status, s.motor, s.flight_time_seconds, s.landing_value, s.penalty, s.note AS score_note
+               s.status, s.motor, s.flight_time_seconds, s.landing_value, s.penalty
         FROM pilots p
         LEFT JOIN model_types t ON t.id = p.model_type_id
         LEFT JOIN clubs c ON c.id = p.club_id
@@ -165,6 +185,10 @@ if ($competitionCompleted): ?>
         <h2>Resultate erfassen</h2>
         <p class="lead">Zielzeit <?= h(fmt_time((float) $target)) ?> · Zeit als <code>2:58</code> oder <code>178</code> eintragen, Tabulator springt weiter.
             Die festen Strafen stehen unter <a href="einstellungen.php<?= $competitionQS !== '' ? '&' : '?' ?>competition=<?= (int) $competition['id'] ?>">Einstellungen → Strafpunkte</a>.</p>
+        <p class="lead">Genau wie im Laufzettel: kein Kästchen angekreuzt heisst <b>geflogen</b> und wird nach Flugzeit und
+            Landewert gewertet. <b>Aussenlandung</b> und <b>Bruchlandung</b> schlagen den Nichtantritt, und
+            <b>Motor</b> kommt als Zusatzstrafe zu jedem Ausgang dazu. Eine Zeile ohne Zeit, Landewert und Kästchen
+            bleibt ohne Resultat; das ✕ löscht ein gespeichertes Resultat.</p>
     </div>
     <div class="btn-row dense no-print">
         <a class="btn ghost" href="<?= h($runsheetPdfUrl) ?>">Laufzettel-PDF</a>
@@ -208,45 +232,59 @@ if ($competitionCompleted): ?>
             <th>Pilot</th>
             <th class="mid">Flugzeit</th>
             <th class="mid">Landewert</th>
-            <th class="mid">Wertung</th>
-            <th>Bemerkung</th>
+            <?php foreach ($boxes as $box): ?>
+                <th class="mid penalty-head" title="<?= h(fmt_num(fixed_penalty($box['setting']))) ?> Punkte"><?= h($box['label']) ?></th>
+            <?php endforeach; ?>
             <th class="num">Strafpunkte</th>
+            <th class="no-print"></th>
         </tr>
         </thead>
         <tbody>
         <?php $lastGroup = null;
+        $boxCount = count($boxes);
         foreach ($pilots as $p):
             $pid = (int) $p['id'];
             if ($typeFilter === '' && $p['model_type_name'] !== $lastGroup) {
                 $lastGroup = $p['model_type_name'];
-                echo '<tr class="group-head"><td colspan="7">' . h($lastGroup ?: 'Ohne Modelltyp') . '</td></tr>';
+                echo '<tr class="group-head"><td colspan="' . ($boxCount + 6) . '">' . h($lastGroup ?: 'Ohne Modelltyp') . '</td></tr>';
             }
             $has = $p['status'] !== null;
-            $stVal = score_outcome_of((string) $p['status'], (bool) ($p['motor'] ?? 0));
             $timeVal = $p['flight_time_seconds'] !== null ? fmt_time((float) $p['flight_time_seconds']) : '';
             $distVal = $p['landing_value'] !== null ? fmt_num($p['landing_value']) : '';
+            // Aus dem gespeicherten Datensatz zurück in die vier Kästchen.
+            $marked = [
+                'not_started' => (string) $p['status'] === 'dns',
+                'outlanding'  => (string) $p['status'] === 'dnf',
+                'crash'       => (string) $p['status'] === 'crash',
+                'motor'       => (bool) ($p['motor'] ?? 0),
+            ];
             ?>
             <tr class="<?= $has ? 'saved' : '' ?>" data-row>
                 <td><span class="bib"><?= h($p['bib_number'] ?: '–') ?></span></td>
                 <td class="nowrap"><?= h(full_name($p)) ?><br><span class="small muted"><?= h($p['club_name'] ?: '') ?></span></td>
                 <td class="mid">
                     <input type="text" class="w-time" name="time[<?= $pid ?>]" value="<?= h($timeVal) ?>"
-                           inputmode="decimal" autocomplete="off" data-time placeholder="2:58">
+                           inputmode="decimal" autocomplete="off" data-time placeholder="0:00">
                 </td>
                 <td class="mid">
                     <input type="text" class="w-dist" name="dist[<?= $pid ?>]" value="<?= h($distVal) ?>"
                            inputmode="decimal" autocomplete="off" data-dist placeholder="0">
                 </td>
-                <td class="mid">
-                    <select name="status[<?= $pid ?>]" data-status>
-                        <?php foreach (score_outcomes() as $key => $outcome): ?>
-                            <option value="<?= h($key) ?>"<?= $stVal === $key ? ' selected' : '' ?>><?= h($outcome['label']) ?></option>
-                        <?php endforeach; ?>
-                        <option value="">kein Eintrag</option>
-                    </select>
-                </td>
-                <td><input type="text" name="note[<?= $pid ?>]" value="<?= h($p['score_note'] ?? '') ?>" autocomplete="off"></td>
+                <?php foreach ($boxes as $box):
+                    $field = str_replace('penalty_', '', $box['setting']); ?>
+                    <td class="mid">
+                        <input type="checkbox" name="<?= h($field) ?>[<?= $pid ?>]" value="1"
+                               data-box="<?= h($field) ?>"<?= !empty($marked[$field]) ? ' checked' : '' ?>
+                               aria-label="<?= h(full_name($p)) ?>: <?= h($box['label']) ?>">
+                    </td>
+                <?php endforeach; ?>
                 <td class="num live" data-live><?= $has ? h(fmt_num($p['penalty'])) : '–' ?></td>
+                <td class="no-print">
+                    <button class="btn ghost small" type="submit" name="clear[<?= $pid ?>]" value="1"
+                            formnovalidate
+                            data-confirm-click="Resultat von <?= h(full_name($p)) ?> löschen?"
+                            <?= $has ? '' : 'disabled title="Nichts gespeichert"' ?>>✕</button>
+                </td>
             </tr>
         <?php endforeach; ?>
         </tbody>
@@ -255,7 +293,7 @@ if ($competitionCompleted): ?>
     </div>
 
     <div class="sticky-save no-print">
-        <span class="muted small">Leere Zeilen bleiben ohne Resultat.</span>
+        <span class="muted small">Zeilen ohne Zeit, Landewert und Kästchen bleiben ohne Resultat.</span>
         <button class="btn big" type="submit">Durchgang <?= (int) $round['round_number'] ?> speichern</button>
     </div>
     </fieldset>
@@ -268,9 +306,9 @@ if ($competitionCompleted): ?>
       'perSecond'   => max(0.0, setting_num('penalty_per_second', 1)),
       'meter'       => max(0.0, setting_num('penalty_per_meter', 1)),
       'outlanding'  => fixed_penalty('penalty_outlanding'),
+      'crash'       => fixed_penalty('penalty_crash'),
       'notStarted'  => fixed_penalty('penalty_not_started'),
       'motor'       => fixed_penalty('penalty_motor'),
-      'labels'      => array_map(static function (array $outcome): string { return $outcome['label']; }, score_outcomes()),
   ], JSON_THROW_ON_ERROR) ?>;
 
   function parseTime(raw) {
@@ -288,52 +326,58 @@ if ($competitionCompleted): ?>
 
   function round2(v) { return Math.round(v * 100) / 100; }
 
-  // Strafpunkte je Ausgang, ohne den Server zu fragen. Bildet calc_penalty() ab:
-  // ein sauberer Flug aus Zeitabweichung und Landewert, sonst eine feste Strafe.
-  function penaltyOf(outcome, time, dist) {
-    if (outcome === 'flown') {
-      if (time === null) return { total: null, note: '' };
-      // Betrag: zu lang und zu kurz zählen gleich.
-      var tp = Math.abs(time - cfg.target) * cfg.perSecond;
-      var lp = Math.max(0, dist) * cfg.meter;
-      return { total: round2(tp + lp), note: 'Zeit ' + round2(tp) + ' + Landewert ' + round2(lp) };
+  function box(row, name) { return row.querySelector('[data-box="' + name + '"]'); }
+
+  // Strafpunkte aus den angekreuzten Kästchen, ohne den Server zu fragen.
+  // Bildet calc_penalty() ab: Bruchlandung und Aussenlandung schlagen den
+  // Nichtantritt. Der Motor zählt zu den Feststrafen dazu, ersetzt beim
+  // gelungenen Flug aber Zeit und Landewert.
+  function penaltyOf(flags, time, dist) {
+    var motor = flags.motor ? cfg.motor : 0;
+    if (flags.crash) {
+      return { total: round2(cfg.crash + motor), note: 'Bruchlandung' + (motor ? ' + Motor' : '') };
     }
-    if (outcome === 'motor') {
-      return { total: cfg.motor, note: 'nur Motorstrafe, ohne Zeit und Landewert' };
+    if (flags.outlanding) {
+      return { total: round2(cfg.outlanding + motor), note: 'Aussenlandung' + (motor ? ' + Motor' : '') };
     }
-    if (outcome === 'motor_dnf') {
-      return {
-        total: round2(cfg.outlanding + cfg.motor),
-        note: 'Aussenlandung ' + round2(cfg.outlanding) + ' + Motor ' + round2(cfg.motor)
-      };
+    if (flags.not_started) {
+      return { total: round2(cfg.notStarted + motor), note: 'nicht angetreten' + (motor ? ' + Motor' : '') };
     }
-    return {
-      total: outcome === 'dnf' ? cfg.outlanding : cfg.notStarted,
-      note: 'feste Strafe'
-    };
+    if (flags.motor) {
+      return { total: round2(cfg.motor), note: 'nur Motorstrafe, ohne Zeit und Landewert' };
+    }
+    if (time === null) {
+      return { total: null, note: '' };
+    }
+    // Betrag: zu lang und zu kurz zählen gleich.
+    var tp = Math.abs(time - cfg.target) * cfg.perSecond;
+    var lp = Math.max(0, dist || 0) * cfg.meter;
+    return { total: round2(tp + lp), note: 'Zeit ' + round2(tp) + ' + Landewert ' + round2(lp) };
   }
 
   function update(row) {
-    var outcome = row.querySelector('[data-status]').value;
     var out = row.querySelector('[data-live]');
     var timeEl = row.querySelector('[data-time]');
     var distEl = row.querySelector('[data-dist]');
-    // Flugzeit und Landewert werden nur bei einem sauberen Flug gewertet.
-    var disabled = outcome !== 'flown';
-    timeEl.disabled = disabled;
-    distEl.disabled = disabled;
+    var dnsEl = box(row, 'not_started');
+    var dnfEl = box(row, 'outlanding');
+    var crashEl = box(row, 'crash');
+    var motorEl = box(row, 'motor');
+    var flags = {
+      not_started: !!dnsEl && dnsEl.checked,
+      outlanding: !!dnfEl && dnfEl.checked,
+      crash: !!crashEl && crashEl.checked,
+      motor: !!motorEl && motorEl.checked
+    };
+    // Angetreten, solange kein fester Ausgang angekreuzt ist.
+    var flew = !flags.not_started && !flags.outlanding && !flags.crash;
+    timeEl.disabled = !flew;
+    distEl.disabled = !flew;
 
-    if (outcome === '') {
-      out.textContent = '–';
-      out.style.color = '';
-      out.removeAttribute('title');
-      return;
-    }
-
-    var t = parseTime(timeEl.value);
-    var d = parseFloat((distEl.value || '0').replace(',', '.'));
+    var t = flew ? parseTime(timeEl.value) : null;
+    var d = flew ? parseFloat((distEl.value || '0').replace(',', '.')) : 0;
     if (isNaN(d)) d = 0;
-    var result = penaltyOf(outcome, t, d);
+    var result = penaltyOf(flags, t, d);
     if (result.total === null) {
       out.textContent = '–';
       out.style.color = '';
@@ -341,8 +385,8 @@ if ($competitionCompleted): ?>
       return;
     }
     out.textContent = result.total;
-    out.style.color = disabled ? 'var(--rot)' : '';
-    out.title = (cfg.labels[outcome] || outcome) + ': ' + result.note;
+    out.style.color = flew ? '' : 'var(--rot)';
+    out.title = result.note;
   }
 
   var rows = document.querySelectorAll('[data-row]');

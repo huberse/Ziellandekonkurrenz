@@ -7,6 +7,7 @@ require_once __DIR__ . '/../lib/layout.php';
 require_login();
 
 $competition = resolve_competition_param(competition_request_param());
+require_competition_access((int) $competition['id']);
 $rounds = all_rounds($competition['id']);
 $pilotStmt = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name
                              FROM pilots p
@@ -160,10 +161,10 @@ page_start('Laufzettel', 'admin', 'laufzettel.php');
             </thead>
             <tbody>
                 <?php if ($sheet['has_none']): ?>
-                    <tr class="runsheet-section"><td colspan="8">Ohne Startnummer – vor dem Wettbewerb bitte zuweisen</td></tr>
+                    <tr class="runsheet-section"><td colspan="<?= count(runsheet_penalty_boxes()) + 5 ?>">Ohne Startnummer – vor dem Wettbewerb bitte zuweisen</td></tr>
                 <?php endif; ?>
                 <?php if (!$sheetPilots): ?>
-                    <tr><td colspan="8" class="runsheet-empty">Keine Piloten in dieser Gruppe.</td></tr>
+                    <tr><td colspan="<?= count(runsheet_penalty_boxes()) + 5 ?>" class="runsheet-empty">Keine Piloten in dieser Gruppe.</td></tr>
                 <?php else: ?>
                     <?php foreach ($sheetPilots as $pilot): ?>
                         <tr>
@@ -188,8 +189,8 @@ page_start('Laufzettel', 'admin', 'laufzettel.php');
             <?php foreach (runsheet_penalty_boxes() as $box): ?>
                 <span><b><?= h($box['label']) ?></b> = <?= h(fmt_num(fixed_penalty($box['setting']))) ?> Punkte</span>
             <?php endforeach; ?>
-            <span>Kein Feld angekreuzt heisst „geflogen“. Aussenlandung und Motor zusammen ergeben
-                „Aussenlandung &amp; Motor angelassen“.</span>
+            <span>Kein Feld angekreuzt heisst „geflogen". Aussenlandung, Bruchlandung und Motor können
+                einzeln oder kombiniert angekreuzt werden.</span>
         </p>
 
         <div class="runsheet-footline">

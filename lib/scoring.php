@@ -15,21 +15,36 @@ require_once __DIR__ . '/competition.php';
 function score_outcomes(): array
 {
     return [
-        'flown'     => ['status' => 'flown', 'motor' => false, 'label' => 'geflogen'],
-        'dns'       => ['status' => 'dns',   'motor' => false, 'label' => 'nicht angetreten'],
-        'dnf'       => ['status' => 'dnf',   'motor' => false, 'label' => 'Aussenlandung'],
-        'motor'     => ['status' => 'flown', 'motor' => true,  'label' => 'Motor angelassen'],
-        'motor_dnf' => ['status' => 'dnf',   'motor' => true,  'label' => 'Aussenlandung & Motor angelassen'],
+        'flown'      => ['status' => 'flown', 'motor' => false, 'label' => 'geflogen'],
+        'dns'        => ['status' => 'dns',   'motor' => false, 'label' => 'nicht angetreten'],
+        'dnf'        => ['status' => 'dnf',   'motor' => false, 'label' => 'Aussenlandung'],
+        'crash'      => ['status' => 'crash', 'motor' => false, 'label' => 'Bruchlandung'],
+        'motor'      => ['status' => 'flown', 'motor' => true,  'label' => 'geflogen & Motor angelassen'],
+        'motor_dns'  => ['status' => 'dns',   'motor' => true,  'label' => 'nicht angetreten & Motor angelassen'],
+        'motor_dnf'  => ['status' => 'dnf',   'motor' => true,  'label' => 'Aussenlandung & Motor angelassen'],
+        'motor_crash'=> ['status' => 'crash', 'motor' => true,  'label' => 'Bruchlandung & Motor angelassen'],
     ];
 }
 
 /** Datenbanksatz -> Schlüssel aus score_outcomes(). */
 function score_outcome_of(string $status, bool $motor): string
 {
-    if ($motor) {
-        return $status === 'dnf' ? 'motor_dnf' : 'motor';
+    if (!in_array($status, ['flown', 'dnf', 'dns', 'crash'], true)) {
+        $status = 'flown';
     }
-    return in_array($status, ['flown', 'dnf', 'dns'], true) ? $status : 'flown';
+    if ($motor) {
+        if ($status === 'dnf') {
+            return 'motor_dnf';
+        }
+        if ($status === 'crash') {
+            return 'motor_crash';
+        }
+        if ($status === 'dns') {
+            return 'motor_dns';
+        }
+        return 'motor';
+    }
+    return $status;
 }
 
 /** Bezeichnung eines Ergebnisses, für Tooltips und Zellen der Rangliste. */
@@ -46,32 +61,36 @@ function fixed_penalty(string $key, float $default = 100): float
 }
 
 /**
- * Die drei Ankreuzfelder des Laufzettels. Sie decken alle vier Ausgänge ab, die
- * kein sauberer Flug sind: kein Feld heisst „geflogen“, nur „nicht angetreten“
- * heisst Nichtantritt, „Aussenlandung“ und „Motor“ einzeln, und beide zusammen
- * ergeben Aussenlandung mit Motor.
+ * Die vier Ankreuzfelder des Laufzettels. Sie decken alle Ausgänge ab, die kein
+ * sauberer Flug sind: kein Feld heisst „geflogen“, und die übrigen drei lassen
+ * sich einzeln oder zusammen ankreuzen. Der Motor ist eine Zusatzstrafe und
+ * darf zu jedem anderen Feld dazukommen.
  *
- * @return array<int, array{label:string, setting:string}>
+ * `label` ist die ausgeschriebene Bezeichnung für die Legende, `short` die
+ * gekürzte für den schmalen Spaltenkopf des PDF – dort würde die lange Fassung
+ * abgeschnitten.
+ *
+ * @return array<int, array{label:string, short:string, setting:string}>
  */
 function runsheet_penalty_boxes(): array
 {
     return [
-        ['label' => 'nicht angetreten', 'setting' => 'penalty_not_started'],
-        ['label' => 'Aussenlandung',    'setting' => 'penalty_outlanding'],
-        ['label' => 'Motor angelassen', 'setting' => 'penalty_motor'],
+        ['label' => 'nicht angetreten', 'short' => 'nicht angetr.', 'setting' => 'penalty_not_started'],
+        ['label' => 'Aussenlandung',    'short' => 'Aussenland.', 'setting' => 'penalty_outlanding'],
+        ['label' => 'Bruchlandung',     'short' => 'Bruchland.',  'setting' => 'penalty_crash'],
+        ['label' => 'Motor angelassen', 'short' => 'Motor',       'setting' => 'penalty_motor'],
     ];
 }
 
 /**
  * Strafpunkte eines Fluges berechnen.
  *
- * Die Wertung besteht aus genau fünf Bausteinen: die Zeitabweichung als
- * positive Zahl – zu lang und zu kurz bringen denselben Satz je Sekunde –,
- * die Landepunkte und drei Feststrafen für Aussenlandung, Nichtantritt und
- * Motorstart. Eine Obergrenze gibt es nicht. Der Motor ist keine eigene
- * Ergebnisart, sondern eine Zusatzstrafe: bei einem geflogenen Flug ersetzt sie
- * Zeit und Landewert, bei einer Aussenlandung oder einem Nichtantritt kommt sie
- * zu der Feststrafe dazu.
+ * Die Wertung besteht aus fünf Bausteinen: die Zeitabweichung als positive Zahl
+ * – zu lang und zu kurz bringen denselben Satz je Sekunde –, die Landepunkte
+ * und drei Feststrafen für Aussenlandung, Bruchlandung und Nichtantritt. Eine
+ * Obergrenze gibt es nicht. Der Motor ist keine eigene Ergebnisart, sondern eine
+ * Zusatzstrafe: bei einem sauberen Flug ersetzt sie Zeit und Landewert, bei
+ * Aussenlandung, Bruchlandung oder Nichtantritt kommt sie zur Feststrafe dazu.
  *
  * Wenige Punkte = gut. Rückgabe: [time_penalty, landing_penalty, total].
  */
@@ -95,11 +114,18 @@ function calc_penalty(string $status, ?float $flightTime, ?float $landingValue, 
     }
 
     if ($status === 'flown') {
-        // Geflogen, aber der Motor lief: es zählt allein die Motorstrafe.
+        // Geflogen, aber der Motor lief: es zählt allein die Motorstrafe, der
+        // Flug zählt nicht als gewerteter Flug. Das ist die bestehende Regel.
         return [0.0, 0.0, fixed_penalty('penalty_motor')];
     }
 
-    $fixed = $status === 'dnf' ? fixed_penalty('penalty_outlanding') : fixed_penalty('penalty_not_started');
+    if ($status === 'dnf') {
+        $fixed = fixed_penalty('penalty_outlanding');
+    } elseif ($status === 'crash') {
+        $fixed = fixed_penalty('penalty_crash');
+    } else {
+        $fixed = fixed_penalty('penalty_not_started');
+    }
     if ($motor) {
         $fixed += fixed_penalty('penalty_motor');
     }
@@ -458,6 +484,7 @@ function rules_summary(): string
     $meter = fmt_num(setting_num('penalty_per_meter', 1), 2);
     $parts[] = "$meter {$punkt($meter)} je Landewert-Einheit";
     $parts[] = fmt_num(setting_num('penalty_outlanding', 100)) . ' bei Aussenlandung';
+    $parts[] = fmt_num(setting_num('penalty_crash', 100)) . ' bei Bruchlandung';
     $parts[] = fmt_num(setting_num('penalty_not_started', 100)) . ' bei Nichtantritt';
     $parts[] = fmt_num(setting_num('penalty_motor', 100)) . ' bei Motorstart';
     if (setting_bool('drop_enabled', true)) {
