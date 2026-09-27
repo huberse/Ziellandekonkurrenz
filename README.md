@@ -205,6 +205,18 @@ Aufzählung der Dateien zurück – eine leere Anzeige gibt es nicht.
 Die Liste für **Dateien, die stehen bleiben**, bleibt bestehen: dort braucht der SuperAdmin den
 Namen der Datei, die er von Hand übernehmen muss.
 
+### Was der Knopf nicht mitbringt
+
+Neben `config.php`, `.htaccess`, `.gitignore` und den Logos lässt der Knopf auch
+`install.php` und `config.sample.php` stehen. Beide gehören zur **Ersteinrichtung**: die
+Datenbank ist längst angelegt und `config.php` liegt längst ausgefüllt da. Vor einem Update
+gehört eine Installationsdatei auf einen betriebenen Server nicht, und nach dem gelungenen Setup
+soll sie ohnehin gelöscht werden.
+
+Im Repository bleiben beide Dateien, damit eine frische Installation über das Hochladen der
+Dateien weiterhin gelingt. Ändern sie sich auf GitHub, erscheinen sie in der Liste der Dateien
+für Handarbeit – mit dem Hinweis, dass sie beim Update nicht mitgeliefert werden.
+
 ### Reihenfolge und Sicherung
 
 1. Bestandsliste von GitHub holen und mit dem Server vergleichen. Die Seite zeigt vorher an, was

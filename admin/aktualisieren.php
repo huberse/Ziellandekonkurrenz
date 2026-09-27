@@ -108,7 +108,16 @@ function update_zeile_text(string $art, string $pfad, $wert, ?string $altVersion
         case 'unbekannt':
             return ['bleibt stehen', 'stand in keiner Bestandsliste, letzte Fassung waere ' . substr($wert, 0, 8)];
         case 'von_hand':
-            return ['bleibt stehen', (update_geschuetzt()[$pfad] ?? '') . ', ' . ($wert['grund'] === 'fehlt' ? 'fehlt hier' : 'von Hand geaendert')];
+            $schutz = update_geschuetzt()[$pfad] ?? '';
+            if ($wert['grund'] === 'fehlt') {
+                return ['bleibt stehen', trim($schutz . ', fehlt auf diesem Server')];
+            }
+            if ($schutz !== '') {
+                // Geschuetzt heisst nicht "von Hand geaendert": bei install.php
+                // und config.sample.php waere das eine falsche Erklaerung.
+                return ['bleibt stehen', $schutz . ', wird beim Update nicht mitgeliefert'];
+            }
+            return ['bleibt stehen', 'von Hand geaendert'];
         case 'weg':
             return ['bleibt stehen', 'die neue Fassung braucht sie nicht mehr'];
     }
