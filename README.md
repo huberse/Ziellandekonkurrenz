@@ -457,13 +457,16 @@ Der Landewert ist eine Zahl: entweder die Distanz in Metern zum Landepunkt oder 
 Punktzahl aus der Landetabelle.
 
 **Streichresultat.** Das schlechteste Resultat kann ab einer einstellbaren Anzahl geflogener
-Durchgänge gestrichen werden. Bei Punktegleichheit entscheidet zuerst das kleinere
-Streichresultat, danach die Anzahl gültiger Flüge, danach das beste Einzelresultat. Als gültiger
-Flug zählt einer ohne festen Ausgang; seit 1.9.7 zählt ein Motorschritt **nicht** mehr als
-gültiger Flug. Das ist eine bewusste Entscheidung, keine Folge der Wertung: die Punkte rechnen
-seit 1.9.6 mit Zeit und Landewert, der Vergleich der Flugzahl liess den Motor aber ausser vor.
-Falls das anders sein soll, ist es die eine Bedingung `empty($c['flags']['motor'])` in
-`lib/scoring.php`.
+Durchgänge gestrichen werden. Bei Punktegleichheit entscheidet **zuerst das kleinere
+Streichresultat**, danach das beste Einzelresultat, zuletzt der Name.
+
+Dazwischen wird bewusst **nichts geprüft, was den Ausgang eines Fluges betrachtet** – ob der
+Motor angelassen wurde, ob es eine Aussen- oder Bruchlandung gab, ob der Pilot gar nicht
+angetreten ist. All das steht schon in den Punkten, und ein gleichwertiger Pilot darf nicht
+darunter leiden, dass er einmal den Motor angelassen hat. Ein zuschlagendes Kästchen kann
+deshalb keinen Platz kosten, aber es kann Punkte kosten – und die sind in der Summe enthalten.
+
+Dieselbe Reihenfolge gilt in der Vereinswertung.
 
 **Nachträgliche Änderungen.** Wird eine Regel oder eine Zielzeit geändert, bleiben bereits
 gespeicherte Punkte stehen. Unter **Durchgänge** rechnet *Punkte neu berechnen* einen Durchgang

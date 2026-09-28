@@ -371,9 +371,6 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
             'total'         => round($total, 2),
             'dropped'       => $dropped,
             'dropped_value' => $droppedValue,
-            'flights'       => count(array_filter($cells, function ($c) {
-                return $c && !$c['missing'] && score_is_flown($c['flags']) && empty($c['flags']['motor']);
-            })),
             'best'          => $counted ? min($counted) : null,
             'has_any'       => $hasAny,
         ];
@@ -387,12 +384,13 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
         if ($a['total'] !== $b['total']) {
             return $a['total'] <=> $b['total'];
         }
-        // Bei Punktegleichheit gewinnt das kleinere Streichresultat.
+        // Bei Punktegleichheit gewinnt das kleinere Streichresultat. Danach
+        // entscheidet das beste Einzelresultat. Bewusst dazwischen geprüft
+        // wird nichts, was den Ausgang eines Fluges betrachtet: ob Motor
+        // angelassen wurde, ob es eine Aussen- oder Bruchlandung gab, ob der
+        // Pilot gar nicht angetreten ist – das steht schon in den Punkten.
         if ($a['dropped_value'] !== null && $b['dropped_value'] !== null && $a['dropped_value'] !== $b['dropped_value']) {
             return $a['dropped_value'] <=> $b['dropped_value'];
-        }
-        if ($a['flights'] !== $b['flights']) {
-            return $b['flights'] <=> $a['flights'];   // mehr gültige Flüge zuerst
         }
         $ab = $a['best'] ?? INF;
         $bb = $b['best'] ?? INF;
@@ -413,7 +411,7 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
             continue;
         }
         $key = $row['total'] . '|' . ($row['dropped_value'] ?? '')
-            . '|' . $row['flights'] . '|' . ($row['best'] ?? '');
+            . '|' . ($row['best'] ?? '');
         if ($prevKey === null || $key !== $prevKey) {
             $rank = $seen;
             $prevKey = $key;
@@ -465,9 +463,6 @@ function build_club_ranking(?int $typeId = null, ?int $competitionId = null): ar
             if ($a['dropped_value'] !== null && $b['dropped_value'] !== null
                 && $a['dropped_value'] != $b['dropped_value']) {
                 return $a['dropped_value'] <=> $b['dropped_value'];
-            }
-            if ($a['flights'] !== $b['flights']) {
-                return $b['flights'] <=> $a['flights'];
             }
             $ab = $a['best'] ?? INF;
             $bb = $b['best'] ?? INF;
