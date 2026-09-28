@@ -133,10 +133,10 @@ page_start('Übersicht', 'admin', 'index.php');
                     <tr>
                         <td class="num"><?= (int) $s['round_number'] ?></td>
                         <td><?= h(trim($s['first_name'] . ' ' . $s['last_name'])) ?></td>
-                        <td class="num"><?= $s['status'] === 'flown' && !$s['motor']
+                        <td class="num"><?= score_is_flown(score_flags($s)) && empty($s['motor'])
                             ? h(fmt_time((float) $s['flight_time_seconds']))
-                            : '<span class="cell-missing">' . h(score_outcome_label((string) $s['status'], (bool) $s['motor'])) . '</span>' ?></td>
-                        <td class="num"><?= $s['status'] === 'flown' && !$s['motor'] ? h(fmt_num($s['landing_value'])) : '–' ?></td>
+                            : '<span class="cell-missing">' . h(score_outcome_label(score_flags($s))) . '</span>' ?></td>
+                        <td class="num"><?= score_is_flown(score_flags($s)) && empty($s['motor']) ? h(fmt_num($s['landing_value'])) : '–' ?></td>
                         <td class="num"><b><?= h(fmt_num($s['penalty'])) ?></b></td>
                     </tr>
                 <?php endforeach; ?>

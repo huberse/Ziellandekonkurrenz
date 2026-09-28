@@ -742,16 +742,24 @@ function competition_schema_column_definition(PDO $pdo, string $table, string $c
     return $row ?: null;
 }
 
+/**
+ * Die vier Ankreuzfelder müssen als eigene Spalten da sein. Vor Fassung 1.9.7
+ * stand stattdessen ein einziges Statusfeld, in dem sich Aussenlandung und
+ * Bruchlandung nebeneinander nicht abbilden liessen.
+ */
 function competition_schema_status_is_valid(PDO $pdo): bool
 {
-    $definition = competition_schema_column_definition($pdo, 'scores', 'status');
-    if (!$definition) {
-        return false;
+    foreach (['not_started', 'outlanding', 'crash', 'motor'] as $spalte) {
+        $definition = competition_schema_column_definition($pdo, 'scores', $spalte);
+        if (!$definition) {
+            return false;
+        }
+        if (strtolower((string) $definition['COLUMN_TYPE']) !== 'tinyint(1)'
+            || (string) $definition['IS_NULLABLE'] !== 'NO') {
+            return false;
+        }
     }
-    $type = strtolower((string) $definition['COLUMN_TYPE']);
-    $type = preg_replace('/\\s+/', '', $type);
-    return $type === "enum('flown','dnf','dns','crash')"
-        && (string) $definition['IS_NULLABLE'] === 'NO';
+    return true;
 }
 
 function competition_schema_completed_column_is_valid(PDO $pdo): bool
@@ -826,11 +834,17 @@ function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true)
             'competition_settings' => ['competition_id', 'skey', 'svalue'],
             'pilots' => ['id', 'competition_id', 'bib_number', 'active'],
             'rounds' => ['id', 'competition_id', 'round_number', 'is_included'],
-            'scores' => ['id', 'pilot_id', 'round_id', 'competition_id', 'status'],
+            'scores' => ['id', 'pilot_id', 'round_id', 'competition_id'],
             'registrations' => ['competition_id'],
         ];
         if ($withLaterColumns) {
+            // Die vier Kaestchen kommen mit den spaeteren Migrationen. Sie hier
+            // zu verlangen wuerde die Wettbewerbsmigration selbst stoppen, denn
+            // die laeuft vorher.
             $columns['scores'][] = 'motor';
+            $columns['scores'][] = 'not_started';
+            $columns['scores'][] = 'outlanding';
+            $columns['scores'][] = 'crash';
             $columns['users'] = ['id', 'username', 'is_superadmin', 'active', 'club_id'];
             if (competition_schema_table_exists($pdo, 'clubs')) {
                 $columns['competitions'][] = 'club_id';
@@ -843,8 +857,9 @@ function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true)
                 }
             }
         }
-        if (!competition_schema_status_is_valid($pdo)) {
-            $issues[] = 'scores.status muss ein NOT NULL ENUM mit flown, dnf, dns und crash sein';
+        if ($withLaterColumns && !competition_schema_status_is_valid($pdo)) {
+            $issues[] = 'scores braucht not_started, outlanding, crash und motor als NOT NULL TINYINT(1) '
+                . '(bis 1.9.6 stand dort ein einzelnes Statusfeld)';
         }
         if (!competition_schema_completed_column_is_valid($pdo)) {
             $issues[] = 'competitions.completed_at muss ein nullable DATETIME sein';
@@ -935,11 +950,17 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
             'competition_settings' => ['competition_id', 'skey', 'svalue'],
             'pilots' => ['id', 'competition_id', 'bib_number', 'active'],
             'rounds' => ['id', 'competition_id', 'round_number', 'is_included'],
-            'scores' => ['id', 'pilot_id', 'round_id', 'competition_id', 'status'],
+            'scores' => ['id', 'pilot_id', 'round_id', 'competition_id'],
             'registrations' => ['competition_id'],
         ];
         if ($withLaterColumns) {
+            // Die vier Kaestchen kommen mit den spaeteren Migrationen. Sie hier
+            // zu verlangen wuerde die Wettbewerbsmigration selbst stoppen, denn
+            // die laeuft vorher.
             $columns['scores'][] = 'motor';
+            $columns['scores'][] = 'not_started';
+            $columns['scores'][] = 'outlanding';
+            $columns['scores'][] = 'crash';
             $columns['users'] = ['id', 'username', 'is_superadmin', 'active', 'club_id'];
             if (competition_schema_table_exists($pdo, 'clubs')) {
                 $columns['competitions'][] = 'club_id';
@@ -952,7 +973,8 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
                 }
             }
         }
-        if (!competition_schema_status_is_valid($pdo) || !competition_schema_completed_column_is_valid($pdo)) {
+        if (($withLaterColumns && !competition_schema_status_is_valid($pdo))
+            || !competition_schema_completed_column_is_valid($pdo)) {
             return false;
         }
         foreach (['pilots', 'rounds', 'scores', 'registrations'] as $table) {

@@ -62,9 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo->beginTransaction();
     try {
         lock_open_competition($pdo, (int) $competition['id']);
-        $ins = $pdo->prepare('INSERT INTO scores (pilot_id, round_id, competition_id, status, motor, flight_time_seconds, landing_value, time_penalty, landing_penalty, penalty, note)
-                              VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                              ON DUPLICATE KEY UPDATE competition_id=VALUES(competition_id), status=VALUES(status), motor=VALUES(motor),
+        $ins = $pdo->prepare('INSERT INTO scores (pilot_id, round_id, competition_id, not_started, outlanding, crash, motor, flight_time_seconds, landing_value, time_penalty, landing_penalty, penalty, note)
+                              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                              ON DUPLICATE KEY UPDATE competition_id=VALUES(competition_id),
+                                not_started=VALUES(not_started), outlanding=VALUES(outlanding), crash=VALUES(crash), motor=VALUES(motor),
                                 flight_time_seconds=VALUES(flight_time_seconds), landing_value=VALUES(landing_value), time_penalty=VALUES(time_penalty),
                                 landing_penalty=VALUES(landing_penalty), penalty=VALUES(penalty), note=VALUES(note)');
         $del = $pdo->prepare('DELETE FROM scores WHERE pilot_id = ? AND round_id = ?');
@@ -90,17 +91,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasDnf   = $checked['outlanding'];
         $hasCrash = $checked['crash'];
         // Der Motor ist eine Zusatzstrafe und kann zu jedem Ausgang dazukommen.
-        $hasMotor = $checked['motor'];
 
         $rawTime = isset($times[$pid]) && is_scalar($times[$pid]) ? (string) $times[$pid] : '';
         $rawDist = isset($dists[$pid]) && is_scalar($dists[$pid])
             ? str_replace(',', '.', trim((string) $dists[$pid])) : '';
 
-        // Bruchlandung und Aussenlandung schlagen den Nichtantritt; tritt der
-        // Pilot an, wird der geflogene Flug gewertet.
-        $st = $hasCrash ? 'crash' : ($hasDnf ? 'dnf' : ($hasDns ? 'dns' : 'flown'));
+        // Die Kästchen sind unabhängig – eine Aussenlandung schliesst eine
+        // Bruchlandung nicht aus. Einzige Ausnahme: „nicht angetreten" nimmt
+        // alles andere mit, denn wer nicht angetreten ist, hat nicht geflogen.
+        // Die Seite sperrt die anderen Felder schon, doch darauf ist hier nicht
+        // zu vertrauen: das Formular kann von Hand gesendet werden.
+        $flags = [
+            'not_started' => $hasDns,
+            'outlanding'  => $hasDnf,
+            'crash'       => $hasCrash,
+            'motor'       => $checked['motor'],
+        ];
+        $flags = score_flags($flags);
+        $hasMotor = $flags['motor'];
 
-        if ($st === 'flown' && !$hasMotor && $rawTime === '' && $rawDist === '') {
+        if (score_is_flown($flags) && !$hasMotor && $rawTime === '' && $rawDist === '') {
             $del->execute([$pid, $roundId]);
             $cleared += $del->rowCount();
             continue;
@@ -127,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Beim freien Flug bleibt die Zeit Pflicht – ohne sie gibt es nichts zu
         // rechnen. Neben einem festen Ausgang ist sie freiwillig.
-        if ($st === 'flown') {
+        if (score_is_flown($flags)) {
             if ($time === null) {
                 $problems[] = 'Pilot ' . $pid . ': Für einen geflogenen Start wird die Flugzeit gebraucht.';
                 continue;
@@ -136,8 +146,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dist = $dist ?? 0.0;
         }
 
-        [$tp, $lp, $total] = calc_penalty($st, $time, $dist, $target, $hasMotor);
-        $ins->execute([$pid, $roundId, $competition['id'], $st, $hasMotor ? 1 : 0, $time, $dist, $tp, $lp, $total, null]);
+        [$tp, $lp, $total] = calc_penalty($flags, $time, $dist, $target);
+        $ins->execute([$pid, $roundId, $competition['id'],
+            $flags['not_started'] ? 1 : 0, $flags['outlanding'] ? 1 : 0, $flags['crash'] ? 1 : 0,
+            $flags['motor'] ? 1 : 0, $time, $dist, $tp, $lp, $total, null]);
         $saved++;
         }
         $pdo->commit();
@@ -161,7 +173,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /* ---------- Anzeige ---------- */
 $sql = 'SELECT p.*, t.name AS model_type_name, t.sort_order, c.name AS club_name,
-               s.status, s.motor, s.flight_time_seconds, s.landing_value, s.penalty
+               s.not_started, s.outlanding, s.crash, s.motor,
+               s.flight_time_seconds, s.landing_value, s.penalty
         FROM pilots p
         LEFT JOIN model_types t ON t.id = p.model_type_id
         LEFT JOIN clubs c ON c.id = p.club_id
@@ -178,7 +191,8 @@ $st->execute($args);
 $pilots = $st->fetchAll();
 
 $types = all_model_types();
-$done = count(array_filter($pilots, function ($p) { return $p['status'] !== null; }));
+$leer = score_flags(null);
+$done = count(array_filter($pilots, function ($p) use ($leer) { return score_flags($p) !== $leer; }));
 
 page_start('Resultate erfassen', 'admin', 'erfassung.php', true);
 if ((int) $competition['id'] !== current_competition_id()) {
@@ -258,16 +272,11 @@ if ($competitionCompleted): ?>
                 $lastGroup = $p['model_type_name'];
                 echo '<tr class="group-head"><td colspan="' . ($boxCount + 6) . '">' . h($lastGroup ?: 'Ohne Modelltyp') . '</td></tr>';
             }
-            $has = $p['status'] !== null;
+            $marked = score_flags($p);
+            $has = $marked !== $leer;
             $timeVal = $p['flight_time_seconds'] !== null ? fmt_time((float) $p['flight_time_seconds']) : '';
             $distVal = $p['landing_value'] !== null ? fmt_num($p['landing_value']) : '';
-            // Aus dem gespeicherten Datensatz zurück in die vier Kästchen.
-            $marked = [
-                'not_started' => (string) $p['status'] === 'dns',
-                'outlanding'  => (string) $p['status'] === 'dnf',
-                'crash'       => (string) $p['status'] === 'crash',
-                'motor'       => (bool) ($p['motor'] ?? 0),
-            ];
+            // $marked traegt die vier Kaestchen aus dem gespeicherten Datensatz.
             ?>
             <tr class="<?= $has ? 'saved' : '' ?>" data-row>
                 <td><span class="bib"><?= h($p['bib_number'] ?: '–') ?></span></td>
@@ -339,31 +348,27 @@ if ($competitionCompleted): ?>
   function box(row, name) { return row.querySelector('[data-box="' + name + '"]'); }
 
   // Strafpunkte aus den angekreuzten Kästchen, ohne den Server zu fragen.
-  // Bildet calc_penalty() ab. Die Zeitabweichung zählt immer, der Landewert
-  // ausser bei der Aussenlandung und beim Nichtantritt. Die Feststrafen bleiben
-  // und kommen dazu, der Motor kommt zu allem.
+  // Bildet calc_penalty() ab. Die Kästchen sind unabhängig: eine Aussenlandung
+  // schliesst eine Bruchlandung nicht aus, ein Modell kann neben der Piste
+  // gelandet sein und Teile verloren haben. Nur "nicht angetreten" nimmt die
+  // anderen mit. Die Zeitabweichung zaehlt immer, der Landewert ausser bei der
+  // Aussenlandung - dort aber wieder, wenn eine Bruchlandung dazukommt.
   function penaltyOf(flags, time, dist) {
+    var nichtAngetreten = flags.not_started;
+    var aussenlandung = !nichtAngetreten && flags.outlanding;
+    var bruchlandung = !nichtAngetreten && flags.crash;
+    var motor = !nichtAngetreten && flags.motor;
+
     var fest = 0;
     var teile = [];
-    var zeitZaehlt = true;
-    var landZaehlt = true;
-    var angetreten = true;
+    if (aussenlandung) { fest += cfg.outlanding; teile.push('Aussenlandung'); }
+    if (bruchlandung) { fest += cfg.crash; teile.push('Bruchlandung'); }
+    if (nichtAngetreten) { fest += cfg.notStarted; teile.push('nicht angetreten'); }
+    if (motor) { fest += cfg.motor; teile.push('Motor'); }
 
-    if (flags.crash) {
-      fest += cfg.crash; teile.push('Bruchlandung');
-    } else if (flags.outlanding) {
-      fest += cfg.outlanding; teile.push('Aussenlandung');
-      landZaehlt = false;                       // das Landen ausserhalb ist das Ereignis
-    } else if (flags.not_started) {
-      fest += cfg.notStarted; teile.push('nicht angetreten');
-      zeitZaehlt = false; landZaehlt = false;   // es wurde nicht geflogen
-    }
-    if (flags.motor) {
-      fest += cfg.motor; teile.push('Motor');
-    }
-    if (flags.crash || flags.outlanding || flags.not_started) {
-      angetreten = false;
-    }
+    var zeitZaehlt = !nichtAngetreten;
+    var landZaehlt = !nichtAngetreten && (!aussenlandung || bruchlandung);
+    var angetreten = !nichtAngetreten && !aussenlandung && !bruchlandung;
     // Beim freien Flug braucht es die Zeit, sonst gibt es nichts zu rechnen.
     if (angetreten && time === null) {
       return { total: null, note: '' };
@@ -383,6 +388,46 @@ if ($competitionCompleted): ?>
     return { total: Math.min(999999.99, round2(tp + lp + fest)), note: teile.join(' + ') };
   }
 
+  // "nicht angetreten" schliesst alles andere aus. Wer nicht angetreten ist, hat
+  // nicht geflogen: es gibt keine Zeit und keinen Landewert, und eine
+  // Aussenlandung kann man nicht auch noch Bruchlandung nennen. Die Zeit steht
+  // deshalb auf 0:00 und ist nicht mehr zu aendern. Beim Abwaehlen kommt der
+  // vorher eingetragene Wert zurueck, damit ein Fehlklick nichts vernichtet.
+  function nichtAngetretenAnwenden(row, an) {
+    var timeEl = row.querySelector('[data-time]');
+    var distEl = row.querySelector('[data-dist]');
+    var andere = [box(row, 'outlanding'), box(row, 'crash'), box(row, 'motor')];
+    if (an) {
+      if (!row.hasAttribute('data-zuvor')) {
+        row.setAttribute('data-zuvor', timeEl.value + '\t' + distEl.value);
+      }
+      timeEl.value = '0:00';
+      distEl.value = '0';
+      // readOnly statt disabled: ein gesperrtes Feld wird nicht mitgeschickt,
+      // und die 0:00 waeren nach dem Neuladen wieder weg.
+      timeEl.readOnly = true;
+      distEl.readOnly = true;
+      for (var i = 0; i < andere.length; i++) {
+        if (!andere[i]) { continue; }
+        andere[i].checked = false;
+        andere[i].disabled = true;
+      }
+    } else {
+      var zuvor = row.getAttribute('data-zuvor');
+      if (zuvor !== null) {
+        var teile = zuvor.split('\t');
+        timeEl.value = teile[0];
+        distEl.value = teile[1] === undefined ? '' : teile[1];
+        row.removeAttribute('data-zuvor');
+      }
+      timeEl.readOnly = false;
+      distEl.readOnly = false;
+      for (var j = 0; j < andere.length; j++) {
+        if (andere[j]) { andere[j].disabled = false; }
+      }
+    }
+  }
+
   function update(row) {
     var out = row.querySelector('[data-live]');
     var timeEl = row.querySelector('[data-time]');
@@ -391,8 +436,14 @@ if ($competitionCompleted): ?>
     var dnfEl = box(row, 'outlanding');
     var crashEl = box(row, 'crash');
     var motorEl = box(row, 'motor');
+    // Der Sperrbereich folgt dem Kästchen, und zwar nur beim Umschalten.
+    var dnsAn = !!dnsEl && dnsEl.checked;
+    if (row.getAttribute('data-dns') !== (dnsAn ? '1' : '0')) {
+      row.setAttribute('data-dns', dnsAn ? '1' : '0');
+      nichtAngetretenAnwenden(row, dnsAn);
+    }
     var flags = {
-      not_started: !!dnsEl && dnsEl.checked,
+      not_started: dnsAn,
       outlanding: !!dnfEl && dnfEl.checked,
       crash: !!crashEl && crashEl.checked,
       motor: !!motorEl && motorEl.checked
@@ -421,6 +472,13 @@ if ($competitionCompleted): ?>
   rows.forEach(function (row) {
     row.addEventListener('input', function () { update(row); });
     row.addEventListener('change', function () { update(row); });
+    // Bereits gespeicherte Zeilen kommen mit gesetztem Kästchen daher. Ohne
+    // diesen Aufruf stuende die Sperre erst nach dem ersten Klick.
+    var dnsGespeichert = box(row, 'not_started');
+    row.setAttribute('data-dns', (dnsGespeichert && dnsGespeichert.checked) ? '1' : '0');
+    if (dnsGespeichert && dnsGespeichert.checked) {
+      nichtAngetretenAnwenden(row, true);
+    }
     update(row);
   });
 

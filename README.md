@@ -300,8 +300,8 @@ Diese zweite Rechnung in `admin/erfassung.php` kann von der Datenbank in `lib/sc
 abweichen – dann zeigt der Bildschirm beim Tippen einen anderen Wert, als gespeichert wird, und
 der Wettbewerb wird nach dem Speichern scheinbar auf einmal anders. Das Skript holt die echte
 Seite, führt die dortige Funktion unter `node` aus und vergleicht sie mit `calc_penalty()` über
-17 Fälle: sauberer Flug, Motor allein, Aussenlandung, Bruchlandung, Nichtantritt und mehrere
-Ankreuzfelder zusammen.
+20 Fälle: sauberer Flug, Motor, Aussenlandung, Bruchlandung, Nichtantritt sowie alle
+Kombinationen der Kästchen.
 
 Es braucht `node` (`apt-get install nodejs`) und eine Datenbank. Der Test legt einen
 Wettbewerb mit zwei Piloten an, setzt das Passwort des ersten SuperAdmins auf ein bekanntes und
@@ -411,27 +411,33 @@ gleich viel – es gibt nur einen Satz je Sekunde.
 nichts.
 
 Beim Erfassen gibt es vier Ankreuzfelder, genau wie im Laufzettel. **Kein Feld heisst „geflogen"**,
-der Flug wird dann nach Flugzeit und Landewert gewertet. Was dazuzählt, hängt am Ausgang:
+der Flug wird dann nach Flugzeit und Landewert gewertet. Die Kästchen sind **unabhängig**: eine
+Aussenlandung schliesst eine Bruchlandung nicht aus, denn ein Modell kann neben der Piste gelandet
+sein und dort Teile verloren haben. Einzige Ausnahme ist „nicht angetreten" – wer nicht
+angetreten ist, hat nicht geflogen, es gibt keine Zeit und keinen Landewert.
 
-| Angekreuzte Felder | Zeit | Landewert | Feststrafe |
+| Angekreuzte Felder | Zeit | Landewert | Feststrafen |
 | --- | --- | --- | --- |
 | keine | ja | ja | – |
-| Motor allein | ja | ja | – (Motor kommt dazu) |
+| Motor | ja | ja | – (Motor kommt dazu) |
 | Aussenlandung | ja | **nein** | `penalty_outlanding` |
 | Bruchlandung | ja | ja | `penalty_crash` |
+| Aussenlandung + Bruchlandung | ja | **ja** | beide, zusammen |
 | nicht angetreten | **nein** | **nein** | `penalty_not_started` |
-| Aussenlandung & Motor | ja | nein | `penalty_outlanding` + `penalty_motor` |
-| Bruchlandung & Motor | ja | ja | `penalty_crash` + `penalty_motor` |
+
+Zum Motor: er kommt zu allem dazu und ersetzt nichts. Bei jeder Kombination der anderen drei
+Kästchen kommt die Motorstrafe obendrauf.
 
 Die Begründung dahinter: **die Zeitabweichung zählt immer**, auch bei einer Bruchlandung – der
 Flug hat eine Zeit, und die wird gemessen. **Bei der Aussenlandung ist der Landewert null**, weil
-das Landen ausserhalb des Feldes gerade das Ereignis ist; ein zusätzlicher Landewert würde es
-doppelt bestrafen. **Bei der Bruchlandung zählt er**, weil sie im Landefeld passieren kann. **Beim
-Nichtantritt sind beide null**, es wurde nicht geflogen. Die drei Feststrafen bleiben und kommen
-dazu; sie stehen unter *Einstellungen → Strafpunkte* und sind je Verein einstellbar.
+das Landen ausserhalb des Feldes gerade das Ereignis ist. **Bei der Bruchlandung zählt er**, weil
+sie im Landefeld passieren kann – und bei der Kombination aus beiden ebenfalls, denn dann ist der
+Landewert die Landung im Feld. **Beim Nichtantritt sind beide null.**
 
-Bei mehreren angekreuzten Feldern gewinnt in dieser Reihenfolge: Bruchlandung, Aussenlandung,
-nicht angetreten.
+**Sobald „nicht angetreten" angekreuzt ist, sind die anderen Felder gesperrt** und die Zeit steht
+auf 0:00. Beim Abwählen kommt der vorher eingetragene Wert zurück, damit ein Fehlklick nichts
+vernichtet. Der Motor ist ein eigenes Kästchen und wird dabei mit abgehakt – nicht angetreten
+und Motor zugleich ergibt keinen Sinn.
 
 **Flugzeit und Landewert bleiben immer bedienbar**, auch neben einem angekreuzten
 Feld. Wer eine Aussenlandung nach 3:20 Landewert 15 hatte, trägt beides ein – bei der
@@ -443,16 +449,21 @@ Nur beim freien Flug ist die Flugzeit Pflicht, weil ohne sie nichts zu rechnen w
 | keine Felder, keine Zeit, kein Landewert | die Zeile bleibt ohne Resultat |
 | Feld und leere Zeit | die Feststrafe zählt, die Zeit nicht |
 
-Kombiniert werden kann alles; tritt eine Bruch- oder Aussenlandung mit „nicht angetreten"
-zusammen auf, zählt die Bruch- beziehungsweise Aussenlandung.
+Trifft „nicht angetreten" mit einem anderen Kästchen zusammen, gilt „nicht angetreten": die Seite
+lässt die Kombination gar nicht erst zu. Beim Speichern wird sie zusätzlich ausser Betracht
+gezogen, weil ein Formular auch von Hand gesendet werden kann.
 
 Der Landewert ist eine Zahl: entweder die Distanz in Metern zum Landepunkt oder direkt eine
 Punktzahl aus der Landetabelle.
 
 **Streichresultat.** Das schlechteste Resultat kann ab einer einstellbaren Anzahl geflogener
 Durchgänge gestrichen werden. Bei Punktegleichheit entscheidet zuerst das kleinere
-Streichresultat, danach die Anzahl gültiger Flüge, danach das beste Einzelresultat. Ein Flug mit
-Motor zählt dabei nicht als gültiger Flug.
+Streichresultat, danach die Anzahl gültiger Flüge, danach das beste Einzelresultat. Als gültiger
+Flug zählt einer ohne festen Ausgang; seit 1.9.7 zählt ein Motorschritt **nicht** mehr als
+gültiger Flug. Das ist eine bewusste Entscheidung, keine Folge der Wertung: die Punkte rechnen
+seit 1.9.6 mit Zeit und Landewert, der Vergleich der Flugzahl liess den Motor aber ausser vor.
+Falls das anders sein soll, ist es die eine Bedingung `empty($c['flags']['motor'])` in
+`lib/scoring.php`.
 
 **Nachträgliche Änderungen.** Wird eine Regel oder eine Zielzeit geändert, bleiben bereits
 gespeicherte Punkte stehen. Unter **Durchgänge** rechnet *Punkte neu berechnen* einen Durchgang

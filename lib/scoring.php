@@ -5,54 +5,64 @@ require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/competition.php';
 
 /**
- * Die möglichen Ausgänge eines Resultats. Der Schlüssel ist zugleich der Wert im
- * Auswahlfeld der Erfassung; er wird in Datenbank-Status und Motor-Kennzeichen
- * zerlegt. `label` ist die einzige Bezeichnung des Ausgangs und steht überall
- * gleich – in der Erfassung, auf dem Laufzettel, in der Rangliste und im Export.
+ * Die vier Ankreuzfelder eines Resultats. Sie sind unabhängig, genau wie die
+ * Felder auf dem Papierlaufzettel: eine Aussenlandung schliesst eine
+ * Bruchlandung nicht aus. Landet ein Modell neben der Piste und verliert
+ * Teile, ist beides der Fall.
  *
- * @return array<string, array{status:string, motor:bool, label:string}>
+ * Einzige Ausnahme: „nicht angetreten" schliesst alles andere aus. Wer nicht
+ * angetreten ist, hat nicht geflogen – es gibt keine Zeit und keinen Landewert.
+ *
+ * Die Anordnung hier ist zugleich die Reihenfolge der Bezeichnungen.
+ *
+ * @return array{not_started:bool, outlanding:bool, crash:bool, motor:bool}
  */
-function score_outcomes(): array
+function score_flags(?array $row): array
 {
+    $row = $row ?? [];
+    $notStarted = !empty($row['not_started']);
+    $outlanding = !$notStarted && !empty($row['outlanding']);
+    $crash      = !$notStarted && !empty($row['crash']);
     return [
-        'flown'      => ['status' => 'flown', 'motor' => false, 'label' => 'geflogen'],
-        'dns'        => ['status' => 'dns',   'motor' => false, 'label' => 'nicht angetreten'],
-        'dnf'        => ['status' => 'dnf',   'motor' => false, 'label' => 'Aussenlandung'],
-        'crash'      => ['status' => 'crash', 'motor' => false, 'label' => 'Bruchlandung'],
-        'motor'      => ['status' => 'flown', 'motor' => true,  'label' => 'geflogen & Motor angelassen'],
-        'motor_dns'  => ['status' => 'dns',   'motor' => true,  'label' => 'nicht angetreten & Motor angelassen'],
-        'motor_dnf'  => ['status' => 'dnf',   'motor' => true,  'label' => 'Aussenlandung & Motor angelassen'],
-        'motor_crash'=> ['status' => 'crash', 'motor' => true,  'label' => 'Bruchlandung & Motor angelassen'],
+        'not_started' => $notStarted,
+        'outlanding'  => $outlanding,
+        'crash'       => $crash,
+        'motor'       => !$notStarted && !empty($row['motor']),
     ];
 }
 
-/** Datenbanksatz -> Schlüssel aus score_outcomes(). */
-function score_outcome_of(string $status, bool $motor): string
+/** Die Bezeichnungen der vier Kästchen, in der Reihenfolge von score_flags(). */
+function score_flag_labels(): array
 {
-    if (!in_array($status, ['flown', 'dnf', 'dns', 'crash'], true)) {
-        $status = 'flown';
-    }
-    if ($motor) {
-        if ($status === 'dnf') {
-            return 'motor_dnf';
-        }
-        if ($status === 'crash') {
-            return 'motor_crash';
-        }
-        if ($status === 'dns') {
-            return 'motor_dns';
-        }
-        return 'motor';
-    }
-    return $status;
+    return [
+        'not_started' => 'nicht angetreten',
+        'outlanding'  => 'Aussenlandung',
+        'crash'       => 'Bruchlandung',
+        'motor'       => 'Motor angelassen',
+    ];
 }
 
-/** Bezeichnung eines Ergebnisses, für Tooltips und Zellen der Rangliste. */
-function score_outcome_label(string $status, bool $motor = false): string
+/**
+ * Bezeichnung eines Ergebnisses aus den angekreuzten Kästchen, für Tooltips und
+ * Zellen der Rangliste. Ohne Kästchen heisst es „geflogen".
+ */
+function score_outcome_label(array $flags): string
 {
-    $outcomes = score_outcomes();
-    return $outcomes[score_outcome_of($status, $motor)]['label'];
+    $teile = [];
+    foreach (score_flag_labels() as $feld => $label) {
+        if (!empty($flags[$feld])) {
+            $teile[] = $label;
+        }
+    }
+    return $teile === [] ? 'geflogen' : implode(' & ', $teile);
 }
+
+/** War das ein sauberer Flug, also ohne festen Ausgang? */
+function score_is_flown(array $flags): bool
+{
+    return empty($flags['not_started']) && empty($flags['outlanding']) && empty($flags['crash']);
+}
+
 
 /** Eine der Feststrafen, innerhalb der Speichergrenze. */
 function fixed_penalty(string $key, float $default = 100): float
@@ -96,23 +106,33 @@ function runsheet_penalty_boxes(): array
  *
  *   - Die Zeitabweichung zählt immer. Vorher wurde sie bei jeder Feststrafe
  *     ersatzlos gestrichen, obwohl auch eine Bruchlandung eine Flugzeit hat.
- *   - Der Landewert zählt bei jedem Ausgang ausser bei der Aussenlandung: dort
- *     ist das Landen ausserhalb des Feldes gerade das Ereignis, und ein
- *     zusätzlicher Landewert würde es doppelt bestrafen.
+ *   - Der Landewert zählt, ausser bei der Aussenlandung: dort ist das Landen
+ *     ausserhalb des Feldes gerade das Ereignis, und ein zusätzlicher Landewert
+ *     würde es doppelt bestrafen. Bei einer Bruchlandung **zusammen** mit der
+ *     Aussenlandung zählt er wieder, denn dann ist er die Landung im Feld.
  *   - Beim Nichtantritt sind Zeit und Landewert null, es wurde ja nicht geflogen.
- *   - Die Feststrafen bleiben und kommen dazu. Sie sind je Verein einstellbar
+ *   - Die Feststrafen bleiben und kommen dazu, jede für sich. Also auch
+ *     Aussenlandung und Bruchlandung nebeneinander: landet ein Modell neben der
+ *     Piste und verliert Teile, trifft beides zu. Sie sind je Verein einstellbar
  *     und stehen unter Einstellungen → Strafpunkte.
  *
  * Wenige Punkte = gut. Rückgabe: [time_penalty, landing_penalty, total].
+ *
+ * @param array $flags  aus score_flags(): not_started, outlanding, crash, motor
  */
-function calc_penalty(string $status, ?float $flightTime, ?float $landingValue, int $targetTime, bool $motor = false): array
+function calc_penalty(array $flags, ?float $flightTime, ?float $landingValue, int $targetTime): array
 {
     $maxStoredPenalty = 999999.99;
     $perSecond   = max(0.0, setting_num('penalty_per_second', 1));
     $meterFactor = max(0.0, setting_num('penalty_per_meter', 1));
 
-    $zeitZaehlt  = $status !== 'dns';
-    $landZaehlt  = $status !== 'dnf' && $status !== 'dns';
+    $nichtAngetreten = !empty($flags['not_started']);
+    $aussenlandung  = !$nichtAngetreten && !empty($flags['outlanding']);
+    $bruchlandung   = !$nichtAngetreten && !empty($flags['crash']);
+    $motor          = !$nichtAngetreten && !empty($flags['motor']);
+
+    $zeitZaehlt = !$nichtAngetreten;
+    $landZaehlt = !$nichtAngetreten && (!$aussenlandung || $bruchlandung);
 
     $timePenalty = $zeitZaehlt
         ? abs(($flightTime ?? 0.0) - $targetTime) * $perSecond
@@ -124,12 +144,14 @@ function calc_penalty(string $status, ?float $flightTime, ?float $landingValue, 
     $landingPenalty = min($maxStoredPenalty, round($landingPenalty, 2));
 
     $fest = 0.0;
-    if ($status === 'dnf') {
-        $fest = fixed_penalty('penalty_outlanding');
-    } elseif ($status === 'crash') {
-        $fest = fixed_penalty('penalty_crash');
-    } elseif ($status === 'dns') {
-        $fest = fixed_penalty('penalty_not_started');
+    if ($aussenlandung) {
+        $fest += fixed_penalty('penalty_outlanding');
+    }
+    if ($bruchlandung) {
+        $fest += fixed_penalty('penalty_crash');
+    }
+    if ($nichtAngetreten) {
+        $fest += fixed_penalty('penalty_not_started');
     }
     if ($motor) {
         $fest += fixed_penalty('penalty_motor');
@@ -296,8 +318,7 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
                 $hasAny = true;
                 $cells[$rid] = [
                     'penalty' => (float) $s['penalty'],
-                    'status'  => $s['status'],
-                    'motor'   => (bool) ($s['motor'] ?? 0),
+                    'flags'   => score_flags($s),
                     'time'    => $s['flight_time_seconds'] !== null ? (float) $s['flight_time_seconds'] : null,
                     'dist'    => $s['landing_value'] !== null ? (float) $s['landing_value'] : null,
                     'missing' => false,
@@ -305,7 +326,9 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
                 $values[$rid] = (float) $s['penalty'];
             } elseif (in_array($rid, $flownRounds, true)) {
                 // Durchgang wurde geflogen, dieser Pilot hat kein Resultat → nicht angetreten
-                $cells[$rid] = ['penalty' => $missing, 'status' => 'dns', 'motor' => false, 'time' => null, 'dist' => null, 'missing' => true];
+                $cells[$rid] = ['penalty' => $missing,
+                    'flags'   => score_flags(['not_started' => 1]),
+                    'time' => null, 'dist' => null, 'missing' => true];
                 $values[$rid] = $missing;
             } else {
                 $cells[$rid] = null; // Durchgang noch nicht geflogen
@@ -348,7 +371,9 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
             'total'         => round($total, 2),
             'dropped'       => $dropped,
             'dropped_value' => $droppedValue,
-            'flights'       => count(array_filter($cells, function ($c) { return $c && !$c['missing'] && $c['status'] === 'flown' && !$c['motor']; })),
+            'flights'       => count(array_filter($cells, function ($c) {
+                return $c && !$c['missing'] && score_is_flown($c['flags']) && empty($c['flags']['motor']);
+            })),
             'best'          => $counted ? min($counted) : null,
             'has_any'       => $hasAny,
         ];

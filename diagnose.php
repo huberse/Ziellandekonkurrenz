@@ -96,22 +96,29 @@ if (is_file(__DIR__ . '/config.php')) {
                                  WHERE TABLE_SCHEMA = DATABASE()
                                    AND ((TABLE_NAME = 'pilots' AND COLUMN_NAME = 'active')
                                      OR (TABLE_NAME = 'rounds' AND COLUMN_NAME = 'is_included')
-                                     OR (TABLE_NAME = 'scores' AND COLUMN_NAME = 'status'))");
+                                     OR (TABLE_NAME = 'scores' AND COLUMN_NAME = 'not_started'))");
             $st->execute();
             check('Resultatfelder für Abschlussprüfung', (int) $st->fetchColumn() === 3, 'upgrade.php ausführen.');
-            $st = $pdo->prepare("SELECT COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
+            $st = $pdo->prepare("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores'
+                                   AND COLUMN_NAME IN ('not_started', 'outlanding', 'crash', 'motor')");
+            $st->execute();
+            $kaestchen = [];
+            $kaestchenOk = true;
+            foreach ($st as $k) {
+                $kaestchen[(string) $k['COLUMN_NAME']] = $k;
+                if (strtolower((string) $k['COLUMN_TYPE']) !== 'tinyint(1)'
+                    || (string) $k['IS_NULLABLE'] !== 'NO') {
+                    $kaestchenOk = false;
+                }
+            }
+            $kaestchenOk = $kaestchenOk && count($kaestchen) === 4;
+            check('scores mit den vier Kästchenspalten', $kaestchenOk,
+                'upgrade.php ausführen. Bis 1.9.6 stand dort ein einzelnes Statusfeld.');
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores' AND COLUMN_NAME = 'status'");
             $st->execute();
-            $status = $st->fetch() ?: [];
-            $statusType = strtolower(preg_replace('/\\s+/', '', (string) ($status['COLUMN_TYPE'] ?? '')));
-            check('scores.status mit DNF/DNS', $statusType === "enum('flown','dnf','dns')"
-                && (string) ($status['IS_NULLABLE'] ?? '') === 'NO', 'upgrade.php ausführen.');
-            $st = $pdo->prepare("SELECT COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
-                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores' AND COLUMN_NAME = 'motor'");
-            $st->execute();
-            $motor = $st->fetch() ?: [];
-            check('scores.motor für die Motorstrafe', strtolower((string) ($motor['COLUMN_TYPE'] ?? '')) === 'tinyint(1)'
-                && (string) ($motor['IS_NULLABLE'] ?? '') === 'NO', 'upgrade.php ausführen.');
+            check('scores.status ist entfernt', (int) $st->fetchColumn() === 0, 'upgrade.php ausführen.');
             $st = $pdo->prepare("SELECT skey FROM competition_settings
                                  WHERE skey IN ('penalty_per_second', 'penalty_outlanding', 'penalty_not_started', 'penalty_motor')
                                  GROUP BY competition_id HAVING COUNT(DISTINCT skey) < 4 LIMIT 1");

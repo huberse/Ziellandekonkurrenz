@@ -38,7 +38,7 @@ if ($what === 'einzelresultate') {
         fputcsv($out, [
             $r['bib_number'], $r['first_name'], $r['last_name'], $r['club_name'], $r['model_type_name'],
             $r['round_number'], $r['target_time_seconds'], $r['flight_time_seconds'], $r['landing_value'],
-            score_outcome_label((string) $r['status'], (bool) ($r['motor'] ?? 0)),
+            score_outcome_label(score_flags($r)),
             $r['time_penalty'], $r['landing_penalty'], $r['penalty'],
         ], ';');
     }
