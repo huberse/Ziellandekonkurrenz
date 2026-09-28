@@ -89,47 +89,53 @@ function runsheet_penalty_boxes(): array
  * – zu lang und zu kurz bringen denselben Satz je Sekunde –, die Landepunkte
  * und drei Feststrafen für Aussenlandung, Bruchlandung und Nichtantritt. Eine
  * Obergrenze gibt es nicht. Der Motor ist keine eigene Ergebnisart, sondern eine
- * Zusatzstrafe: bei einem sauberen Flug ersetzt sie Zeit und Landewert, bei
- * Aussenlandung, Bruchlandung oder Nichtantritt kommt sie zur Feststrafe dazu.
+ * Zusatzstrafe, die zu allem kommt.
+ *
+ * Was dazuzählt, entscheidet der Ausgang – die Ausschlüsse von früher sind
+ * aufgehoben:
+ *
+ *   - Die Zeitabweichung zählt immer. Vorher wurde sie bei jeder Feststrafe
+ *     ersatzlos gestrichen, obwohl auch eine Bruchlandung eine Flugzeit hat.
+ *   - Der Landewert zählt bei jedem Ausgang ausser bei der Aussenlandung: dort
+ *     ist das Landen ausserhalb des Feldes gerade das Ereignis, und ein
+ *     zusätzlicher Landewert würde es doppelt bestrafen.
+ *   - Beim Nichtantritt sind Zeit und Landewert null, es wurde ja nicht geflogen.
+ *   - Die Feststrafen bleiben und kommen dazu. Sie sind je Verein einstellbar
+ *     und stehen unter Einstellungen → Strafpunkte.
  *
  * Wenige Punkte = gut. Rückgabe: [time_penalty, landing_penalty, total].
  */
 function calc_penalty(string $status, ?float $flightTime, ?float $landingValue, int $targetTime, bool $motor = false): array
 {
     $maxStoredPenalty = 999999.99;
+    $perSecond   = max(0.0, setting_num('penalty_per_second', 1));
+    $meterFactor = max(0.0, setting_num('penalty_per_meter', 1));
 
-    if ($status === 'flown' && !$motor) {
-        $perSecond   = max(0.0, setting_num('penalty_per_second', 1));
-        $meterFactor = max(0.0, setting_num('penalty_per_meter', 1));
+    $zeitZaehlt  = $status !== 'dns';
+    $landZaehlt  = $status !== 'dnf' && $status !== 'dns';
 
-        // Betrag statt Vorzeichen: zu lang und zu kurz zählen gleich.
-        $diff = abs(($flightTime ?? 0.0) - $targetTime);
-        $timePenalty = $diff * $perSecond;
-        $landingPenalty = max(0.0, $landingValue ?? 0.0) * $meterFactor;
+    $timePenalty = $zeitZaehlt
+        ? abs(($flightTime ?? 0.0) - $targetTime) * $perSecond
+        : 0.0;
+    $landingPenalty = $landZaehlt
+        ? max(0.0, $landingValue ?? 0.0) * $meterFactor
+        : 0.0;
+    $timePenalty    = min($maxStoredPenalty, round($timePenalty, 2));
+    $landingPenalty = min($maxStoredPenalty, round($landingPenalty, 2));
 
-        $timePenalty    = min($maxStoredPenalty, round($timePenalty, 2));
-        $landingPenalty = min($maxStoredPenalty, round($landingPenalty, 2));
-
-        return [$timePenalty, $landingPenalty, min($maxStoredPenalty, round($timePenalty + $landingPenalty, 2))];
-    }
-
-    if ($status === 'flown') {
-        // Geflogen, aber der Motor lief: es zählt allein die Motorstrafe, der
-        // Flug zählt nicht als gewerteter Flug. Das ist die bestehende Regel.
-        return [0.0, 0.0, fixed_penalty('penalty_motor')];
-    }
-
+    $fest = 0.0;
     if ($status === 'dnf') {
-        $fixed = fixed_penalty('penalty_outlanding');
+        $fest = fixed_penalty('penalty_outlanding');
     } elseif ($status === 'crash') {
-        $fixed = fixed_penalty('penalty_crash');
-    } else {
-        $fixed = fixed_penalty('penalty_not_started');
+        $fest = fixed_penalty('penalty_crash');
+    } elseif ($status === 'dns') {
+        $fest = fixed_penalty('penalty_not_started');
     }
     if ($motor) {
-        $fixed += fixed_penalty('penalty_motor');
+        $fest += fixed_penalty('penalty_motor');
     }
-    return [0.0, 0.0, min($maxStoredPenalty, round($fixed, 2))];
+
+    return [$timePenalty, $landingPenalty, min($maxStoredPenalty, round($timePenalty + $landingPenalty + $fest, 2))];
 }
 
 /** Alle gewerteten Durchgänge (is_included = 1) eines Wettbewerbs, aufsteigend. Ohne Angabe: der aktuelle Wettbewerb. */

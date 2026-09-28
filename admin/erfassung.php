@@ -339,30 +339,48 @@ if ($competitionCompleted): ?>
   function box(row, name) { return row.querySelector('[data-box="' + name + '"]'); }
 
   // Strafpunkte aus den angekreuzten Kästchen, ohne den Server zu fragen.
-  // Bildet calc_penalty() ab: Bruchlandung und Aussenlandung schlagen den
-  // Nichtantritt. Der Motor zählt zu den Feststrafen dazu, ersetzt beim
-  // gelungenen Flug aber Zeit und Landewert.
+  // Bildet calc_penalty() ab. Die Zeitabweichung zählt immer, der Landewert
+  // ausser bei der Aussenlandung und beim Nichtantritt. Die Feststrafen bleiben
+  // und kommen dazu, der Motor kommt zu allem.
   function penaltyOf(flags, time, dist) {
-    var motor = flags.motor ? cfg.motor : 0;
+    var fest = 0;
+    var teile = [];
+    var zeitZaehlt = true;
+    var landZaehlt = true;
+    var angetreten = true;
+
     if (flags.crash) {
-      return { total: round2(cfg.crash + motor), note: 'Bruchlandung' + (motor ? ' + Motor' : '') };
-    }
-    if (flags.outlanding) {
-      return { total: round2(cfg.outlanding + motor), note: 'Aussenlandung' + (motor ? ' + Motor' : '') };
-    }
-    if (flags.not_started) {
-      return { total: round2(cfg.notStarted + motor), note: 'nicht angetreten' + (motor ? ' + Motor' : '') };
+      fest += cfg.crash; teile.push('Bruchlandung');
+    } else if (flags.outlanding) {
+      fest += cfg.outlanding; teile.push('Aussenlandung');
+      landZaehlt = false;                       // das Landen ausserhalb ist das Ereignis
+    } else if (flags.not_started) {
+      fest += cfg.notStarted; teile.push('nicht angetreten');
+      zeitZaehlt = false; landZaehlt = false;   // es wurde nicht geflogen
     }
     if (flags.motor) {
-      return { total: round2(cfg.motor), note: 'nur Motorstrafe, ohne Zeit und Landewert' };
+      fest += cfg.motor; teile.push('Motor');
     }
-    if (time === null) {
+    if (flags.crash || flags.outlanding || flags.not_started) {
+      angetreten = false;
+    }
+    // Beim freien Flug braucht es die Zeit, sonst gibt es nichts zu rechnen.
+    if (angetreten && time === null) {
       return { total: null, note: '' };
     }
-    // Betrag: zu lang und zu kurz zählen gleich.
-    var tp = Math.abs(time - cfg.target) * cfg.perSecond;
-    var lp = Math.max(0, dist || 0) * cfg.meter;
-    return { total: round2(tp + lp), note: 'Zeit ' + round2(tp) + ' + Landewert ' + round2(lp) };
+
+    // Betrag statt Vorzeichen: zu lang und zu kurz zählen gleich.
+    var tp = zeitZaehlt ? Math.abs((time || 0) - cfg.target) * cfg.perSecond : 0;
+    var lp = landZaehlt ? Math.max(0, dist || 0) * cfg.meter : 0;
+    tp = round2(tp); lp = round2(lp);
+
+    if (teile.length === 0) {
+      teile.push('Zeit ' + tp + ' + Landewert ' + lp);
+    } else {
+      if (zeitZaehlt) { teile.push('Zeit ' + tp); }
+      if (landZaehlt && lp > 0) { teile.push('Landewert ' + lp); }
+    }
+    return { total: Math.min(999999.99, round2(tp + lp + fest)), note: teile.join(' + ') };
   }
 
   function update(row) {

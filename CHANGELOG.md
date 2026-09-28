@@ -10,6 +10,41 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.6
+
+- **Die Strafpunkte setzen sich jetzt zusammen, statt sich auszuschliessen.** Vorher
+  hat jede Feststrafe Zeit und Landewert ersatzlos gestrichen, und die beiden
+  schlossen einander aus: eine Aussenlandung kostete pauschal, egal welche Zeit
+  geflogen wurde. Jetzt gilt:
+  - Die **Zeitabweichung zählt immer** – auch bei einer Bruchlandung, denn der
+    Flug hat eine Zeit und die wird gemessen.
+  - Bei einer **Aussenlandung ist der Landewert null**: das Landen ausserhalb des
+    Feldes ist gerade das Ereignis, ein zusätzlicher Landewert würde es doppelt
+    bestrafen.
+  - Bei einer **Bruchlandung zählt der Landewert dazu**, weil sie im Landefeld
+    passieren kann.
+  - Beim **Nichtantritt sind Zeit und Landewert null**, es wurde nicht geflogen.
+  - Die drei **Feststrafen bleiben** und kommen dazu. Sie stehen weiterhin unter
+    *Einstellungen → Strafpunkte* und sind je Verein einstellbar.
+  - Der **Motor** ersetzt nichts mehr, er kommt zu allem dazu. Bisher hat er beim
+    geflogenen Flug Zeit und Landewert ersetzt.
+  - Bei mehreren Kästchen gewinnt: Bruchlandung, dann Aussenlandung, dann
+    nicht angetreten. Wie bisher.
+- **Wichtig für bereits erfasste Resultate:** Die neuen Punkte gelten erst ab dem
+  nächsten Speichern. Unter *Durchgänge → Punkte neu berechnen* werden sie für
+  einen ganzen Durchgang neu gerechnet – aber nur aus dem, was gespeichert ist.
+  Resultate, die vor Fassung 1.9.5 als Aussenlandung, Bruchlandung oder
+  Nichtantritt ohne Zeit erfasst wurden, enthalten keine Flugzeit, und die kann
+  niemand nachrechnen. Sie müssen neu eingetragen werden, sonst bleibt die alte
+  Punktesumme stehen.
+- **Unverändert:** Bei Punktegleichheit im Wettbewerb zählt ein Flug mit Motor
+  weiterhin nicht als gültiger Flug für den Vergleich der Flugzahl. Das ist eine
+  andere Frage als die Wertung und wurde nicht angefasst.
+- Neu: `tools/regel_pruefen.php` vergleicht die Anzeige beim Erfassen mit der
+  Datenbank, beide über dieselben 17 Fälle. Ohne diesen Abgleich fiel eine
+  Abweichung erst beim Nachladen der Seite auf, und ein Wettbewerb sähe beim
+  Speichern auf einmal anders aus. Braucht `node`.
+
 ## 1.9.5
 
 - **Flugzeit und Landewert lassen sich immer eintragen**, auch wenn ein Kästchen

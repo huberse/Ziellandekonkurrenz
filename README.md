@@ -289,6 +289,25 @@ Zugleich mit `manifest.json` wird `APP_VERSION` in `lib/version.php` **von Hand*
 Skript liest die Fassung nur und schreibt sie nicht. Für jede veröffentlichte Änderung gehören
 `APP_VERSION` und ein Abschnitt in `CHANGELOG.md` zusammen.
 
+Wird die Strafpunktregel geändert, gehört dazu:
+
+```
+php tools/regel_pruefen.php   # Bildschirmrechnung gegen Datenbank, Rückgabe 1 bei Abweichung
+```
+
+Beim Erfassen rechnet die Seite die Punkte selbst, damit die Anzeige ohne Verzögerung mitläuft.
+Diese zweite Rechnung in `admin/erfassung.php` kann von der Datenbank in `lib/scoring.php`
+abweichen – dann zeigt der Bildschirm beim Tippen einen anderen Wert, als gespeichert wird, und
+der Wettbewerb wird nach dem Speichern scheinbar auf einmal anders. Das Skript holt die echte
+Seite, führt die dortige Funktion unter `node` aus und vergleicht sie mit `calc_penalty()` über
+17 Fälle: sauberer Flug, Motor allein, Aussenlandung, Bruchlandung, Nichtantritt und mehrere
+Ankreuzfelder zusammen.
+
+Es braucht `node` (`apt-get install nodejs`) und eine Datenbank. Der Test legt einen
+Wettbewerb mit zwei Piloten an, setzt das Passwort des ersten SuperAdmins auf ein bekanntes und
+stellt danach Wettbewerb und Passwort wieder her – auch wenn er abbricht. Auf einer Installation
+mit echten Wettkämpfen deshalb nur mit einer Kopie der Datenbank fahren.
+
 `tools/aufrufe_pruefen.php` sucht Aufrufe von Namen, die es weder im Projekt noch in PHP gibt, und
 Aufrufe über eine Variable, der im File nie etwas zugewiesen wird. Beides fällt beim Lesen nicht auf
 und `php -l` meldet nichts – ein Aufruf wie `$name($x)` sieht aus wie ein Funktionsaufruf und
@@ -388,29 +407,41 @@ Zwei Regeln, die man leicht falsch liest:
 **Die Zeitabweichung ist ein Betrag.** Zwei Sekunden zu lang und zwei Sekunden zu kurz kosten
 gleich viel – es gibt nur einen Satz je Sekunde.
 
-**Der Motor ist eine Zusatzstrafe, keine eigene Ergebnisart.** Bei einem geflogenen Flug ersetzt
-sie Zeit und Landewert, gezählt wird allein die Motorstrafe. Bei einer Aussenlandung, einer
-Bruchlandung oder einem Nichtantritt kommt sie zur jeweiligen Feststrafe dazu.
+**Der Motor ist eine Zusatzstrafe, keine eigene Ergebnisart.** Er kommt zu allem dazu und ersetzt
+nichts.
 
 Beim Erfassen gibt es vier Ankreuzfelder, genau wie im Laufzettel. **Kein Feld heisst „geflogen"**,
-der Flug wird dann nach Flugzeit und Landewert gewertet:
+der Flug wird dann nach Flugzeit und Landewert gewertet. Was dazuzählt, hängt am Ausgang:
 
-| Angekreuzte Felder | Punkte |
-| --- | --- |
-| keine | Zeitabweichung + Landepunkte |
-| nicht angetreten | `penalty_not_started` |
-| Aussenlandung | `penalty_outlanding` |
-| Bruchlandung | `penalty_crash` |
-| Aussenlandung & Motor | `penalty_outlanding` + `penalty_motor` |
-| Bruchlandung & Motor | `penalty_crash` + `penalty_motor` |
-| Motor allein | `penalty_motor` (kein gültiger Flug) |
+| Angekreuzte Felder | Zeit | Landewert | Feststrafe |
+| --- | --- | --- | --- |
+| keine | ja | ja | – |
+| Motor allein | ja | ja | – (Motor kommt dazu) |
+| Aussenlandung | ja | **nein** | `penalty_outlanding` |
+| Bruchlandung | ja | ja | `penalty_crash` |
+| nicht angetreten | **nein** | **nein** | `penalty_not_started` |
+| Aussenlandung & Motor | ja | nein | `penalty_outlanding` + `penalty_motor` |
+| Bruchlandung & Motor | ja | ja | `penalty_crash` + `penalty_motor` |
+
+Die Begründung dahinter: **die Zeitabweichung zählt immer**, auch bei einer Bruchlandung – der
+Flug hat eine Zeit, und die wird gemessen. **Bei der Aussenlandung ist der Landewert null**, weil
+das Landen ausserhalb des Feldes gerade das Ereignis ist; ein zusätzlicher Landewert würde es
+doppelt bestrafen. **Bei der Bruchlandung zählt er**, weil sie im Landefeld passieren kann. **Beim
+Nichtantritt sind beide null**, es wurde nicht geflogen. Die drei Feststrafen bleiben und kommen
+dazu; sie stehen unter *Einstellungen → Strafpunkte* und sind je Verein einstellbar.
+
+Bei mehreren angekreuzten Feldern gewinnt in dieser Reihenfolge: Bruchlandung, Aussenlandung,
+nicht angetreten.
 
 **Flugzeit und Landewert bleiben immer bedienbar**, auch neben einem angekreuzten
-Feld. Wer eine Aussenlandung nach 3:20 Landewert 15 hatte, trägt beides ein – die
-Punkte rechnen weiterhin nach der festen Regel, der nachgemessene Flug geht aber
-nicht verloren. Nur beim freien Flug ist die Flugzeit Pflicht, weil ohne sie nichts
-zu rechnen wäre.
+Feld. Wer eine Aussenlandung nach 3:20 Landewert 15 hatte, trägt beides ein – bei der
+Aussenlandung zählt nur die Zeit, der Landewert wird mitgespeichert und geht nicht verloren.
+Nur beim freien Flug ist die Flugzeit Pflicht, weil ohne sie nichts zu rechnen wäre.
+
+| Eingabe | Folge |
+| --- | --- |
 | keine Felder, keine Zeit, kein Landewert | die Zeile bleibt ohne Resultat |
+| Feld und leere Zeit | die Feststrafe zählt, die Zeit nicht |
 
 Kombiniert werden kann alles; tritt eine Bruch- oder Aussenlandung mit „nicht angetreten"
 zusammen auf, zählt die Bruch- beziehungsweise Aussenlandung.
@@ -426,6 +457,9 @@ Motor zählt dabei nicht als gültiger Flug.
 **Nachträgliche Änderungen.** Wird eine Regel oder eine Zielzeit geändert, bleiben bereits
 gespeicherte Punkte stehen. Unter **Durchgänge** rechnet *Punkte neu berechnen* einen Durchgang
 mit den aktuellen Regeln des Wettbewerbs nach – auch die festen Strafen und der Motorstart.
+Nachrechnen lässt sich nur, was gespeichert ist: Resultate, die vor Fassung 1.9.5 ohne Zeit
+erfasst wurden, enthalten keine Flugzeit, und die kann niemand nachrechnen. Sie müssen neu
+eingetragen werden, sonst bleibt bei ihnen die alte Punktesumme stehen.
 
 ### Laufzettel
 
@@ -610,6 +644,7 @@ lib/season.php         Kompatibilitätspfad für alte Lesezeichen
 sql/schema.sql         Tabellen und Constraints
 tools/manifest.php     erzeugt manifest.json
 tools/aufrufe_pruefen.php  sucht Aufrufe von Namen, die es nicht gibt
+tools/regel_pruefen.php prüft die Strafpunktregel im Browser gegen die Datenbank
 manifest.json          jede ausgelieferte Datei mit ihrer Prüfsumme
 CHANGELOG.md           was sich je Fassung geändert hat
 assets/                Gestaltung und Logos
