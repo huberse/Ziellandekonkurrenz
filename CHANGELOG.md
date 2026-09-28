@@ -10,6 +10,32 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.7
+
+- **Die vier Ankreuzfelder sind unabhängig geworden.** Bisher stand in der
+  Datenbank ein einziges Statusfeld, und wer Aussenlandung **und** Bruchlandung
+  ankreuzte, bekam nur eine der beiden Feststrafen. Landet ein Modell neben die
+  Piste und verliert dort Teile, trifft aber beides zu.
+  - Migration 11 legt `scores.not_started`, `scores.outlanding` und `scores.crash`
+    an und entfernt `scores.status`. Die bisherigen Ausgänge werden übernommen,
+    danach ist nichts mehr doppelt belegt.
+  - Aussenlandung und Bruchlandung werden **addiert**, jede für sich.
+  - Bei der Kombination aus beiden zählt der **Landewert wieder**: dann ist er
+    die Landung im Feld. Bei der Aussenlandung allein bleibt er null.
+  - Die Reihenfolge der Anzeige lautet `nicht angetreten`, `Aussenlandung`,
+    `Bruchlandung`, `Motor`. In der Rangliste erscheint eine Kombination als
+    „Aussenlandung & Bruchlandung“ und so weiter.
+- **„nicht angetreten“ schliesst die anderen Felder aus.** Wer nicht angetreten
+  ist, hat nicht geflogen. Beim Ankreuzen springt die Flugzeit auf **0:00**,
+  der Landewert auf 0, und die übrigen drei Kästchen werden gesperrt und
+  abgehakt. Beim Abwählen kommt der vorher eingetragene Wert zurück, damit ein
+  Fehlklick nichts vernichtet. Beim Speichern gilt „nicht angetreten“ auch dann,
+  wenn das Formular von Hand eine unmögliche Kombination mitsendet.
+- Die Zeit und der Landewert sind `readonly` statt `disabled`, damit 0:00
+  gespeichert wird und nach dem Neuladen noch dasteht.
+- `diagnose.php` prüft jetzt die vier Spalten und meldet, wenn `scores.status`
+  noch vorhanden ist.
+
 ## 1.9.6
 
 - **Die Strafpunkte setzen sich jetzt zusammen, statt sich auszuschliessen.** Vorher

@@ -114,13 +114,13 @@ $competitionQS = (int) $competition['id'] !== current_competition_id() ? '&compe
                         if ($c === null) {
                             echo '<td class="num cell-empty">·</td>';
                         } else {
-                            $scored = $c['status'] === 'flown' && !$c['motor'];
+                            $scored = score_is_flown($c['flags']) && empty($c['flags']['motor']);
                             $cls = 'num' . ($isDrop ? ' dropped' : '') . ($scored ? '' : ' cell-missing');
                             $title = $c['missing']
                                 ? 'Kein Resultat erfasst'
                                 : ($scored
                                     ? 'Zeit ' . fmt_time($c['time']) . ', Landewert ' . fmt_num($c['dist'])
-                                    : score_outcome_label($c['status'], $c['motor']));
+                                    : score_outcome_label($c['flags']));
                             echo '<td class="' . $cls . '" title="' . h($title) . '">' . h(fmt_num($c['penalty'])) . '</td>';
                         }
                     endforeach; ?>

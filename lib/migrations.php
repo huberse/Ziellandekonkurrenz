@@ -1020,6 +1020,10 @@ function migration_pending_column_steps(PDO $pdo): array
         || migration_column_exists($pdo, 'registrations', 'email') || migration_column_exists($pdo, 'registrations', 'phone')) {
         $steps[] = static function (PDO $pdo): array { return migration_kontaktdaten_weg($pdo); };
     }
+    if (migration_column_exists($pdo, 'scores', 'status')
+        || !migration_column_exists($pdo, 'scores', 'not_started')) {
+        $steps[] = static function (PDO $pdo): array { return migration_kaestchen_unabhaengig($pdo); };
+    }
     return $steps;
 }
 
@@ -1066,7 +1070,56 @@ function migration_definitions(): array
             'description' => 'Kontaktdaten der Piloten entfernen',
             'run' => function (PDO $pdo): array { return migration_kontaktdaten_weg($pdo); },
         ],
+        11 => [
+            'description' => 'Die vier Kaestchen werden unabhaengige Felder',
+            'run' => function (PDO $pdo): array { return migration_kaestchen_unabhaengig($pdo); },
+        ],
     ];
+}
+
+/**
+ * Die vier Ankreuzfelder eines Resultats werden eigene Spalten.
+ *
+ * Vorher stand in scores.status ein einziger Ausgang. Damit liess sich nicht
+ * abbilden, dass eine Aussenlandung und eine Bruchlandung nebeneinander
+ * vorkommen: landet ein Modell neben der Piste und verliert dort Teile, trifft
+ * beides zu. Vier unabhaengige Felder sind ausserdem genau das, was der
+ * Papierlaufzettel seit jeher zeigt.
+ *
+ * "nicht angetreten" bleibt der Sonderfall: es schliesst die anderen aus, weil
+ * wer nicht angetreten ist, nicht geflogen hat.
+ */
+function migration_kaestchen_unabhaengig(PDO $pdo): array
+{
+    $log = [];
+    if (!migration_table_exists($pdo, 'scores')) {
+        throw new RuntimeException('Die Tabelle scores fehlt; die Kaestchen lassen sich nicht umstellen.');
+    }
+    if (!migration_column_exists($pdo, 'scores', 'status')) {
+        return ['Die Kaestchen sind bereits unabhaengig.'];
+    }
+
+    foreach ([['not_started', 'AFTER motor'], ['outlanding', 'AFTER not_started'], ['crash', 'AFTER outlanding']] as [$spalte, $wo]) {
+        if (!migration_column_exists($pdo, 'scores', $spalte)) {
+            $pdo->exec("ALTER TABLE scores ADD COLUMN $spalte TINYINT(1) NOT NULL DEFAULT 0 $wo");
+        }
+    }
+    $log[] = 'Die Spalten scores.not_started, scores.outlanding und scores.crash wurden ergaenzt.';
+
+    $mehrfach = (int) $pdo->query("SELECT COUNT(*) FROM scores WHERE status IN ('dnf','crash')")->fetchColumn();
+    $pdo->exec("UPDATE scores SET not_started = IF(status = 'dns', 1, 0),
+                              outlanding  = IF(status = 'dnf', 1, 0),
+                              crash       = IF(status = 'crash', 1, 0)");
+    $log[] = 'Die bisherigen Ausgaenge wurden uebernommen.';
+
+    $pdo->exec('ALTER TABLE scores DROP COLUMN status');
+    $log[] = 'Die Spalte scores.status wurde entfernt.';
+
+    if ($mehrfach > 0) {
+        $log[] = $mehrfach . ' Resultate haben jetzt je eine Aussenlandung oder eine Bruchlandung. '
+            . 'Traten beide wirklich zu, bitte unter Erfassen nachkorrigieren – sie sind addierbar.';
+    }
+    return $log;
 }
 
 /**

@@ -170,25 +170,28 @@ if (!str_contains($seite, 'function penaltyOf(')) {
 }
 
 // ------------------------------------------------------ Falltabelle
-// status, Zeit, Landewert, Motor, Kästchen, Beschreibung
+// Zeit, Landewert, Kästchen (Array), Beschreibung
 $faelle = [
-    ['flown', 180.0,   0.0, false, [],                 'genau auf Ziel'],
-    ['flown', 200.0,  20.0, false, [],                 '20 s lang, Lande 20'],
-    ['flown', 160.0,  10.0, false, [],                 '20 s kurz, Lande 10'],
-    ['flown', 180.0,  20.0, true,  [],                 'Motor, auf Ziel'],
-    ['flown', 200.0,  20.0, true,  [],                 'Motor, 20 s lang'],
-    ['flown', 180.0,   0.0, true,  [],                 'Motor, Lande 0'],
-    ['dnf',   190.0,  15.0, false, ['outlanding'],     'Aussenlandung, Lande zaehlt nicht'],
-    ['dnf',   180.0,   0.0, false, ['outlanding'],     'Aussenlandung ohne Abweichung'],
-    ['dnf',   190.0,  15.0, true,  ['outlanding'],     'Aussenlandung + Motor'],
-    ['crash', 190.0,  15.0, false, ['crash'],          'Bruchlandung, Lande zaehlt'],
-    ['crash', 200.0,   0.0, false, ['crash'],          'Bruchlandung ohne Lande'],
-    ['crash', 190.0,  15.0, true,  ['crash'],          'Bruchlandung + Motor'],
-    ['dns',   null,   null, false, ['not_started'],    'nicht angetreten'],
-    ['dns',   300.0,  50.0, false, ['not_started'],    'nicht angetreten, Zeit eingetragen'],
-    ['dns',   null,   null, true,  ['not_started'],    'nicht angetreten + Motor'],
-    ['crash', 180.0,   5.0, false, ['crash', 'not_started'], 'Bruchlandung + nicht angetreten'],
-    ['dnf',   190.0,  15.0, false, ['outlanding', 'not_started'], 'Aussenlandung + nicht angetreten'],
+    [180.0,   0.0, [],                          'genau auf Ziel'],
+    [200.0,  20.0, [],                          '20 s lang, Lande 20'],
+    [160.0,  10.0, [],                          '20 s kurz, Lande 10'],
+    [180.0,  20.0, ['motor'],                   'Motor, auf Ziel'],
+    [200.0,  20.0, ['motor'],                   'Motor, 20 s lang'],
+    [180.0,   0.0, ['motor'],                   'Motor, Lande 0'],
+    [190.0,  15.0, ['outlanding'],              'Aussenlandung, Lande zaehlt nicht'],
+    [180.0,   0.0, ['outlanding'],              'Aussenlandung ohne Abweichung'],
+    [190.0,  15.0, ['outlanding', 'motor'],     'Aussenlandung + Motor'],
+    [190.0,  15.0, ['crash'],                   'Bruchlandung, Lande zaehlt'],
+    [200.0,   0.0, ['crash'],                   'Bruchlandung ohne Lande'],
+    [190.0,  15.0, ['crash', 'motor'],          'Bruchlandung + Motor'],
+    [null,   null, ['not_started'],             'nicht angetreten'],
+    [300.0,  50.0, ['not_started'],             'nicht angetreten, Zeit eingetragen'],
+    [null,   null, ['not_started', 'motor'],    'nicht angetreten + Motor, gesperrt'],
+    [180.0,   5.0, ['crash', 'not_started'],    'Bruchlandung + nicht angetreten, gesperrt'],
+    [190.0,  15.0, ['outlanding', 'not_started'], 'Aussenlandung + nicht angetreten, gesperrt'],
+    [190.0,  15.0, ['outlanding', 'crash'],     'Aussenlandung + Bruchlandung'],
+    [190.0,  15.0, ['outlanding', 'crash', 'motor'], 'Aussenlandung + Bruchlandung + Motor'],
+    [180.0,  15.0, ['crash'],                   'Bruchlandung im Landefeld, Lande zaehlt'],
 ];
 
 // ------------------------------------------------------ PHP rechnen
@@ -196,7 +199,12 @@ set_competition_context($w);
 settings(true);
 $php = [];
 foreach ($faelle as $f) {
-    $php[] = calc_penalty($f[0], $f[1], $f[2], 180, $f[3])[2];
+    $php[] = calc_penalty(score_flags([
+        'not_started' => in_array('not_started', $f[2], true) ? 1 : 0,
+        'outlanding'  => in_array('outlanding', $f[2], true) ? 1 : 0,
+        'crash'       => in_array('crash', $f[2], true) ? 1 : 0,
+        'motor'       => in_array('motor', $f[2], true) ? 1 : 0,
+    ]), $f[0], $f[1], 180)[2];
 }
 
 // ------------------------------------------------------ Seite auswerten
@@ -213,14 +221,15 @@ if (!is_array($cfg)) {
     exit(2);
 }
 
-$flagNames = [
-    'not_started' => 'dns', 'outlanding' => 'dnf', 'crash' => 'crash', 'motor' => 'motor',
-];
 $jsEingabe = [];
 foreach ($faelle as $f) {
-    $flags = ['not_started' => $f[0] === 'dns', 'outlanding' => $f[0] === 'dnf',
-              'crash' => $f[0] === 'crash', 'motor' => $f[3]];
-    $jsEingabe[] = [$flags, $f[1], $f[2]];
+    $flags = [
+        'not_started' => in_array('not_started', $f[2], true),
+        'outlanding'  => in_array('outlanding', $f[2], true),
+        'crash'       => in_array('crash', $f[2], true),
+        'motor'       => in_array('motor', $f[2], true),
+    ];
+    $jsEingabe[] = [$flags, $f[0], $f[1]];
 }
 
 $js = "var cfg = " . json_encode($cfg, JSON_THROW_ON_ERROR) . ";\n"
@@ -253,22 +262,20 @@ if (!is_array($jsErgebnis)) {
 // ------------------------------------------------------ Vergleich
 echo "Zielzeit 180 s, je Sekunde {$cfg['perSecond']}, je Landewert-Einheit {$cfg['meter']}, ";
 echo "Feststrafen {$cfg['outlanding']}/{$cfg['crash']}/{$cfg['notStarted']}, Motor {$cfg['motor']}\n\n";
-printf("  %-9s %-7s %-7s %-6s %-34s %-9s %-9s %s\n", 'Status', 'Zeit', 'Lande', 'Motor', 'Fall', 'PHP', 'Browser', '');
-echo '  ' . str_repeat('-', 96) . "\n";
+printf("  %-7s %-7s %-40s %-9s %-9s %s\n", 'Zeit', 'Lande', 'Kästchen', 'PHP', 'Browser', '');
+echo '  ' . str_repeat('-', 90) . "\n";
 
 $abweichungen = 0;
 foreach ($faelle as $i => $f) {
-    [$status, $zeit, $lande, $motor, , $besch] = $f;
+    [$zeit, $lande, $kaesten, $besch] = $f;
     $p = $php[$i];
     $j = $jsErgebnis[$i]['total'] ?? null;
     $ok = $j !== null && abs((float) $j - (float) $p) < 0.005;
     $abweichungen += $ok ? 0 : 1;
-    printf("  %-9s %-7s %-7s %-6s %-34s %-9s %-9s %s\n",
-        $status,
+    printf("  %-7s %-7s %-40s %-9s %-9s %s\n",
         $zeit === null ? '-' : (string) $zeit,
         $lande === null ? '-' : (string) $lande,
-        $motor ? 'ja' : 'nein',
-        $besch,
+        $kaesten ? implode('+', $kaesten) : '-',
         sprintf('%.2f', $p),
         $j === null ? '–' : sprintf('%.2f', (float) $j),
         $ok ? 'OK' : 'ABWEICHUNG');

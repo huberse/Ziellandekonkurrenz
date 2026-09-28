@@ -98,11 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $up = $pdo->prepare('UPDATE scores SET time_penalty = ?, landing_penalty = ?, penalty = ? WHERE id = ?');
             $n = 0;
             foreach ($st as $s) {
-                [$tp, $lp, $tot] = calc_penalty($s['status'],
+                [$tp, $lp, $tot] = calc_penalty(score_flags($s),
                     $s['flight_time_seconds'] !== null ? (float) $s['flight_time_seconds'] : null,
                     $s['landing_value'] !== null ? (float) $s['landing_value'] : null,
-                    (int) $s['target_time_seconds'],
-                    (bool) ($s['motor'] ?? 0));
+                    (int) $s['target_time_seconds']);
                 $up->execute([$tp, $lp, $tot, $s['id']]);
                 $n++;
             }

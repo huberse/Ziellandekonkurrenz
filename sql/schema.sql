@@ -99,8 +99,10 @@ CREATE TABLE IF NOT EXISTS scores (
   pilot_id            INT            NOT NULL,
   round_id            INT            NOT NULL,
   competition_id      INT            NOT NULL,
-  status              ENUM('flown','dnf','dns','crash') NOT NULL DEFAULT 'flown',
-  motor               TINYINT(1)   NOT NULL DEFAULT 0, -- Motor angelassen, unabhängig vom Ausgang
+  not_started        TINYINT(1)   NOT NULL DEFAULT 0, -- nicht angetreten, schliesst die anderen aus
+  outlanding         TINYINT(1)   NOT NULL DEFAULT 0, -- Aussenlandung, mit der Bruchlandung kombinierbar
+  crash              TINYINT(1)   NOT NULL DEFAULT 0, -- Bruchlandung, mit der Aussenlandung kombinierbar
+  motor              TINYINT(1)   NOT NULL DEFAULT 0, -- Motor angelassen, unabhängig vom Ausgang
   flight_time_seconds DECIMAL(7,1)   NULL,
   landing_value        DECIMAL(6,1)   NULL,
   time_penalty        DECIMAL(8,2)   NOT NULL DEFAULT 0,
