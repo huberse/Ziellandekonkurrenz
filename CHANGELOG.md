@@ -10,6 +10,23 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.8
+
+- **Bei Punktegleichheit entscheidet das bessere Streichresultat – und sonst
+  nichts, was den Ausgang eines Fluges betrachtet.** Bisher lag dazwischen noch
+  die Anzahl „gültiger Flüge“, und dort zählte ein Flug mit Motor nicht mit. Ein
+  Pilot, der ein Los gleich aufgegeben und den Motor angelassen hat, landete
+  dadurch einen Platz weiter hinten, obwohl er dieselbe Summe und dasselbe
+  Streichresultat hatte.
+  - Die Kette lautet jetzt: Summe, dann das kleinere Streichresultat, dann das
+    beste Einzelresultat, dann der Name.
+  - Der Flugzähler ist aus der Wertung und aus dem Rankschlüssel entfernt. Er
+    wurde nirgends angezeigt, er war nur zum Sortieren da.
+  - Gleiche Reihenfolge in der Vereinswertung.
+  - Gegenprobe mit drei Szenarien, die mit dem Stand von 1.9.7 noch anders
+    ausgingen: gleiche Summe mit und ohne Motor, und gleiche Summe mit
+    gleichem Streichresultat, wobei der Motor im gestrichenen Flug steckt.
+
 ## 1.9.7
 
 - **Die vier Ankreuzfelder sind unabhängig geworden.** Bisher stand in der
