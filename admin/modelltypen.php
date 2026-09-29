@@ -54,15 +54,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (global_category_used_in_completed('model_type', $gid)) {
                 throw new DomainException('Dieser Modelltyp wird in abgeschlossenen Wettbewerben verwendet und kann nicht gelöscht werden.');
             }
-            $st = $pdo->prepare('SELECT COUNT(*) FROM pilots WHERE model_type_id = ?');
-            $st->execute([$gid]);
-            $n = (int) $st->fetchColumn();
-            $up = $pdo->prepare('UPDATE registrations SET model_type_id = NULL WHERE model_type_id = ?');
-            $up->execute([$gid]);
+            // Modelltypen sind wie Vereine global und geteilt. Vorher genügte
+            // der Blick auf abgeschlossene Wettbewerbe, und ein in einem
+            // laufenden Wettbewerb benutzter Typ liess sich loeschen: der
+            // Fremdschluessel fk_pilot_type setzte die Piloten still auf NULL,
+            // die Startliste verlor ihre Gruppierung, und die Meldung danach
+            // sprach nur davon, dass nun Piloten "ohne Typ" dastehen. Jetzt
+            // wird wie bei den Vereinen gesperrt.
+            $verwendungen = model_type_verwendungen($pdo, $gid);
+            if ($verwendungen) {
+                throw new DomainException('Dieser Modelltyp wird noch benutzt und kann nicht gelöscht werden: '
+                    . club_verwendungen_text($verwendungen)
+                    . ' Soll er nur nicht mehr zur Auswahl stehen, dann das Kästchen „aktiv“'
+                    . ' wegnehmen statt zu löschen.');
+            }
             $d = $pdo->prepare('DELETE FROM model_types WHERE id = ?');
             $d->execute([$gid]);
             $pdo->commit();
-            flash($n ? "Modelltyp gelöscht. $n Piloten sind jetzt ohne Typ." : 'Modelltyp gelöscht.', $n ? 'info' : 'ok');
+            flash('Modelltyp gelöscht.', 'ok');
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();

@@ -185,17 +185,43 @@ function resolve_competition_param(string $raw, bool $verwaltung = false): array
 {
     if ($raw !== '' && ($competition = find_competition((int) $raw))) {
         if ($verwaltung && !competition_darf_verwalten($competition)) {
-            $competition = accessible_competitions()[0] ?? current_competition();
+            $ersatz = accessible_competitions()[0] ?? current_competition();
+            competition_ausweichen_melden($competition, $ersatz);
+            $competition = $ersatz;
         }
         set_competition_context((int) $competition['id']);
         return $competition;
     }
     $competition = current_competition();
     if ($verwaltung && !competition_darf_verwalten($competition)) {
-        $competition = accessible_competitions()[0] ?? $competition;
+        $ersatz = accessible_competitions()[0] ?? $competition;
+        competition_ausweichen_melden($competition, $ersatz);
+        $competition = $ersatz;
     }
     set_competition_context((int) $competition['id']);
     return $competition;
+}
+
+/**
+ * Sagt, wenn statt des gewuenschten Wettbewerbs ein anderer gezeigt wird.
+ *
+ * Bisher geschah das still: wer einen fremden Wettbewerb in die Adresse
+ * schrieb, sah einfach einen anderen und bekam keinen Hinweis. Die Daten
+ * fremder Wettbewerbe waren dabei nie zu sehen - der Wechsel schuetzt davor -
+ * aber man konnte leicht glauben, den gewuenschten Wettbewerb vor sich zu
+ * haben und im falschen arbeiten.
+ *
+ * Bewusst eine Meldung und keine Umleitung: eine Umleitung auf jeder
+ * Verwaltungsseite wuerde in eine Schleife laufen, sobald der aktive
+ * Wettbewerb einem fremden Verein gehoert.
+ */
+function competition_ausweichen_melden(array $gewuenscht, array $gezeigt): void
+{
+    if ((int) $gewuenscht['id'] === (int) $gezeigt['id'] || function_exists('flash') === false) {
+        return;
+    }
+    flash('Der Wettbewerb „' . (string) $gewuenscht['name'] . '“ gehört einem anderen Verein. '
+        . 'Angezeigt wird „' . (string) $gezeigt['name'] . '“.', 'info');
 }
 
 /** Darf das angemeldete Konto diesen Wettbewerb steuern? Ohne Konto: nein. */
@@ -731,6 +757,37 @@ function club_verwendungen_text(array $verwendungen): string
     }
     $letzter = array_pop($teile);
     return implode(', ', $teile) . ($teile ? ' und ' : '') . $letzter . '.';
+}
+
+/**
+ * Wo ein Modelltyp noch hängt, genauso wie club_verwendungen() für Vereine.
+ *
+ * Modelltypen sind wie Vereine global und zwischen den Wettbewerben geteilt.
+ * Beim Löschen eines benutzten Typs setzt der Fremdschlüssel fk_pilot_type die
+ * Piloten still auf NULL: kein Fehler, keine Meldung, die Startliste verliert
+ * ihre Gruppierung. Genau deshalb wird hier wie bei den Vereinen gesperrt.
+ *
+ * @return array<string, array{anzahl:int, text:string}>
+ */
+function model_type_verwendungen(PDO $pdo, int $typeId): array
+{
+    if ($typeId <= 0) {
+        return [];
+    }
+    $gefunden = [];
+    foreach (['pilots' => ['Pilot in der Startliste', 'Piloten in der Startliste'],
+              'registrations' => ['Anmeldung', 'Anmeldungen']] as $tabelle => $formen) {
+        $st = $pdo->prepare("SELECT COUNT(*) FROM $tabelle WHERE model_type_id = ?");
+        $st->execute([$typeId]);
+        $anzahl = (int) $st->fetchColumn();
+        if ($anzahl > 0) {
+            $gefunden[$tabelle] = [
+                'anzahl' => $anzahl,
+                'text'  => $anzahl === 1 ? $formen[0] : $formen[1],
+            ];
+        }
+    }
+    return $gefunden;
 }
 
 function global_category_used_in_completed(string $category, int $categoryId): bool
