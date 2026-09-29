@@ -773,6 +773,17 @@ legend { font-weight: 600; padding: 0 6px; }
 .flash.err  { background: var(--rot-bg); border-color: var(--rot); }
 .flash.info { background: var(--signal-bg); border-color: var(--signal); }
 
+/* Der Weg, den eine Meldung anbietet. Kräftiger als der Fliesstext, weil man
+   ihn anklicken soll, und mit Unterstreichung, damit er als Verweis erkennbar
+   bleibt - die übrigen Verweise der Seite sind unterstrichen. */
+.flash-link {
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.flash.err .flash-link { color: #8a2925; }
+.flash.ok .flash-link, .flash.info .flash-link { color: var(--blau); }
+
 .tag {
   display: inline-block;
   padding: 2px 8px;

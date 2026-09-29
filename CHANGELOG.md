@@ -10,6 +10,23 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.19
+
+- **Die Meldung nach dem Aktualisieren bietet den Weg zu `upgrade.php` an**,
+  statt ihn nur zu erwähnen. Vorher stand dort „Danach bitte upgrade.php
+  aufrufen." – der Weg war beschrieben, aber man musste ihn sich heraussuchen.
+  Jetzt steht am Ende der Meldung **Jetzt upgrade.php aufrufen**, unterstrichen
+  und kräftiger als der Fliesstext.
+  - Nur wenn er nötig ist. `schema_hinter_programm()` entscheidet das, und ohne
+    offene Migration erscheint kein Link.
+  - `flash()` kann jetzt einen Link mitgeben. Der Text wird weiterhin maskiert,
+    damit kein HTML hineinkommt; der Verweis wird aus zwei getrennt maskierten
+    Feldern gebaut, damit auch dort nichts einzuschleusen ist. Beides geprüft:
+    ein Text mit spitzen Klammern und ein Ziel mit Anführungszeichen und
+    `<script>` kommen maskiert heraus, nichts wird zu HTML.
+  - Aufrufer ohne Link bleiben unangetastet: die Ausgabe einer einfachen Meldung
+    ist byteweise dieselbe wie vorher. Geprüft.
+
 ## 1.9.18
 
 - **Ein benutzter Modelltyp lässt sich nicht mehr löschen.** Modelltypen sind wie
