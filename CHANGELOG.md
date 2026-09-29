@@ -10,6 +10,29 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.10
+
+- **Ein Benutzersymbol oben rechts**, wie auf den üblichen Seiten. Ohne Konto
+  ein Verweis auf die Anmeldung, mit Konto ein Menü mit Name, Rolle, Profil
+  und Abmelden. Umgesetzt als `<details>`, damit es ohne JavaScript aufgeht und
+  mit der Tastatur bedienbar bleibt.
+  - Der Knopf **Anmelden** in der Navigationsleiste ist dafür weg. Er stand
+    direkt neben dem Punkt **Anmeldung** und wurde dauernd verwechselt – ein
+    Buchstabe Unterschied, ein Klick daneben.
+  - Name und „Abmelden" standen vorher als Text in der Kopfzeile und sind
+    damit verschwunden.
+- **Neue Seite *Profil*** (`admin/profil.php`) für alles, was die Person
+  betrifft: Kontoangaben, Anzeigename, Passwort ändern. Der Benutzername und
+  die Rechte bleiben beim SuperAdmin; das steht so auch auf der Seite.
+  - Der Block **Eigene Einstellungen** ist bewusst noch leer. Er ist für das
+    vorgesehen, was nur die Person betrifft und später dazukommt.
+- **Passwort aus den Wettbewerbseinstellungen entfernt.** Dort ging es um
+  Strafpunkte, Anmeldung und Freischaltung; wer dort ein Passwort ändern
+  wollte, lief an Strafpunkten vorbei. Unter *Einstellungen* steht jetzt ein
+  Verweis aufs Profil.
+- *Einstellungen* nennt die Konten nur noch als Übersicht und verweist für das
+  eigene Passwort aufs Profil.
+
 ## 1.9.9
 
 - **Neue Startseite.** `index.php` war bisher die Rangliste. Jetzt beantwortet

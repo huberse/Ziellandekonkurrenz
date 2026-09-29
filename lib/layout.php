@@ -6,6 +6,63 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/competition.php';
 
 /**
+ * Das Benutzersymbol oben rechts in der Kopfzeile.
+ *
+ * Ohne Konto ist es ein schlichter Verweis auf die Anmeldung. Mit Konto oeffnet
+ * es ein Menue mit dem Profil und dem Abmelden. Umgesetzt mit <details>, damit
+ * es ohne JavaScript aufgeht und mit der Tastatur bedienbar bleibt.
+ *
+ * Vorher stand hier der Name mit einem "Abmelden"-Knopf daneben, und in der
+ * Navigationsleiste zusaetzlich ein "Anmelden". Zwoerter Woerter, ein Buchstabe
+ * Unterschied, beide an einem Fleck - das war die Verwirrung.
+ *
+ * @param string $base  '.' im oeffentlichen Teil, '..' in der Verwaltung
+ * @param bool   $mitTrenner  ein Strich vor dem Symbol, wenn links Text steht
+ */
+function user_menu(string $base, bool $mitTrenner = false): void
+{
+    $symbol = '<svg class="user-icon" viewBox="0 0 24 24" width="22" height="22" '
+        . 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" '
+        . 'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+        . '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>'
+        . '<circle cx="12" cy="7.5" r="4"></circle></svg>';
+    $u = current_user();
+
+    if (!$u) {
+        echo '<a class="user-icon-link" href="' . h($base) . '/admin/login.php" '
+            . 'title="Wettkampfbüro" aria-label="Für das Wettkampfbüro anmelden">'
+            . ($mitTrenner ? '<span class="user-divider" aria-hidden="true"></span>' : '')
+            . $symbol . '</a>';
+        return;
+    }
+
+    $anzeige = (string) ($u['display_name'] ?: $u['username']);
+    echo '<details class="user-menu">';
+    echo '<summary class="user-icon-link" title="Angemeldet als ' . h($anzeige) . '" '
+        . 'aria-label="Konto von ' . h($anzeige) . '">'
+        . ($mitTrenner ? '<span class="user-divider" aria-hidden="true"></span>' : '')
+        . $symbol
+        . '<span class="sr-only">Konto</span>'
+        . '</summary>';
+    echo '<div class="user-pop">';
+    echo '<p class="user-who">' . h($anzeige) . '</p>';
+    echo '<p class="user-role small">'
+        . ((int) ($u['is_superadmin'] ?? 0) === 1 ? 'SuperAdmin' : 'Wettkampfleitung')
+        . (!empty($u['club_name']) ? ' · ' . h((string) $u['club_name']) : '')
+        . '</p>';
+    echo '<a class="user-item" href="' . h($base) . '/admin/profil.php">Profil</a>';
+    if ((int) ($u['is_superadmin'] ?? 0) === 1) {
+        echo '<a class="user-item" href="' . h($base) . '/admin/benutzer.php">Benutzer verwalten</a>';
+    }
+    echo '<form class="user-logout" method="post" action="' . h($base) . '/admin/logout.php">';
+    echo csrf_field();
+    echo '<button class="user-item" type="submit">Abmelden</button>';
+    echo '</form>';
+    echo '</div>';
+    echo '</details>';
+}
+
+/**
  * @param string $title
  * @param string $area  'public' oder 'admin'
  * @param string $here  Dateiname der aktiven Seite, für die Navigation
@@ -52,12 +109,7 @@ function page_start(string $title, string $area = 'public', string $here = '', b
         }
         if ($meta) { echo ' &nbsp;·&nbsp; ' . h(implode(' · ', $meta)); }
     }
-    if ($user) {
-        echo ($meta ? ' &nbsp;|&nbsp; ' : '') . h($user['display_name'] ?: $user['username']);
-        echo ' <form class="logout-form" method="post" action="' . $base . '/admin/logout.php">';
-        echo csrf_field();
-        echo '<button class="logout-link" type="submit">Abmelden</button></form>';
-    }
+    user_menu($base, $meta !== [] && !$ohneAbzeichen);
     echo '</div></div></header>';
 
     $links = $area === 'admin'
@@ -103,9 +155,10 @@ function page_start(string $title, string $area = 'public', string $here = '', b
             echo '<a href="../rangliste.php' . $contextQS . '">Rangliste ↗</a>';
         } elseif ($user) {
             echo '<a href="admin/index.php' . $contextQS . '">Wettkampfbüro</a>';
-        } else {
-            echo '<a href="admin/login.php">Anmelden</a>';
         }
+        // Ohne Konto steht hier nichts mehr. "Anmelden" direkt neben dem Punkt
+        // "Anmeldung" sah aus wie ein Tippfehler und wurde dauernd verwechselt;
+        // das Benutzersymbol oben rechts macht beides klar auseinander.
         echo '</div></nav>';
     }
 
