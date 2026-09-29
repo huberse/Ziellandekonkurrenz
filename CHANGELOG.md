@@ -10,6 +10,40 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.14
+
+- **Nach jedem Update eine rote Warnung, die nichts beanstandete.** Die Meldung
+  lautete: „1 Datei(en) sind stehen geblieben, weil sie von Hand geaendert oder
+  geschuetzt sind. Der Stand ist damit gemischt." Beides ist falsch.
+  - Geschuetzte Dateien wurden mit von Hand geaenderten in eine Summe gepackt.
+    `install.php` steht in der Bestandsliste, wird vom Knopf aber nie
+    ausgeliefert. Wer sie aelter hat, ist deshalb kein Ausnahmefall, sondern der
+    Normalfall – und der Knopf behauptete, die Datei sei von Hand geaendert.
+  - Jetzt bekommen geschuetzte Dateien eine eigene Gruppe. Steht eine davon
+    hinter dem Repository, steht in der Meldung: sie ist aelter und wurde
+    deshalb nicht mitgeschrieben, das ist so vorgesehen und kein Fehler. Die
+    Meldung bleibt gruen. Rot wird sie nur noch, wenn wirklich eine Datei von
+    Hand geaendert wurde oder ohne Eintrag in der Bestandsliste ist.
+  - Aufgetreten ist das seit **1.9.12** – damals kam `active = 1` in die
+    Anweisung von `install.php`, und seitdem wich die Datei auf jedem Server vom
+    Repository ab.
+
+- **`diagnose.php` meldete dauerhaft einen Fehler, den niemand beheben konnte.**
+  Es verglich alle Dateien der Bestandsliste, auch die geschuetzten. Ergebnis
+  auf jedem Server, der schon einmal aktualisiert hat: „FEHLT – 1 Datei(en)
+  weichen ab: install.php". Kein Update kann das beheben, weil es die Datei
+  grundsaetzlich nicht liefert. Jetzt stehen geschuetzte Dateien in einer eigenen
+  Zeile mit dem Hinweis, dass sie nie mitgeliefert werden – kein Fehler, nur
+  eine Auskunft. Von Hand geaenderte Dateien werden weiterhin als Fehler
+  gemeldet, mit Namen.
+
+- Geprueft an vier Faellen: alles aktuell (gruen), eine geschuetzte Datei
+  aelter (gruen, mit Erklaerung), eine Datei wirklich von Hand geaendert (rot,
+  mit Namen), und dass keine geschuetzte Datei unter den zu schreibenden
+  landet. Fuer `diagnose.php` zusaetzlich mit nachgebautem Zustand: geschuetzte
+  Datei aelter ergibt „OK“ mit Hinweis, von Hand geaenderte ergibt weiterhin
+  „FEHLT“.
+
 ## 1.9.13
 
 - **Aktualisierung und Benutzer verwalten stehen im Menü hinter dem Benutzersymbol**,

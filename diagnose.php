@@ -51,10 +51,21 @@ check('Fassung passt zur Bestandsliste', $bestand !== null && $bestand['version'
     'manifest.json nennt ' . ($bestand['version'] ?? '–') . ', der Code ist ' . APP_VERSION
     . '. Beim Entwickeln: php tools/manifest.php.');
 if ($bestand !== null) {
+    // Geschuetzte Dateien zaehlen getrennt: der Aktualisierungs-Knopf liefert
+    // sie grundsaetzlich nicht, eine aeltere Kopie ist dort also der Normalfall
+    // und kein Fehler. Vorher standen sie in derselben Liste wie von Hand
+    // geaenderte Dateien - der SuperAdmin bekam dauerhaft einen roten Befund,
+    // den es gar nicht gab und den er nicht beheben konnte.
     $abweichend = [];
+    $geschuetztAbweichend = [];
     foreach ($bestand['files'] as $pfad => $summe) {
         $da = is_file(__DIR__ . '/' . $pfad);
-        if (!$da || hash_file('sha256', __DIR__ . '/' . $pfad) !== $summe) {
+        if ($da && hash_file('sha256', __DIR__ . '/' . $pfad) === $summe) {
+            continue;
+        }
+        if (update_ist_geschuetzt($pfad)) {
+            $geschuetztAbweichend[] = $pfad;
+        } else {
             $abweichend[] = $pfad;
         }
     }
@@ -62,6 +73,16 @@ if ($bestand !== null) {
         count($abweichend) . ' Datei(en) weichen ab: ' . implode(', ', array_slice($abweichend, 0, 5))
         . (count($abweichend) > 5 ? ' …' : '')
         . '. Von Hand geaenderte Dateien bleiben beim Update stehen.', false);
+    if ($geschuetztAbweichend) {
+        $gruende = [];
+        foreach ($geschuetztAbweichend as $p) {
+            $gruende[] = $p . ' (' . (update_geschuetzt()[$p] ?? '') . ')';
+        }
+        check('Geschuetzte Dateien ohne Update', true,
+            count($geschuetztAbweichend) . ' geschuetzte Datei(en) sind aelter als im Repository: '
+            . implode(', ', $gruende) . '. Sie werden vom Update nie mitgeliefert, das ist so vorgesehen. '
+            . 'Wer sie braucht, nimmt sie aus dem Archiv der Fassung.', false);
+    }
 }
 echo "\n";
 
