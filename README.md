@@ -597,7 +597,24 @@ Wettbewerbe verändert werden. Ausgenommen ist die Absenderadresse der Anmeldebe
 gehört jedem Verein selbst und wird bewusst nicht vererbt.
 
 **Zum Regiocup.** Beim Anlegen lässt sich ankreuzen, ob der Wettbewerb zur Regiowertung des
-Jahres zählt; auf der Wettbewerbsseite schaltet der Knopf **🏆 Regiocup** das jederzeit um.
+Jahres zählt. Jederzeit änderbar auf der Seite **Wettbewerbe**, an der Karte des
+Wettbewerbs:
+
+| | |
+| --- | --- |
+| **Zum Regiocup hinzufügen** | der Wettbewerb zählt zur Regiorangliste seines Jahres |
+| **Aus dem Regiocup nehmen** | er zählt nicht mehr mit; jederzeit wieder hinein |
+
+Der Knopf zeigt den Zustand mit einem Zeichen: **🏆 Regiocup**, wenn er mitzählt,
+**○ Regiocup**, wenn nicht. Ist er im Regiocup, trägt die Karte zusätzlich das
+goldene Abzeichen **🏆 Regiocup** – man sieht es also ohne den Knopf lesen zu müssen.
+Vor dem Umschalten kommt eine Rückfrage wie beim Beenden und Löschen auch; **ohne
+Bestätigung ändert sich nichts**. Das war seit 1.9.4 nicht so: dort wirkte ein Verklicken
+sofort, und es gab keine Möglichkeit, den Zustand auf einen Blick zu sehen.
+
+Seit 1.9.11 liess sich ein Wettbewerb wieder herausnehmen. Vorher war der Umschalter
+kaputt: er konnte nur einschalten, weil `isset()` den Wert `0` als „Feld vorhanden"
+las und damit aus dem Herausnehmen ein Hineinmachen machte.
 Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen – ein „Erlencup 2027“ mit dem Datum
 19.06.2026 zählt also für 2026. Das ist Absicht: das Datum wird beim Kopieren eines
 Wettbewerbs ohnehin mitgenommen, während der Name frei ist. Wer einen Wettbewerb umbenennt,

@@ -10,6 +10,35 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.11
+
+- **Der Regiocup-Schalter liess sich nicht mehr zurücksetzen.** Ein Wettbewerb
+  liess sich in den Regiocup aufnehmen, aber nie wieder herausnehmen: der Knopf
+  blieb auf „nimmt mit", der Tooltip sagte dauerhaft „zum Entfernen klicken".
+  - Ursache: `isset($_POST['region'])` prüft, ob ein Feld vorhanden ist, und der
+    Wert `0` **ist** vorhanden – `isset('0')` ist wahr. Das versteckte Feld
+    schickte also die `0`, und der Server machte daraus trotzdem die `1`. Jetzt
+    wird der Wert selbst gelesen: `post('region', '0') === '1'`.
+  - Das war die einzige Stelle mit einem versteckten „0". Alle anderen
+    `isset($_POST[...])` sitzen auf Ankreuzfeldern, die gar nichts schicken,
+    wenn sie aus sind – dort ist `isset` genau richtig.
+  - Geprüft mit sechs Klicks hintereinander: der Zustand schaltet jedes Mal
+    wirklich um, und Anzeige und Datenbank sagen dasselbe.
+
+- **Der Regiocup-Zustand steht jetzt auf der Karte**, als goldenes Abzeichen
+  neben „offen" oder „beendet". Vorher stand er nur im Knopftext, zwischen fünf
+  anderen Knöpfen.
+- **Vor dem Umschalten kommt eine Rückfrage**, wie beim Beenden und Löschen auch;
+  **ohne Bestätigung ändert sich nichts**. Vorher wirkte ein Verklicken sofort.
+  Damit ist auch der blasse Tooltip weg: er sagte nur „zum Entfernen klicken" und
+  war ausser beim Überfahren sichtbar, auf dem Telefon gar nicht. Jetzt steht im
+  Dialog, was passiert – „Wettbewerb X aus dem Regiocup nehmen? Er zählt dann nicht
+  mehr zur Regiorangliste seines Jahres. Wieder aufnehmen geht jederzeit."
+- Die Trophäe bleibt, wo sie war: 🏆 am Knopf und als Abzeichen auf der Karte.
+  Ich hatte sie entfernt, weil in **meinen** Bildern ein leeres Kästchen stand –
+  in meinem Container ist keine Emoji-Schrift installiert (`fc-list | grep -ci
+  emoji` ergibt 0). Das war ein Mangel meiner Prüfumgebung, nicht der Seite.
+
 ## 1.9.10
 
 - **Ein Benutzersymbol oben rechts**, wie auf den üblichen Seiten. Ohne Konto

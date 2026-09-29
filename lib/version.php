@@ -21,8 +21,8 @@ declare(strict_types=1);
 // GitHub eine veraltete Bestandsliste und ein frisches Archiv liefern, ohne
 // dass der Versionsvergleich es merkt - der Knopf scheitert dann an einer
 // scheinbar unbeteiligten Datei. Nach dem Hochladen deshalb keine weitere
-// Aenderung mit derselben Nummer; notfalls auf 1.9.11 hochzaehlen.
-const APP_VERSION = '1.9.10';
+// Aenderung mit derselben Nummer; notfalls auf 1.9.12 hochzaehlen.
+const APP_VERSION = '1.9.11';
 
 // Quelle der Aktualisierungen. Feste Angaben, keine Eingabe aus dem Formular:
 // sonst wuerde die Seite zur Bruecke fuer beliebige Ziele.

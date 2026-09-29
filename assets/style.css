@@ -771,6 +771,16 @@ legend { font-weight: 600; padding: 0 6px; }
 .tag.live { background: var(--signal-bg); color: #8a6208; border-color: #e4c77a; }
 .tag.off  { background: var(--rot-bg); color: var(--rot); border-color: #e3b5b2; }
 .tag.on   { background: #eaf4ee; color: var(--gruen); border-color: #aacfba; }
+/* Regiocup: die Trophäe unterscheidet den Wettbewerb auf einen Blick von
+   den uebrigen, ohne dass man die Knoepfe am Fuss lesen muss. */
+.tag.trophy {
+  background: var(--signal-bg);
+  color: #8a6208;
+  border-color: #e4c77a;
+}
+
+/* Mehrere Abzeichen nebeneinander auf der Wettbewerbskarte. */
+.card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .stat-strip { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
 .stat { flex: 1 1 150px; background: var(--surface); padding: 14px 16px; }
