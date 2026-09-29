@@ -447,22 +447,31 @@ function update_changelog_vorhanden(array $abschnitte, ?string $von, string $bis
  *   geaendert Datei weicht vom installierten Stand ab: bleibt stehen
  *   unbekannt Datei gibt es hier, stand aber in keiner Bestandsliste
  *   weg       Datei wird von der neuen Version nicht mehr gebraucht
- *   von_hand  geschuetzte Datei, die sich geaendert hat: selbst uebernehmen
+ *   geschuetzt geschuetzte Datei, die der Knopf nie anfasst. Steht sie nicht in
+ *             der Liste, stimmt sie mit dem Repository ueberein. Weicht sie ab,
+ *             ist das kein Fehler und kein gemischter Stand: geschuetzt heisst
+ *             ausdruecklich "gehoert dem Server", nicht "von Hand veraendert".
+ *             Sie steht in einer eigenen Gruppe, damit die Meldung nicht etwas
+ *             behauptet, was nicht stimmt, und nicht rot wird fuer etwas, das
+ *             genau so gedacht ist.
  */
 function update_plan(?array $alt, array $neu): array
 {
     $wurzel = update_root();
     $plan = ['ersetzen' => [], 'neu' => [], 'gleich' => [], 'geaendert' => [],
-             'unbekannt' => [], 'weg' => [], 'von_hand' => []];
+             'unbekannt' => [], 'weg' => [], 'geschuetzt' => []];
 
     foreach ($neu['files'] as $pfad => $summe) {
         $da = is_file($wurzel . '/' . $pfad);
         $ist = $da ? @hash_file('sha256', $wurzel . '/' . $pfad) : null;
 
         if (update_ist_geschuetzt($pfad)) {
-            if (!$da || $ist !== $summe) {
-                $plan['von_hand'][$pfad] = ['server' => $ist, 'grund' => $da ? 'geaendert' : 'fehlt'];
-            }
+            // Bewusst nicht in die Liste: geschuetzte Dateien gehoeren dem
+            // Server. Steht sie in der Bestandsliste, wird sie nur vermerkt -
+            // und zwar mit der Angabe, ob sie von der im Repository
+            // abweicht. Letzteres ist kein Fehler, sondern der erwartete
+            // Fall bei einer Datei, die der Knopf nicht liefern darf.
+            $plan['geschuetzt'][$pfad] = ['server' => $ist, 'abweichend' => $ist !== $summe];
             continue;
         }
         if ($da && $ist === $summe) {
@@ -517,8 +526,16 @@ function update_plan_beschreibung(array $plan): string
     if ($plan['weg']) {
         $teile[] = count($plan['weg']) . ' nicht mehr gebraucht';
     }
-    if ($plan['von_hand']) {
-        $teile[] = count($plan['von_hand']) . ' geschuetzt';
+    if ($plan['geschuetzt']) {
+        $abweichend = 0;
+        foreach ($plan['geschuetzt'] as $eintrag) {
+            if (!empty($eintrag['abweichend'])) {
+                $abweichend++;
+            }
+        }
+        $teile[] = $abweichend > 0
+            ? count($plan['geschuetzt']) . ' geschuetzt, davon ' . $abweichend . ' ohne Update erreichbar'
+            : count($plan['geschuetzt']) . ' geschuetzt';
     }
     return $teile ? implode(', ', $teile) : 'nichts zu tun';
 }

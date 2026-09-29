@@ -248,6 +248,26 @@ Die Sicherungen bleiben liegen, damit sich ein Update mit **Neueste Sicherung zu
 rückgängig machen lässt. `.update/` steht in `.gitignore` und sperrt sich selbst gegen direkten
 Abruf, sowohl über die Regel in `.htaccess` als auch über eine eigene Sperrdatei im Verzeichnis.
 
+### Geschützte Dateien: was davon zu halten ist
+
+| Datei | Grund | Wird mitgeliefert |
+| --- | --- | --- |
+| `config.php` | Zugangsdaten | nein |
+| `.htaccess`, `.gitignore` | Serveranweisungen, Repository-Regeln | nein |
+| `assets/logo.png`, `assets/logo_nordwest.jpg` | Vereinslogo | nein |
+| `install.php`, `config.sample.php` | nur zur Ersteinrichtung | nein |
+
+Steht eine dieser Dateien in der Bestandsliste und ist auf dem Server älter als
+im Repository, meldet das **keinen Fehler**. Sie gehört dem Server, und der Knopf
+darf sie nicht ersetzen – das ist so vorgesehen. `diagnose.php` weist darauf als
+eigene Zeile hin, statt es als Abweichung zu führen; wer eine davon wirklich
+braucht, nimmt sie aus dem Archiv der Fassung.
+
+Seit 1.9.12 weicht `install.php` auf jedem bereits aktualisierten Server vom
+Repository ab. Vorher stand sie in der Meldung nach dem Update als „von Hand
+geändert“ und in `diagnose.php` als Fehler – beides war falsch und nicht
+behebbar.
+
 ### Die Datenbank bleibt unberührt
 
 Der Knopf schreibt nur Programmdateien. Ändert eine neue Fassung auch das Datenbankschema, meldet

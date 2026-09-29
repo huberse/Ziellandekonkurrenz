@@ -42,14 +42,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (update_plan_umfang($plan) === 0) {
                 flash('Es gibt nichts zu aktualisieren.');
             } else {
-                $stehen = count($plan['geaendert']) + count($plan['unbekannt']) + count($plan['von_hand']);
+                // Nur von Hand geaenderte und unbekannte Dateien sind ein
+                // Problem. Geschuetzte Dateien sind es nicht: sie gehoeren dem
+                // Server, und der Knopf darf sie grundsaetzlich nicht liefern.
+                // Vorher standen beide in einer Summe, wodurch jede Installation
+                // nach jedem Update eine rote Meldung bekam, die nichts
+                // beanstandete.
+                $stehen = count($plan['geaendert']) + count($plan['unbekannt']);
+                $geschuetztAbweichend = 0;
+                foreach ($plan['geschuetzt'] as $eintrag) {
+                    if (!empty($eintrag['abweichend'])) {
+                        $geschuetztAbweichend++;
+                    }
+                }
                 $bericht = update_ausfuehren($plan, $remote['manifest']);
                 if ($bericht['ok']) {
                     $zahl = count($bericht['ersetzen']) + count($bericht['neu']);
                     $text = 'Fassung ' . $bericht['version'] . ' ist eingespielt, ' . $zahl . ' Datei(en) geschrieben.';
                     if ($stehen > 0) {
                         $text .= ' ' . $stehen . ' Datei(en) sind stehen geblieben, weil sie von Hand geaendert '
-                              . 'oder geschuetzt sind. Der Stand ist damit gemischt, siehe die Liste unten.';
+                              . 'sind. Der Stand ist damit gemischt, siehe die Liste unten.';
+                    } elseif ($geschuetztAbweichend > 0) {
+                        $text .= ' ' . $geschuetztAbweichend . ' geschuetzte Datei(en) sind aelter als im '
+                              . 'Repository und wurden deshalb nicht mitgeschrieben; das ist so vorgesehen '
+                              . 'und kein Fehler.';
                     }
                     if (schema_hinter_programm()) {
                         $text .= ' Danach bitte upgrade.php aufrufen.';
@@ -107,17 +123,14 @@ function update_zeile_text(string $art, string $pfad, $wert, ?string $altVersion
             return ['bleibt stehen', 'von Hand geaendert, letzte Fassung waere ' . substr($wert['erwartet'], 0, 8)];
         case 'unbekannt':
             return ['bleibt stehen', 'stand in keiner Bestandsliste, letzte Fassung waere ' . substr($wert, 0, 8)];
-        case 'von_hand':
+        case 'geschuetzt':
             $schutz = update_geschuetzt()[$pfad] ?? '';
-            if ($wert['grund'] === 'fehlt') {
-                return ['bleibt stehen', trim($schutz . ', fehlt auf diesem Server')];
+            if (empty($wert['abweichend'])) {
+                return ['bleibt stehen', $schutz . ', stimmt mit dem Repository ueberein'];
             }
-            if ($schutz !== '') {
-                // Geschuetzt heisst nicht "von Hand geaendert": bei install.php
-                // und config.sample.php waere das eine falsche Erklaerung.
-                return ['bleibt stehen', $schutz . ', wird beim Update nicht mitgeliefert'];
-            }
-            return ['bleibt stehen', 'von Hand geaendert'];
+            // Kein "von Hand geaendert": der Knopf liefert diese Datei nie.
+            // Ehrlicher ist, woran sie liegt und was daraus folgt.
+            return ['bleibt stehen', $schutz . ', aelter als im Repository - vom Update nicht erreichbar'];
         case 'weg':
             return ['bleibt stehen', 'die neue Fassung braucht sie nicht mehr'];
     }
@@ -203,16 +216,18 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
 <?php // Dateien, die der Knopf nicht anfasst. Das bleibt eine Liste mit
       // Dateinamen: hier muss der SuperAdmin wissen, welche Datei er von Hand
       // uebernehmen muss. ?>
-<?php if ($plan !== null && ($plan['von_hand'] || $plan['geaendert'] || $plan['unbekannt'] || $plan['weg'])): ?>
+<?php if ($plan !== null && ($plan['geschuetzt'] || $plan['geaendert'] || $plan['unbekannt'] || $plan['weg'])): ?>
 <div class="panel">
     <h3>Dateien, die stehen bleiben</h3>
-    <p class="hint">Diese Dateien werden von Hand geaendert, sind geschuetzt oder werden
-        nicht mehr gebraucht. Der Knopf fasst sie nicht an.</p>
+    <p class="hint">Diese Dateien sind geschuetzt, von Hand geaendert oder werden nicht mehr
+        gebraucht. Der Knopf fasst sie nicht an. <b>Geschuetzt heisst nicht „von Hand
+        geaendert"</b>: bei install.php und config.sample.php waere das eine falsche
+        Erklaerung - sie gehoeren dem Server und werden nie mitgeliefert.</p>
     <table class="data dense">
         <thead><tr><th>Datei</th><th>Grund</th></tr></thead>
         <tbody>
     <?php
-    $arten = ['von_hand' => '', 'weg' => '', 'geaendert' => '', 'unbekannt' => ''];
+    $arten = ['geschuetzt' => '', 'weg' => '', 'geaendert' => '', 'unbekannt' => ''];
     foreach (array_keys($arten) as $art):
         foreach ($plan[$art] as $pfad => $wert):
             [$text, $grund] = update_zeile_text($art, $pfad, $wert, $versionHier);
