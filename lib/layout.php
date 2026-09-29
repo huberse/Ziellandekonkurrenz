@@ -170,7 +170,14 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     echo '<main' . ($wide ? ' class="wide"' : '') . '>';
 
     foreach (flash_take() as $f) {
-        echo '<div class="flash ' . h($f['type']) . '">' . h($f['text']) . '</div>';
+        echo '<div class="flash ' . h($f['type']) . '">' . h($f['text']);
+        if (!empty($f['link']['text']) && !empty($f['link']['href'])) {
+            // Beide Felder einzeln maskiert. So bleibt die Meldung frei von
+            // HTML, bekommt aber einen klickbaren Weg.
+            echo ' <a class="flash-link" href="' . h((string) $f['link']['href']) . '">'
+                . h((string) $f['link']['text']) . '</a>';
+        }
+        echo '</div>';
     }
 }
 

@@ -215,10 +215,22 @@ function site_url(string $path = ''): string
 
 /* ---------- Flash-Meldungen ---------- */
 
-function flash(string $text, string $type = 'ok'): void
+/**
+ * Kurze Meldung fuer die naechste Seite.
+ *
+ * Der Text wird beim Ausgeben maskiert, deshalb kann kein HTML hinein. Wer
+ * einen Link anhaengen will, gibt ihn als $link an: ['text' => ..., 'href' =>
+ * ...]. Beide Felder werden einzeln maskiert und als Verweis gebaut - so kann
+ * auch hier nichts eingeschleust werden.
+ */
+function flash(string $text, string $type = 'ok', array $link = []): void
 {
     start_session();
-    $_SESSION['flash'][] = ['text' => $text, 'type' => $type];
+    $eintrag = ['text' => $text, 'type' => $type];
+    if (!empty($link['text']) && !empty($link['href'])) {
+        $eintrag['link'] = ['text' => (string) $link['text'], 'href' => (string) $link['href']];
+    }
+    $_SESSION['flash'][] = $eintrag;
 }
 
 function flash_take(): array

@@ -42,10 +42,13 @@ if ($gemerkt !== null) {
         $text .= ' ' . (int) $gemerkt['geschuetzt'] . ' geschuetzte Datei(en) sind aelter als im Repository '
               . 'und wurden deshalb nicht mitgeschrieben; das ist so vorgesehen und kein Fehler.';
     }
+    $link = [];
     if (!empty($gemerkt['migration'])) {
-        $text .= ' Danach bitte upgrade.php aufrufen.';
+        // Kein blosses "bitte aufrufen": der Weg ist einen Klick entfernt.
+        // upgrade.php liegt im Hauptverzeichnis, diese Seite in admin/.
+        $link = ['text' => 'Jetzt upgrade.php aufrufen', 'href' => '../upgrade.php'];
     }
-    flash($text, (int) $gemerkt['stehen'] > 0 ? 'err' : 'ok');
+    flash($text, (int) $gemerkt['stehen'] > 0 ? 'err' : 'ok', $link);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
