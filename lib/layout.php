@@ -53,6 +53,11 @@ function user_menu(string $base, bool $mitTrenner = false): void
     echo '<a class="user-item" href="' . h($base) . '/admin/profil.php">Profil</a>';
     if ((int) ($u['is_superadmin'] ?? 0) === 1) {
         echo '<a class="user-item" href="' . h($base) . '/admin/benutzer.php">Benutzer verwalten</a>';
+        // Beide Punkte stehen hier und nicht mehr in der Navigationsleiste. Sie
+        // betreffen nur den SuperAdmin und gehoeren deshalb nicht in eine Leiste,
+        // die alle Konten sehen - dort nahmen sie zwei Plaetze fuer einen Bruchteil
+        // der Benutzer ein.
+        echo '<a class="user-item" href="' . h($base) . '/admin/aktualisieren.php">Aktualisierung</a>';
     }
     echo '<form class="user-logout" method="post" action="' . h($base) . '/admin/logout.php">';
     echo csrf_field();
@@ -132,13 +137,9 @@ function page_start(string $title, string $area = 'public', string $here = '', b
             'anmeldung.php' => 'Anmeldung',
         ];
 
-    // Die Benutzerverwaltung ist dem SuperAdmin vorbehalten; für alle anderen
-    // Konten gehört der Punkt nicht in die Leiste. Dasselbe gilt für die
-    // Aktualisierung, denn nur der SuperAdmin darf Programme Dateien austauschen.
-    if ($area === 'admin' && is_superadmin()) {
-        $links['benutzer.php'] = 'Benutzer';
-        $links['aktualisieren.php'] = 'Aktualisierung';
-    }
+    // Benutzerverwaltung und Aktualisierung sind dem SuperAdmin vorbehalten und
+    // stehen deshalb im Benutzermenü oben rechts, nicht hier. In der Leiste
+    // sassen sie nur bei einem Teil der Konten und nahmen zwei Plaetze ein.
 
     if ($area !== 'admin' && !setting_bool('club_ranking_enabled', true)) {
         unset($links['vereinswertung.php']);

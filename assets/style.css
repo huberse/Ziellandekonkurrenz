@@ -219,7 +219,14 @@ table.kv th, table.kv td { border-top: 0; }
 
 .nav a {
   display: block;
-  padding: 12px 14px;
+  /* Waagerechter Innenabstand 9px statt 14px. Nach dem Wegfall von
+     "Benutzer" und "Aktualisierung" fehlten der Leiste noch 7 Pixel: sie
+     umbrach, und "Rangliste" rutschte auf eine zweite Zeile. 5 Pixel je Seite
+     an allen zehn Eintraegen sind rund 50 Pixel Luft. Ohne Puffer entscheidet
+     die Nachkommastelle der Schrift - und die unterscheidet sich je nach
+     Betriebssystem, der Waagerechte ist hier nur knapp ueber der Grenze
+     gelandet und deshalb umgebrochen. */
+  padding: 12px 9px;
   text-decoration: none;
   color: var(--ink-soft);
   font-size: 0.94rem;
@@ -433,11 +440,19 @@ table.data th.num, table.data th.mid { font-family: inherit; }
   padding: 0 6px;
   background: transparent;
   border-color: transparent;
+  /* Muss schrumpfen duerfen. Die Grundregel setzt 220px, damit das Feld auf
+     breiten Karten nicht zu schmal wird; zusammen mit dem Knopf (99px) und
+     dem Abstand waren das 325px Mindestbreite, eine Karte bietet aber nur
+     rund 291px. Auf dem iPad im Querformat ragte der Knopf "Speichern" dann
+     6px ueber den Bildschirmrand. */
+  min-width: 0;
 }
 .competition-card .competition-rename-form input[type=text]:hover { border-color: var(--line); }
 .competition-card .competition-rename-form input[type=text]:focus { background: #fff; border-color: var(--blau); }
-.competition-card .competition-rename-form .btn { visibility: hidden; }
-.competition-card .competition-rename-form:focus-within .btn { visibility: visible; }
+/* Ohne "display: none" waere der Knopf nur unsichtbar, nicht weg - und
+   nahm dem Namensfeld trotzdem 99px plus Abstand weg. */
+.competition-card .competition-rename-form .btn { display: none; }
+.competition-card .competition-rename-form:focus-within .btn { display: inline-flex; }
 
 /* ---------- Wettbewerb waehlen: Hauptelement der Startseite ----------
 

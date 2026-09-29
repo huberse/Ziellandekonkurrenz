@@ -291,6 +291,26 @@ Zugleich mit `manifest.json` wird `APP_VERSION` in `lib/version.php` **von Hand*
 Skript liest die Fassung nur und schreibt sie nicht. Für jede veröffentlichte Änderung gehören
 `APP_VERSION` und ein Abschnitt in `CHANGELOG.md` zusammen.
 
+### Wie die Fassungsnummer zu wählen ist
+
+**Ab 2.0.0** gilt diese Regel. Sie ist Absicht, keine Empfehlung: sie macht aus einer Fassung
+ablesbar, ob beim Aktualisieren etwas zu beachten ist.
+
+| Art der Änderung | zweite Stelle | dritte Stelle | Beispiel |
+| --- | --- | --- | --- |
+| nur Dateien (Oberfläche, Texte, Regeln ohne Speicherung) | bleibt | **steigt** | 2.0.0 → 2.0.1 → 2.0.2 |
+| Datenbank ändert sich (neue Spalte, neuer Vorgabewert, neue Tabelle) | **steigt** | fällt auf 0 | 2.0.2 → 2.1.0 |
+
+Der Grund für den Sprung: der Aktualisierungs-Knopf schreibt nur Programmdateien. Ändert sich
+das Schema, bleibt `upgrade.php` zu tun. Steht das nicht schon in der Versionsnummer, sieht man
+es erst, wenn eine Seite einen Datenbankfehler zeigt. **Vorher `Aktualisierungsseite`, dann
+`upgrade.php`.**
+
+Bis einschließlich 1.9.13 wurde durchgehend die dritte Stelle gesteigert, auch bei
+Datenbankänderungen – 1.9.12 etwa änderte den Vorgabewert von `users.active`. Diese Nummern
+bleiben, wie sie sind; rückwärts umzubenennen würde veröffentlichte Fassungen und ihre
+Anschreibungen in der Historie verdrehen.
+
 Wird die Strafpunktregel geändert, gehört dazu:
 
 ```
@@ -387,8 +407,8 @@ Es gibt genau zwei Rollen:
 
 Die Zugehörigkeit zum Verein entscheidet, wer welchen Wettbewerb steuern darf. Ein Benutzer
 kann **nicht** anlegen, ändern, sperren oder löschen – auch nicht mit einem abgefangenen oder
-manipulierten Aufruf. Die Seite **Benutzer** ist für ihn weder erreichbar noch in der Navigation
-zu sehen.
+manipulierten Aufruf. Die Seite **Benutzer** ist für ihn weder erreichbar noch zu sehen – sie
+steht nur im Menü des Benutzersymbols, und dort erscheint der Punkt nur beim SuperAdmin.
 
 Unter **Benutzer** kann der SuperAdmin je Konto:
 
@@ -454,6 +474,11 @@ Symbol nimmt beiden die Verwechslungsmöglichkeit.
 Das Passwort stand früher unter *Einstellungen* und war dort schwer zu finden – wer dort
 Strafpunkte ändern wollte, lief an einem Passwortfeld vorbei und umgekehrt. Es steht jetzt im
 Profil, erreichbar über das Benutzersymbol.
+
+**Benutzer verwalten** und **Aktualisierung** sind im selben Menü, beim SuperAdmin, und
+stehen nicht mehr in der Navigationsleiste. Beide betreffen nur den SuperAdmin; in der
+Leiste, die alle Konten sehen, nahmen sie zwei Plätze für einen Bruchteil der Benutzer ein.
+Seit 1.9.13 hat die Leiste deshalb wieder eine ruhige Zeile.
 
 Unter *Profil* steht ein eigener Block **Eigene Einstellungen**, der noch leer ist. Er ist für
 alles vorgesehen, was nur die Person betrifft, zum Beispiel welche Vereine und Wettbewerbe man
@@ -773,6 +798,27 @@ Datenbank, sondern über `lib/`.
 ## Gestaltung
 
 Farben und Anordnung stehen in `assets/style.css`, Name und Logo der Plattform in `config.php`.
+
+### Für welche Geräte
+
+**Laptop und iPad.** Daran wird gebaut und daran wird geprüft. Ein Smartphone ist kein Ziel –
+am Wettbewerbsplatz steht ein Laptop oder ein iPad, und für die Bedienung am Telefon ist
+bewusst nichts vorgesehen.
+
+Geprüfte Breiten, jeweils über die hauptgebrauchten Seiten:
+
+| Gerät | Breite |
+| --- | --- |
+| iPad mini, Hochformat | 768 px |
+| iPad Air 10,9", Hochformat | 810 px |
+| iPad Pro 11", Hochformat | 834 px |
+| iPad Pro 11", Querformat | 1194 px |
+| iPad, Querformat | 1024 px |
+| Laptop | 1280 bis 1920 px |
+
+Geprüft wird auf **Querlauf**: die Seite darf nie breiter sein als der Bildschirm, sonst muss
+man sie seitlich ziehen. Wer eine Tabelle breit baut, legt sie in
+`<div class="table-scroll">` – so weitert sich die Tabelle, nicht die Seite.
 
 Alle Bedienelemente teilen sich drei Höhen, damit Knöpfe, Eingabefelder und Auswahllisten in
 einer Zeile bündig stehen:
