@@ -64,7 +64,7 @@ a:hover { color: var(--ink); }
   display: flex;
   flex-wrap: wrap;
   gap: 8px 24px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
 }
 
@@ -92,7 +92,104 @@ a:hover { color: var(--ink); }
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
 
-.top .meta { color: #a9b6c2; font-size: 0.875rem; }
+.top .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  margin-left: auto;
+  color: #a9b6c2;
+  font-size: 0.875rem;
+}
+/* ---------- Benutzersymbol oben rechts ----------
+
+   Ohne JavaScript: <details> öffnet das Menü, und die Tastatur kommt mit.
+   Ein Klick auf den Knopf ist das Ziel, nicht das Symbol darin - deshalb ist
+   die Fläche des Symbols mit dem Klickbereich gleich. */
+
+.user-icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  margin: -6px 0 -6px auto;
+  color: #cfe0ef;
+  text-decoration: none;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+.user-icon-link:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.user-menu > summary::-webkit-details-marker { display: none; }
+.user-menu[open] > summary { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.user-icon { display: block; }
+
+.user-divider {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  margin-right: 4px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.user-menu { position: relative; }
+
+.user-pop {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 240px;
+  padding: 10px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(20, 36, 51, 0.18);
+}
+.user-who { margin: 0 0 2px; font-weight: 600; }
+.user-role { margin: 0 0 8px; color: var(--ink-soft); }
+.user-item {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.top .user-pop .user-item,
+.top .user-pop .user-item:hover {
+  color: var(--ink);
+  text-decoration: none;
+  background: none;
+}
+.top .user-pop .user-item:hover { background: var(--paper); }
+.user-logout { margin: 6px 0 0; padding-top: 6px; border-top: 1px solid var(--line-2); }
+
+/* Nur für Screenreader: Text, den man nicht sieht, aber vorgelesen bekommt. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Zwei Spalten ohne Rahmen für Angaben zum eigenen Konto. */
+table.kv th { width: 34%; text-align: left; font-weight: 600; }
+table.kv td { width: auto; }
+table.kv th, table.kv td { border-top: 0; }
+
 .competition-badge {
   display: inline-block;
   padding: 2px 9px;
@@ -105,17 +202,6 @@ a:hover { color: var(--ink); }
 }
 .top a { color: #cfe0ef; text-decoration: none; }
 .top a:hover { color: #fff; text-decoration: underline; }
-.logout-form { display: inline; }
-.logout-link {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #cfe0ef;
-  font: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-.logout-link:hover { color: #fff; text-decoration: underline; }
 
 .nav {
   background: var(--surface);

@@ -22,6 +22,7 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
 - [Ablauf an einem Wettbewerbstag](#ablauf-an-einem-wettbewerbstag)
 - [Die Startseite](#die-startseite)
 - [Benutzer und Rechte](#benutzer-und-rechte)
+- [Anmelden und das eigene Profil](#anmelden-und-das-eigene-profil)
 - [Wertung](#wertung)
 - [Einstellungen](#einstellungen)
 - [Wettbewerbe](#wettbewerbe)
@@ -382,7 +383,7 @@ Es gibt genau zwei Rollen:
 | Rolle | Darf |
 | --- | --- |
 | **SuperAdmin** | alles, was ein Benutzer darf, **plus** die Benutzerverwaltung – und **alle** Vereine sehen |
-| **Benutzer** | die Wettbewerbe **seines Vereins** steuern: Erfassung, Startliste, Durchgänge, Vereine, Modelltypen, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – und das eigene Passwort ändern |
+| **Benutzer** | die Wettbewerbe **seines Vereins** steuern: Erfassung, Startliste, Durchgänge, Vereine, Modelltypen, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – dazu das [eigene Profil](#anmelden-und-das-eigene-profil) mit Anzeigename und Passwort |
 
 Die Zugehörigkeit zum Verein entscheidet, wer welchen Wettbewerb steuern darf. Ein Benutzer
 kann **nicht** anlegen, ändern, sperren oder löschen – auch nicht mit einem abgefangenen oder
@@ -423,6 +424,34 @@ Bei der Einrichtung wird das erste Konto als SuperAdmin angelegt. Bei einer best
 Installation wird das **älteste** Konto zum SuperAdmin, damit die Benutzerverwaltung erreichbar
 bleibt. Ab dann kann der SuperAdmin weitere SuperAdmins anlegen, etwa wenn ein zweiter Verein
 mit eigenem Zugang mitarbeitet.
+
+## Anmelden und das eigene Profil
+
+Oben rechts in der Kopfzeile steht ein **Benutzersymbol**, wie man es von den grossen Seiten
+kennt. Ohne Konto ist es ein schlichter Verweis auf die Anmeldung; mit Konto öffnet es ein Menü
+mit dem Namen, der Rolle, dem Profil und dem Abmelden. Das Menü ist ein `<details>` – es geht
+ohne JavaScript auf und lässt sich mit der Tastaste bedienen.
+
+Der Knopf **Anmelden** in der Navigationsleiste ist dafür weg. Er stand direkt neben dem Punkt
+**Anmeldung** und wurde dauernd verwechselt – ein Buchstabe Unterschied, ein Klick daneben. Das
+Symbol nimmt beiden die Verwechslungsmöglichkeit.
+
+**Was wo hingehört, ist jetzt getrennt:**
+
+| Seite | Gehört dorthin |
+| --- | --- |
+| **Profil** (`admin/profil.php`) | alles, was die Person betrifft: Anzeigename, Passwort, und später eigene Einstellungen |
+| **Einstellungen** | alles, was den **Wettbewerb** betrifft: Strafpunkte, Anmeldung, Freischaltung |
+| **Benutzer** | nur der SuperAdmin: fremde Konten anlegen, Rolle, Verein, Sperre |
+
+Das Passwort stand früher unter *Einstellungen* und war dort schwer zu finden – wer dort
+Strafpunkte ändern wollte, lief an einem Passwortfeld vorbei und umgekehrt. Es steht jetzt im
+Profil, erreichbar über das Benutzersymbol.
+
+Unter *Profil* steht ein eigener Block **Eigene Einstellungen**, der noch leer ist. Er ist für
+alles vorgesehen, was nur die Person betrifft, zum Beispiel welche Vereine und Wettbewerbe man
+ohne Umweg sehen möchte. Wenn dort etwas hinzukommt, gehört es dorthin und nicht in die
+Wettbewerbseinstellungen.
 
 ## Wertung
 
@@ -683,6 +712,7 @@ admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
 admin/benutzer.php     Benutzerverwaltung, nur für den SuperAdmin
 admin/aktualisieren.php Aktualisierung von GitHub, nur für den SuperAdmin
+admin/profil.php      Eigenes Profil: Anzeigename, Passwort, eigene Einstellungen
 admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 

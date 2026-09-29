@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
-$me = require_login();
+require_login();
 $competition = resolve_competition_param(competition_request_param(), true);
 // Startliste, Resultate und Einstellungen gehören genau diesem Wettbewerb.
 // Die Prüfung steht hier und nicht versteckt in resolve_competition_param(),
@@ -117,23 +117,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($pdo->inTransaction()) { $pdo->rollBack(); }
             settings(true);
             flash('Die Einstellungen konnten nicht gespeichert werden.', 'err');
-        }
-        redirect('einstellungen.php' . $competitionQS);
-    }
-
-    if ($action === 'password') {
-        $alt = post('old_password');
-        $neu = post('new_password');
-        if (!password_verify($alt, $me['password_hash'])) {
-            flash('Das bisherige Passwort stimmt nicht.', 'err');
-        } elseif (strlen($neu) < 8) {
-            flash('Das neue Passwort braucht mindestens 8 Zeichen.', 'err');
-        } elseif ($neu !== post('new_password2')) {
-            flash('Die beiden neuen Passwörter stimmen nicht überein.', 'err');
-        } else {
-            $st = db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
-            $st->execute([password_hash($neu, PASSWORD_DEFAULT), $me['id']]);
-            flash('Passwort geändert.', 'ok');
         }
         redirect('einstellungen.php' . $competitionQS);
     }
@@ -353,33 +336,20 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
     </fieldset>
 </form>
 
-<div class="split" style="margin-top:24px">
-    <div class="panel">
-        <h3 style="margin-top:0">Passwort ändern</h3>
-        <form method="post">
-            <?= csrf_field() ?>
-            <input type="hidden" name="action" value="password">
-            <div class="field"><label for="op">Bisheriges Passwort</label><input type="password" id="op" name="old_password" autocomplete="current-password"></div>
-            <div class="field"><label for="np">Neues Passwort</label><input type="password" id="np" name="new_password" autocomplete="new-password"></div>
-            <div class="field"><label for="np2">Neues Passwort wiederholen</label><input type="password" id="np2" name="new_password2" autocomplete="new-password"></div>
-            <button class="btn ghost" type="submit">Passwort ändern</button>
-        </form>
-    </div>
-
-    <div class="panel">
-        <h3 style="margin-top:0">Konten</h3>
-        <p class="lead"><?= count($users) . (count($users) === 1 ? ' Konto' : ' Konten') ?>:
-            <?= h(implode(', ', array_column($users, 'username'))) ?></p>
-        <?php if ($isAdmin): ?>
-            <p class="lead">Als SuperAdmin pflegst du die Konten unter
-                <a href="benutzer.php">Benutzer</a>: anlegen, Anzeigename, Rolle, Sperre, Passwort
-                und Löschen.</p>
-        <?php else: ?>
-            <p class="lead">Neue Konten, Rollen und Sperren nimmt der SuperAdmin vor. Andere Rechte
-                brauchst du nicht: Du kannst den gesamten Wettbewerb steuern und Dein Passwort
-                oben ändern.</p>
-        <?php endif; ?>
-    </div>
+<div class="panel" style="margin-top:24px">
+    <h3 style="margin-top:0">Konten</h3>
+    <p class="lead"><?= count($users) . (count($users) === 1 ? ' Konto' : ' Konten') ?>:
+        <?= h(implode(', ', array_column($users, 'username'))) ?></p>
+    <?php if ($isAdmin): ?>
+        <p class="lead">Als SuperAdmin pflegst du die Konten unter
+            <a href="benutzer.php">Benutzer</a>: anlegen, Anzeigename, Rolle, Sperre, Passwort
+            und Löschen.</p>
+    <?php else: ?>
+        <p class="lead">Neue Konten, Rollen und Sperren nimmt der SuperAdmin vor. Andere Rechte
+            brauchst du nicht: Du kannst den gesamten Wettbewerb steuern. Dein eigenes Passwort
+            änderst du im <a href="profil.php">Profil</a>, das findest du über das Benutzersymbol
+            oben rechts.</p>
+    <?php endif; ?>
 </div>
 
 <?php page_end();
