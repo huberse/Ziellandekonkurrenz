@@ -77,7 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Ein Wettbewerb kann nachträglich in den Regiocup aufgenommen oder
         // daraus genommen werden - das Jahr steht im Datum, nicht im Namen.
         $id = (int) post('id');
-        $an = isset($_POST['region']) ? 1 : 0;
+        // Den Wert selbst lesen, nicht isset(): isset('0') ist wahr, der String
+        // "0" gilt als gesetzt. Mit isset stand hier immer 1, und der Umschalter
+        // konnte nur einschalten, nie wieder ausschalten.
+        $an = post('region', '0') === '1' ? 1 : 0;
         try {
             require_competition_access($id);
             $pdo = db();
@@ -255,16 +258,22 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
         if ($counts['registrations'] > 0) {
             $facts[] = $counts['registrations'] . ($counts['registrations'] === 1 ? ' offene Anmeldung' : ' offene Anmeldungen');
         }
+        $imRegiocup = (int) ($s['region'] ?? 0) === 1;
     ?>
         <div class="competition-card<?= $s['is_current'] ? ' current' : '' ?><?= $completed ? ' archived' : '' ?>">
             <div class="card-top">
-                <?php if ($s['is_current']): ?>
-                    <span class="tag on">aktiv</span>
-                <?php elseif ($completed): ?>
-                    <span class="tag off">beendet</span>
-                <?php else: ?>
-                    <span class="tag live">offen</span>
-                <?php endif; ?>
+                <span class="card-tags">
+                    <?php if ($s['is_current']): ?>
+                        <span class="tag on">aktiv</span>
+                    <?php elseif ($completed): ?>
+                        <span class="tag off">beendet</span>
+                    <?php else: ?>
+                        <span class="tag live">offen</span>
+                    <?php endif; ?>
+                    <?php if ($imRegiocup): ?>
+                        <span class="tag trophy" title="Zählt zum Regiocup seines Jahres">🏆 Regiocup</span>
+                    <?php endif; ?>
+                </span>
                 <span class="small muted"><?= h(implode(' · ', $facts)) ?></span>
             </div>
 
@@ -333,10 +342,12 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                     <input type="hidden" name="action" value="region">
                     <input type="hidden" name="id" value="<?= $sid ?>">
                     <input type="hidden" name="competition" value="<?= $sid ?>">
-                    <input type="hidden" name="region" value="<?= ((int) ($s['region'] ?? 0)) === 1 ? '0' : '1' ?>">
-                    <button class="btn ghost small" type="submit"
-                            title="<?= ((int) ($s['region'] ?? 0)) === 1 ? 'Zählt zum Regiocup – zum Entfernen klicken' : 'Zählt nicht zum Regiocup – zum Aufnehmen klicken' ?>"
-                    ><?= ((int) ($s['region'] ?? 0)) === 1 ? '🏆 Regiocup' : '○ Regiocup' ?></button>
+                    <input type="hidden" name="region" value="<?= $imRegiocup ? '0' : '1' ?>">
+                    <button class="btn small<?= $imRegiocup ? '' : ' ghost' ?>" type="submit"
+                            data-confirm-click="<?= $imRegiocup
+                                ? 'Wettbewerb ' . h($s['name']) . ' aus dem Regiocup nehmen? Er zählt dann nicht mehr zur Regiorangliste seines Jahres. Wieder aufnehmen geht jederzeit.'
+                                : 'Wettbewerb ' . h($s['name']) . ' zum Regiocup hinzufügen? Er zählt dann zur Regiorangliste des Jahres, in dem er stattfindet.' ?>"
+                    ><?= $imRegiocup ? '🏆 Regiocup' : '○ Regiocup' ?></button>
                 </form>
                 <?php if ($counts['scores'] === 0 && !$completed): ?>
                     <button class="btn danger small" type="submit" form="delform<?= $sid ?>"
