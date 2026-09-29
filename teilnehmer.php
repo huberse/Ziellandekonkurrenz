@@ -24,21 +24,13 @@ $pilots = $st->fetchAll();
 
 page_start('Teilnehmer', 'public', 'teilnehmer.php');
 ?>
+<?php competition_choices($competitions, (int) $competition['id'], 'teilnehmer.php'); ?>
 <div class="row-between no-print">
     <div>
-        <h2>Teilnehmerliste<?= count($competitions) > 1 ? ' – Wettbewerb ' . h($competition['name']) : '' ?></h2>
+        <h2>Teilnehmerliste<?= count($competitions) > 1 ? ' – ' . h($competition['name']) : '' ?></h2>
         <p class="lead"><?= count($pilots) ?> Piloten in der Startliste<?= $competitionCompleted ? ' (Archiv)' : '' ?>.</p>
     </div>
     <div class="btn-row dense">
-        <?php if (count($competitions) > 1): ?>
-            <form method="get" style="display:inline-block">
-                <select name="competition" data-auto-submit style="width:auto;display:inline-block">
-                    <?php foreach ($competitions as $s): ?>
-                        <option value="<?= (int) $s['id'] ?>" <?= (int) $s['id'] === (int) $competition['id'] ? 'selected' : '' ?>><?= h($s['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
-        <?php endif; ?>
         <a class="btn ghost" href="javascript:window.print()">Drucken</a>
     </div>
 </div>

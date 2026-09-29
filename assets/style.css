@@ -353,6 +353,128 @@ table.data th.num, table.data th.mid { font-family: inherit; }
 .competition-card .competition-rename-form .btn { visibility: hidden; }
 .competition-card .competition-rename-form:focus-within .btn { visibility: visible; }
 
+/* ---------- Wettbewerb waehlen: Hauptelement der Startseite ----------
+
+   Ein Besucher soll einen Wettbewerb anklicken und direkt bei der Rangliste
+   sein. Deshalb sind die Karten gross und die ganze Flaeche ist ein Ziel -
+   nicht erst der kleine Text im Kaestchen. Ohne Formular, ohne JavaScript. */
+
+.hero { margin-bottom: 32px; }
+.hero h2 { font-size: 1.5rem; }
+.hero .lead { max-width: 62ch; }
+.hero-foot { margin-top: 22px; }
+
+.picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 22px 24px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--blau);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(20, 36, 51, 0.06);
+}
+.pick.past { border-top-color: var(--line); background: #f8fafb; }
+
+/* Der Name traegt den Sprung; seine Flaeche wird ueber die ganze Karte gezogen,
+   damit nicht genau auf die Woerter geklickt werden muss. */
+.pick-name { margin: 0 0 2px; font-size: 1.3rem; line-height: 1.25; }
+.pick-name a { color: var(--ink); text-decoration: none; }
+.pick-name a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+}
+.pick-name a:hover { color: var(--blau); }
+
+.pick-when { margin: 0; color: var(--ink-soft); font-size: 1rem; }
+.pick-count { margin: 0; font-size: 1rem; }
+.pick-tags { margin: 2px 0 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+.pick-tags:empty { display: none; }
+
+/* Die Knoepfe liegen ueber der aufgezogenen Flaeche und bleiben eigene Ziele. */
+.pick-go {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* auto schiebt die Knoepfe nach unten, damit sie in allen Karten auf der
+     gleichen Linie stehen, egal wie viel Text ueber ihnen steht. */
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-2);
+}
+/* Die Hauptaktion der Karte ist einen Tick groesser als die anderen. */
+.pick-go .btn:first-child { height: var(--ctl-h-lg); }
+
+.pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.pick-row-label {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-right: 2px;
+}
+.pick-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ctl-h-sm);
+  padding: 4px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+.pick-chip:hover { border-color: var(--blau); color: var(--blau); }
+.pick-chip.on {
+  color: #fff;
+  background: var(--blau);
+  border-color: var(--blau);
+  font-weight: 600;
+}
+.pick-chip.on .muted { color: rgba(255, 255, 255, 0.75); }
+
+/* ---------- Erklaerung auf der Startseite ---------- */
+
+.legende { margin: 0; }
+.legende dt { font-weight: 600; margin-top: 14px; }
+.legende dt:first-child { margin-top: 0; }
+.legende dd { margin: 2px 0 0; color: var(--ink-soft); }
+.legende dd b { color: var(--ink); }
+
+.legende .lg-rot { color: var(--rot); }
+.legende .lg-drop { color: var(--ink-soft); text-decoration: line-through; }
+
+/* Die Erklaerung tritt zurueck: schmaler und weiter unten, damit die
+   Wettbewerbswahl oben das Hauptelement bleibt. */
+.why { max-width: 880px; }
+
+.erklaerung { margin: 0; padding-left: 20px; }
+.erklaerung li { margin-bottom: 8px; }
+.erklaerung li:last-child { margin-bottom: 0; }
+
+/* Liste der Wettbewerbe, für die es noch eine Anmeldung gibt. */
+.pick-open { margin: 0 0 16px; padding-left: 20px; }
+.pick-open li { margin-bottom: 4px; }
+
 .completion-badge {
   display: inline-block;
   margin-left: 6px;

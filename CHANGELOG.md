@@ -10,6 +10,43 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.9
+
+- **Neue Startseite.** `index.php` war bisher die Rangliste. Jetzt beantwortet
+  die Startseite erst die zwei Fragen, die ein Besucher hat: welcher
+  Wettbewerb, und wofür stehen die Zahlen. Die Rangliste ist nach
+  `rangliste.php` gewandert, die Navigation beginnt mit *Start*.
+- **Die Wettbewerbswahl ist zum Hauptelement geworden**, wie gewünscht. Grosse
+  Karten, ein Klick irgendwo auf die Karte führt zur Rangliste – vorher stand
+  ein Auswahlfeld in einer Ecke, das man bedienen musste. Kein Formular und
+  kein JavaScript mehr auf den öffentlichen Seiten, nur Verweise.
+  - Nach **Wettbewerbsdatum** sortiert, nicht nach Nummer: wer einen
+    Wettbewerb nachmacht, bekommt eine höhere Nummer als das ältere, später
+    stattgefundene. Ohne Datum steht er hinten.
+  - Auf der Karte stehen Datum, Ort, Verein, Zahl der Piloten und Durchgänge.
+  - Ohne Wettbewerbsabzeichen im Seitenkopf, denn dort wird der Wettbewerb
+    erst gewählt.
+- **Rangliste für jeden Wettbewerb, Anmeldung nur für offene.** Beides steht
+  getrennt auf der Karte: *Rangliste* bei freigegebener Rangliste, *Anmelden*
+  nur, wenn noch angemeldet werden kann.
+  - `competition_nimmt_anmeldungen_an()`: nicht beendet, Anmeldung nicht
+    abgeschaltet, Tag noch nicht vorbei. Das Datum zählt mit – eine
+    abgeschaltete Anmeldung allein genügt nicht, sonst stünde ein
+    Wettbewerb vom letzten Juni noch monatelang in der Auswahl.
+  - Dieselbe Regel gilt für die Karten, für die Auswahl auf der Anmeldeseite
+    und für den Hinweis dort.
+  - Wer einen vergangenen Wettbewerb wählt, bekommt auf der Anmeldeseite die
+    Liste der Wettbewerbe, für die es noch geht – oder den Satz, dass gerade
+    für keiner offen ist, mit einem Knopf zurück zu allen Wettbewerben.
+  - Der gerade gezeigte Wettbewerb bleibt in der Auswahlleiste, auch wenn er
+    beendet ist; er trägt dann den Vermerk *beendet*. Sonst stünde man vor
+    einer leeren Auswahl und wüsste nicht, wofür die Seite spricht.
+- **Kurze Erklärung auf der Startseite**, bewusst ohne feste Punktzahlen, weil
+  die je Verein verschieden sind: wie man die Rangliste liest (durchgestrichen,
+  rote Zahl, gleiche Summe), wie die Punkte entstehen und wie man sich anmeldet.
+- `competitions_uebersicht()` bringt Datum, Ort und die Schalter in zwei
+  Abfragen für alle Wettbewerbe statt einer je Wettbewerb.
+
 ## 1.9.8
 
 - **Bei Punktegleichheit entscheidet das bessere Streichresultat – und sonst

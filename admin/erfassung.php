@@ -216,7 +216,7 @@ if ($competitionCompleted): ?>
     </div>
     <div class="btn-row dense no-print">
         <a class="btn ghost" href="<?= h($runsheetPdfUrl) ?>">Laufzettel-PDF</a>
-        <a class="btn ghost" href="../index.php<?= (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '' ?>">Rangliste ↗</a>
+        <a class="btn ghost" href="../rangliste.php<?= (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '' ?>">Rangliste ↗</a>
     </div>
 </div>
 

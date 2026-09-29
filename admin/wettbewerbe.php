@@ -299,7 +299,7 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
             <div class="card-actions no-print">
                 <a class="btn ghost small" href="erfassung.php?competition=<?= $sid ?>">✎ Erfassen</a>
                 <a class="btn ghost small" href="durchgaenge.php?competition=<?= $sid ?>">⚙ Durchgänge</a>
-                <a class="btn ghost small" href="../index.php?competition=<?= $sid ?>">↗ Rangliste</a>
+                <a class="btn ghost small" href="../rangliste.php?competition=<?= $sid ?>">↗ Rangliste</a>
                 <?php if ($completed): ?>
                     <form method="post" style="display:inline">
                         <?= csrf_field() ?>

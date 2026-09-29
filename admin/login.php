@@ -42,7 +42,7 @@ page_start('Anmelden', 'admin', '', false, false);
             technisch nötig – ohne sie ginge die Anmeldung nicht. Weitere Daten werden nicht
             gespeichert und nichts wird an Dritte übertragen.
         </p>
-        <p class="login-back"><a href="../index.php">← zur Rangliste</a></p>
+        <p class="login-back"><a href="../index.php">← zur Startseite</a></p>
     </div>
 </div>
 <?php page_end();
