@@ -10,6 +10,43 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.12
+
+- **Ein neu angelegtes Konto war sofort gesperrt** und liess sich mit keinem Passwort
+  anmelden. Nur ein zweites Bearbeiten in der Kontenliste brachte es wieder
+  hervor – dann mit der grössten Älfte „Passwort neu gesetzt" in der Meldung, was
+  den Verdacht auf das Passwort lenkte. Das Passwort war nie falsch.
+  - Ursache: `users.active` hatte den Vorgabewert `0`. `admin/benutzer.php` und
+    `install.php` fügen neue Konten ohne `active` ein und erbten damit
+    **gesperrt**. Die Spalte steht in `sql/schema.sql` auf `1` – die Migration 6
+    hat sie 2018 mit `DEFAULT 0` angelegt und danach nur die **vorhandenen**
+    Konten auf 1 gesetzt, den Vorgabewert aber stehen lassen.
+  - Warum es erst jetzt auffiel: die Anlage meldet grün „Konto angelegt",
+    während in der Liste gleich darunter „gesperrt" steht. Beides ist richtig,
+    zusammen ergibt es eine Meldung, die sich widerspricht.
+  - Behoben an drei Stellen: beide Einfügungen nennen `active` jetzt
+    ausdrücklich, Migration 6 legt die Spalte mit dem richtigen Vorgabewert an
+    (`active` 1, `is_superadmin` 0 – die beiden sind nicht gleich), und ein
+    Migrationsschritt stellt den Vorgabewert bei schon migrierten Installationen
+    auf 1. **Bestehende Konten werden nicht angefasst:** gesperrt heisst
+    gesperrt, auch absichtlich.
+  - Prüfung ergänzt: `diagnose.php` meldet eine Spalte `users.active` mit
+    anderem Vorgabewert. Geprüft habe ich sie, indem ich die Spalte absichtlich
+    wieder auf 0 gesetzt habe – sie schlägt an, und nach der Migration schweigt
+    sie.
+
+- **Für diese Fassung bitte `upgrade.php` einmal laufen lassen.** Das Anlegen
+  funktioniert auch ohne; nur der Vorgabewert in der Datenbank bleibt dann auf
+  der alten Zahl stehen. Der Schritt ändert keine Konten, nur eine Spalten-
+  eigenschaft, und darf beliebig oft wiederholt werden.
+
+- **Erst deuten, dann heilen.** Am Anfang habe ich im Passwort gesucht, weil
+  dort die Wirkung sichtbar war. Der Test, der den Fehler brachte, prüfte
+  zuerst nur, ob das Passwort in der Datenbank stimmt, und meldete „alles gut" –
+  er hat die Anmeldung gar nicht versucht. Erst als beides nebeneinanderstand
+  (Passwort stimmt, Anmeldung geht trotzdem nicht) war klar, dass gesucht wird an
+  der falschen Stelle.
+
 ## 1.9.11
 
 - **Der Regiocup-Schalter liess sich nicht mehr zurücksetzen.** Ein Wettbewerb

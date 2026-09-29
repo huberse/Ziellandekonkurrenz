@@ -75,7 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$hasAdmin) {
         // 5. Erstes Konto. Es ist SuperAdmin, weil es als einziges die weiteren
         //    Konten anlegen und verwalten darf.
         if ((int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() === 0) {
-            $st = $pdo->prepare('INSERT INTO users (username, password_hash, display_name, is_superadmin) VALUES (?, ?, ?, 1)');
+            // active ausdruecklich auf 1, wie in schema.sql vorgesehen: das
+            // erste Konto muss sich anmelden koennen, ohne Nacharbeit.
+            $st = $pdo->prepare('INSERT INTO users (username, password_hash, display_name, is_superadmin, active)
+                                 VALUES (?, ?, ?, 1, 1)');
             $st->execute([$user, password_hash($pass, PASSWORD_DEFAULT), 'Wettkampfleitung']);
         }
 

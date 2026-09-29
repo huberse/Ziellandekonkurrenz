@@ -42,11 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('Das Passwort braucht mindestens 8 Zeichen.', 'err');
         } else {
             try {
-                $st = db()->prepare('INSERT INTO users (username, password_hash, display_name, club_id, is_superadmin)
-                                     VALUES (?, ?, ?, ?, ?)');
+                // active ausdruecklich auf 1: ein neues Konto ist sofort
+                // anmeldebereit. Ohne diese Angabe nimmt die Spalte ihren
+                // Vorgabewert, und der stand nach der Migration 6 auf 0 - das
+                // Konto waere dann gesperrt, obwohl das Passwort stimmt.
+                $st = db()->prepare('INSERT INTO users (username, password_hash, display_name, club_id, is_superadmin, active)
+                                     VALUES (?, ?, ?, ?, ?, 1)');
                 $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), $display ?: null, $clubId,
                               isset($_POST['is_superadmin']) ? 1 : 0]);
-                flash('Konto ' . $username . ' angelegt.', 'ok');
+                flash('Konto ' . $username . ' angelegt. Die Anmeldung ist damit sofort möglich.', 'ok');
             } catch (PDOException $e) {
                 flash('Diesen Benutzernamen gibt es schon.', 'err');
             }

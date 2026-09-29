@@ -425,6 +425,13 @@ Installation wird das **älteste** Konto zum SuperAdmin, damit die Benutzerverwa
 bleibt. Ab dann kann der SuperAdmin weitere SuperAdmins anlegen, etwa wenn ein zweiter Verein
 mit eigenem Zugang mitarbeitet.
 
+Ein neu angelegtes Konto ist **sofort anmeldebereit** – Passwort eingeben, fertig. Gesperrt
+wird ein Konto erst, wenn das Kästchen *aktiv* in der Kontenliste abgehakt wird. Vor 1.9.12
+galt das Gegenteil: frisch angelegte Konten waren gesperrt und liessen sich mit keinem
+Passwort anmelden, bis der SuperAdmin sie in der Liste ein zweites Mal bearbeitet hat. Die
+Ursache stand in der Datenbank, nicht im Passwort; `upgrade.php` stellt den Vorgabewert der
+Spalte `users.active` wieder auf 1.
+
 ## Anmelden und das eigene Profil
 
 Oben rechts in der Kopfzeile steht ein **Benutzersymbol**, wie man es von den grossen Seiten

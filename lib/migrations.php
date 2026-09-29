@@ -921,13 +921,17 @@ function migration_user_rights(PDO $pdo): array
         throw new RuntimeException('Die Tabelle users fehlt; Benutzerrechte können nicht vorbereitet werden.');
     }
     $log = [];
-    foreach (['is_superadmin', 'active'] as $column) {
+    // Je Spalte ihr eigener Vorgabewert: is_superadmin ist ein Merkmal und
+    // beginnt bei 0, active ist der Normalfall und beginnt bei 1 - so steht es
+    // auch in schema.sql. Mit einer 0 bei active waere jedes Konto, das ohne
+    // ausdrueckliche Angabe eingefuegt wird, sofort gesperrt.
+    foreach (['is_superadmin' => 0, 'active' => 1] as $column => $default) {
         if (!migration_column_exists($pdo, 'users', $column)) {
-            $pdo->exec("ALTER TABLE users ADD COLUMN `$column` TINYINT(1) NOT NULL DEFAULT 0");
+            $pdo->exec("ALTER TABLE users ADD COLUMN `$column` TINYINT(1) NOT NULL DEFAULT $default");
             $log[] = "Spalte users.$column wurde ergänzt.";
         }
         $pdo->exec("UPDATE users SET `$column` = 0 WHERE `$column` IS NULL OR `$column` NOT IN (0, 1)");
-        $pdo->exec("ALTER TABLE users MODIFY COLUMN `$column` TINYINT(1) NOT NULL DEFAULT 0");
+        $pdo->exec("ALTER TABLE users MODIFY COLUMN `$column` TINYINT(1) NOT NULL DEFAULT $default");
     }
     $pdo->exec('UPDATE users SET active = 1 WHERE active = 0');
 
@@ -940,6 +944,53 @@ function migration_user_rights(PDO $pdo): array
         $log[] = "Das Konto \"{$first}\" wurde zum SuperAdmin, damit die Benutzerverwaltung erreichbar ist.";
     }
     return $log;
+}
+
+/**
+ * Steht der Vorgabewert von users.active noch auf 0?
+ *
+ * Bei der Rechte-Migration wurde die Spalte mit DEFAULT 0 angelegt, obwohl
+ * schema.sql sie mit DEFAULT 1 vorsieht. Die vorhandenen Konten hat dieselbe
+ * Migration anschliessend ausdruecklich auf 1 gesetzt, der Vorgabewert blieb
+ * aber auf 0 stehen. Damit war jedes Konto, das danach ohne ausdrueckliche
+ * Angabe von active eingefuegt wurde, von Anfang an gesperrt - unabhaengig
+ * vom Passwort. Wer danach im Benutzermenü das Passwort neu setzte, schickte
+ * im selben Formular das Feld "aktiv" mit, und das Konto war wieder da. So
+ * entsteht der Eindruck, das Passwort sei nicht in Ordnung gewesen.
+ *
+ * @return bool true, wenn der Vorgabewort in Ordnung ist
+ */
+function migration_konten_standard_aktiv(PDO $pdo): bool
+{
+    try {
+        $st = $pdo->prepare("SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS
+                             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'active'");
+        $st->execute();
+        return (string) $st->fetchColumn() === '1';
+    } catch (PDOException $e) {
+        // Nicht feststellbar: dann lieber nichts anfassen.
+        return true;
+    }
+}
+
+/**
+ * Setzt den Vorgabewert von users.active auf 1, damit ein neu angelegtes
+ * Konto ohne Zusatzschritt anmeldebereit ist.
+ *
+ * Bestehende Konten werden nicht angefasst: gesperrt heisst gesperrt. Der
+ * Schritt ist idempotent und laeuft deshalb auch mehrfach ohne Schaden.
+ */
+function migration_konten_anmeldebereit(PDO $pdo): array
+{
+    if (!migration_table_exists($pdo, 'users') || !migration_column_exists($pdo, 'users', 'active')) {
+        return [];
+    }
+    if (migration_konten_standard_aktiv($pdo)) {
+        return [];
+    }
+    $pdo->exec('ALTER TABLE users MODIFY COLUMN active TINYINT(1) NOT NULL DEFAULT 1');
+    return ['Ein neu angelegtes Konto ist jetzt ohne Zusatzschritt anmeldebereit. '
+        . 'Bereits gesperrte Konten bleiben gesperrt.'];
 }
 
 /**
@@ -992,6 +1043,9 @@ function migration_pending_column_steps(PDO $pdo): array
         && (!migration_column_exists($pdo, 'users', 'is_superadmin')
             || !migration_column_exists($pdo, 'users', 'active'))) {
         $steps[] = static function (PDO $pdo): array { return migration_user_rights($pdo); };
+    }
+    if (migration_table_exists($pdo, 'users') && !migration_konten_standard_aktiv($pdo)) {
+        $steps[] = static function (PDO $pdo): array { return migration_konten_anmeldebereit($pdo); };
     }
     if (migration_table_exists($pdo, 'users') && !migration_column_exists($pdo, 'users', 'club_id')) {
         $steps[] = static function (PDO $pdo): array { return migration_club_ownership($pdo); };
