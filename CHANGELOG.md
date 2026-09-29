@@ -10,6 +10,41 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.15
+
+- **Die Knöpfe auf den Karten waren unterschiedlich hoch.** Auf der Live-Seite
+  gemessen: „Rangliste" 52 Pixel hoch, „Anmelden" 44 Pixel – in derselben Zeile,
+  mit derselben Oberkante. Ursache war eine Zeile im Stil:
+  `.pick-go .btn:first-child { height: var(--ctl-h-lg) }`. Sie wollte den ersten
+  Knopf hervorheben und machte stattdessen die Zeile unruhig. Jetzt sind alle
+  Knöpfe einer Karte gleich hoch.
+
+- **Die Startseite ist kürzer geworden.** „So liest man die Rangliste" und
+  „Wie die Punkte entstehen" sind weg, ebenso die Überschrift „Wettbewerb wählen"
+  und der Satz darunter. Der Platz war nicht auf den ersten Blick nötig: die
+  Ranglistenseite erklärt dieselben Zeichen direkt unter der Tabelle
+  („Durchgestrichene Werte sind Streichresultate…"), wo man sie braucht.
+
+- **„Anmelden in drei Schritten" steht jetzt oben**, als Kasten über den
+  Wettbewerben, mittig auf der Seite und mit mittigem Text. Wer die Seite
+  öffnet, will sich entweder eintragen oder Ergebnisse sehen. Beides war
+  gleich wichtig, beides stand aber unten hinter drei Erklärblöcken – wer sich
+  eintragen lassen wollte, musste an der Erklärung der Rangliste vorbei, um
+  zum Anmeldeweg zu kommen.
+
+- **Die Wettbewerbe stehen als geschlossener Block in der Mitte.** Die Kacheln
+  wachsen auf die vorhandene Breite, höchstens 380 Pixel, und schrumpfen nie
+  unter 300 Pixel. Dadurch stehen auf dem Laptop drei nebeneinander, auf dem
+  iPad im Querformat ebenfalls drei – nur schmaler.
+  - Das Raster ist dafür durch Flex ersetzt. Ein Raster zentriert mit
+    `justify-content` nur die Spalten: eine einzelne Kachel auf der zweiten
+    Zeile saß linksbündig. Mit Flex steht jede Zeile mittig, auch wenn sie
+    nur eine Kachel hat. Auf 1024 Pixeln sind es drei Kacheln zu 316 Pixeln
+    nebeneinander, vorher waren es zwei zu 360 und eine allein darunter.
+
+- Die mitgelieferten Stile für die entfernten Blöcke (`.hero`, `.why`,
+  `.legende`) sind mitentfernt; niemand verwendet sie noch.
+
 ## 1.9.14
 
 - **Nach jedem Update eine rote Warnung, die nichts beanstandete.** Die Meldung
