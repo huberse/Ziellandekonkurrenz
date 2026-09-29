@@ -381,12 +381,25 @@ weisen sie sich mit 403 ab.
 
 ## Die Startseite
 
-`index.php` ist die Startseite. Sie beantwortet zwei Fragen: **welcher Wettbewerb** und **wofür
-stehen die Zahlen**. Beides auf einer Seite, ohne dass man sich anmelden muss.
+`index.php` ist die Startseite. Sie beantwortet zwei Fragen: **wie melde ich mich an** und
+**welcher Wettbewerb**. Beides auf einer Seite, ohne dass man sich anmelden muss.
 
-Oben steht die Auswahl als grosses Kartenfeld, nach Wettbewerbsdatum sortiert, das neueste Jahr
-oben. Auf der ganzen Karte ist ein Knopf; angeklickt wird nicht auf ein Wort, sondern auf die
-Fläche. Jede Karte nennt Datum, Ort, Verein und die Zahl der Piloten und Durchgänge. Steht ein
+Ganz oben steht der **Anmeldeweg in drei Schritten**, als schmaler Kasten in der Mitte der Seite
+und mit mittigem Text. Er war vorher der dritte von drei Erklärblöcken unter den Karten; wer sich
+eintragen lassen wollte, musste an der Ranglistenerklärung und der Punkteerklärung vorbei, um
+dort anzukommen, wo es losgeht.
+
+Darunter stehen die Wettbewerbe als **geschlossener Block in der Mitte der Seite**: Kacheln mit
+höchstens 380 Pixel Breite, die auf die vorhandene Breite wachsen und nie unter 300 Pixel
+schrumpfen. Auf dem Laptop stehen drei nebeneinander, auf dem iPad im Querformat ebenfalls
+drei, nur schmaler. Das Raster ist dafür Flex, weil nur so auch eine unvollständige letzte
+Zeile mittig steht – ein Raster zentriert nur die Spalten, eine einzelne Kachel darunter säße
+linksbündig.
+
+Die Karte nennt Datum, Ort, Verein und die Zahl der Piloten und Durchgänge. Auf der ganzen Fläche
+ist ein Knopf; angeklickt wird nicht auf ein Wort, sondern auf die Fläche. Alle Knöpfe einer
+Karte sind gleich hoch – vorher war der erste 52 Pixel hoch und der zweite 44, in derselben
+Zeile. Steht ein
 Wettbewerb unter *Rangliste noch nicht frei*, gibt es keinen Knopf zur Rangliste – nach der
 Ausschaltung erscheint er von selbst, ohne dass die Karte manuell freigegeben werden muss.
 

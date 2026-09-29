@@ -460,19 +460,25 @@ table.data th.num, table.data th.mid { font-family: inherit; }
    sein. Deshalb sind die Karten gross und die ganze Flaeche ist ein Ziel -
    nicht erst der kleine Text im Kaestchen. Ohne Formular, ohne JavaScript. */
 
-.hero { margin-bottom: 32px; }
-.hero h2 { font-size: 1.5rem; }
-.hero .lead { max-width: 62ch; }
-.hero-foot { margin-top: 22px; }
-
-.picks {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+/* ---------- Startseite ---------- */.picks {
+  /* Flex statt Raster: nur so wird auch eine unvollstaendige letzte Zeile
+     mittig gestellt. Ein Raster zentriert mit justify-content nur die
+     Spalten - eine einzelne Kachel darunter saess links. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 18px;
   margin-top: 22px;
 }
 
 .pick {
+  /* Waechst auf die vorhandene Breite, schrumpft aber nie unter 300px. So
+     stehen auf dem Laptop drei Kacheln nebeneinander, und auf dem iPad im
+     Querformat ebenfalls drei - nur schmaler. Die Hoechstbreite haelt sie
+     bei einem knappen Bestand davon ab, die ganze Seite zu fuellen. */
+  flex: 1 1 300px;
+  max-width: 380px;
+  min-width: 250px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -516,8 +522,11 @@ table.data th.num, table.data th.mid { font-family: inherit; }
   padding-top: 16px;
   border-top: 1px solid var(--line-2);
 }
-/* Die Hauptaktion der Karte ist einen Tick groesser als die anderen. */
-.pick-go .btn:first-child { height: var(--ctl-h-lg); }
+/* Alle Knoepfe einer Karte gleich hoch. Vorher stand hier
+   ".pick-go .btn:first-child { height: var(--ctl-h-lg) }", damit war der
+   erste Knopf 52 Pixel hoch und der zweite 44 - in derselben Zeile, mit
+   derselben Oberkante. Auf der Live-Seite sichtbar gewesen. */
+.pick-go .btn { flex: none; }
 
 .pick-row {
   display: flex;
@@ -553,20 +562,30 @@ table.data th.num, table.data th.mid { font-family: inherit; }
 }
 .pick-chip.on .muted { color: rgba(255, 255, 255, 0.75); }
 
-/* ---------- Erklaerung auf der Startseite ---------- */
+/* ---------- Startseite ---------- */
 
-.legende { margin: 0; }
-.legende dt { font-weight: 600; margin-top: 14px; }
-.legende dt:first-child { margin-top: 0; }
-.legende dd { margin: 2px 0 0; color: var(--ink-soft); }
-.legende dd b { color: var(--ink); }
+/* Der Anmeldeweg steht als Kasten ueber den Wettbewerben, schmal und in der
+   Mitte der Seite. Wer sich eintragen will, sieht damit sofort, wie es geht;
+   wer nur Ergebnisse will, klickt darueber hinweg direkt auf eine Kachel. */
+.start-anmeldung {
+  max-width: 640px;
+  margin: 0 auto 34px;
+}
+.start-anmeldung .panel {
+  text-align: center;
+}
+.start-anmeldung h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+}
 
-.legende .lg-rot { color: var(--rot); }
-.legende .lg-drop { color: var(--ink-soft); text-decoration: line-through; }
+/* Text auch mittig, nicht nur der Kasten. */
+.start-anmeldung .erklaerung,
+.start-anmeldung p {
+  text-align: center;
+}
 
-/* Die Erklaerung tritt zurueck: schmaler und weiter unten, damit die
-   Wettbewerbswahl oben das Hauptelement bleibt. */
-.why { max-width: 880px; }
+/* ---------- Erklaerung ---------- */
 
 .erklaerung { margin: 0; padding-left: 20px; }
 .erklaerung li { margin-bottom: 8px; }
