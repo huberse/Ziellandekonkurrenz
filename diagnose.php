@@ -40,6 +40,19 @@ check('lib/db.php lesbar', is_readable(__DIR__ . '/lib/db.php'), 'Datei fehlt od
 check('ZipArchive für die Aktualisierung', class_exists('ZipArchive'),
     'Fehlt, ist aber nicht zwingend: nur der Aktualisierungs-Knopf braucht es.', false);
 
+// Nach einem Update kann eine Seite den alten Stand zeigen, obwohl die Datei
+// schon die neue ist: der Opcode-Cache des Servers haelt den Bytecode fest.
+// Bei ausgeschalteter Zeitpruefung merkt er das nie und laeuft endgueldig mit
+// dem Stand von vorher weiter. Das sieht aus wie ein Fehler im Update und
+// ist keiner. Steht hier ein "Fehlt", einmal den Cache leeren.
+if (function_exists('opcache_get_status') && ($opcache = @opcache_get_status()) !== false
+    && !empty($opcache['opcache_enabled'])) {
+    $prueftNach = (bool) ini_get('opcache.validate_timestamps');
+    check('Opcode-Cache prüft Dateiänderungen', $prueftNach,
+        'opcache.validate_timestamps ist aus, der Cache merkt neue Dateien nicht. Nach dem Aktualisieren '
+        . 'einmal opcache_reset() aufrufen oder den PHP-Dienst neu starten.', false);
+}
+
 // Fassung und Bestandsliste muessen zusammenpassen, sonst haelt der
 // Aktualisierungs-Knopf den Server fuer aelter als er ist oder umgekehrt.
 require_once __DIR__ . '/lib/version.php';

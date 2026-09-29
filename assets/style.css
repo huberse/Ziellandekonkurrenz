@@ -561,6 +561,11 @@ table.data th.num, table.data th.mid { font-family: inherit; }
 .start-anmeldung p {
   text-align: center;
 }
+/* Die Aufzaehlung ausgenommen. Mehrere Zeilen mittig sehen zerklueftet aus,
+   weil die Nummern mitten im Satz stehen und nicht an einem Rand bleiben. */
+.start-anmeldung .erklaerung {
+  text-align: left;
+}
 
 /* ---------- Erklaerung ---------- */
 
