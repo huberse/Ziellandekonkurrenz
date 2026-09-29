@@ -51,6 +51,10 @@ function user_menu(string $base, bool $mitTrenner = false): void
         . (!empty($u['club_name']) ? ' · ' . h((string) $u['club_name']) : '')
         . '</p>';
     echo '<a class="user-item" href="' . h($base) . '/admin/profil.php">Profil</a>';
+    // Das Wettkampfbuero gehoert hierher, seit die oeffentliche Seite keine
+    // Navigationsleiste mehr hat. Wer angemeldet ist und im oeffentlichen
+    // Teil blättert, findet sonst keinen Weg zurueck in die Verwaltung.
+    echo '<a class="user-item" href="' . h($base) . '/admin/index.php">Wettkampfbüro</a>';
     if ((int) ($u['is_superadmin'] ?? 0) === 1) {
         echo '<a class="user-item" href="' . h($base) . '/admin/benutzer.php">Benutzer verwalten</a>';
         // Beide Punkte stehen hier und nicht mehr in der Navigationsleiste. Sie
@@ -427,49 +431,12 @@ function anmeldehinweis(array $offene, bool $rueckweg = false): void
 }
 
 /**
- * Wettbewerbsauswahl als Knöpfe statt als Formular, für die Unterseiten.
+ * Die Wettbewerbsauswahl fuer Unterseiten ist weg (1.9.16).
  *
- * Dieselbe Idee wie competition_cards(), nur kompakter: die Unterseite zeigt
- * schon, worum es geht, hier geht es nur darum, den Wettbewerb zu wechseln.
- * Ohne Formular und ohne JavaScript – ein Klick genügt.
- *
- * @param array  $competitions  Wettbewerbe, neueste zuerst
- * @param int    $currentId     der gerade gezeigte Wettbewerb
- * @param string $query         Seite, auf die die Knöpfe zeigen
- * @param array  $keep          weitere Parameter, die erhalten bleiben (z.B. typ)
- * @param bool   $erlaubeBeendet beendete Wettbewerbe mit anbieten
+ * Sie stand als Knopfleiste ueber Rangliste, Teilnehmerliste und Anmeldung und
+ * war damit die Navigation des oeffentlichen Teils. Mit dem Wegfall der
+ * Navigationsleiste ist sie ueberfluessig geworden: zur Startseite fuehrt der
+ * Titel in der Kopfzeile, und dort stehen die Kacheln aller Wettbewerbe. Von
+ * dort geht es mit einem Klick zur Rangliste und mit dem Knopf "Anmelden" zur
+ * passenden Anmeldung.
  */
-function competition_choices(array $competitions, int $currentId, string $query, array $keep = [], bool $erlaubeBeendet = true): void
-{
-    $zeilen = [];
-    foreach ($competitions as $c) {
-        $id = (int) $c['id'];
-        // Der gerade gezeigte Wettbewerb bleibt immer stehen. Auf der
-        // Anmeldeseite sind beendete Wettbewerbe nicht in der Liste, und ohne
-        // diese Ausnahme sähe man dort nicht, für welchen man sich gerade
-        // entschieden hat.
-        if (!$erlaubeBeendet && $id !== $currentId && !empty($c['completed_at'])) {
-            continue;
-        }
-        $zeilen[$id] = $c;
-    }
-    if ($currentId > 0 && !isset($zeilen[$currentId])) {
-        $zeilen[$currentId] = ['id' => $currentId, 'name' => 'Wettbewerb ' . $currentId, 'completed_at' => '1'];
-    }
-
-    $links = [];
-    foreach ($zeilen as $id => $c) {
-        $qs = http_build_query($keep + ['competition' => (int) $id]);
-        $links[] = '<a class="pick-chip' . ((int) $id === $currentId ? ' on' : '') . '"'
-            . ' href="' . h($query . '?' . $qs) . '"'
-            . ((int) $id === $currentId ? ' aria-current="page"' : '') . '>'
-            . h((string) $c['name'])
-            . (empty($c['completed_at']) ? '' : ' <span class="muted">beendet</span>')
-            . '</a>';
-    }
-    if (count($links) < 2) {
-        return;
-    }
-    echo '<nav class="pick-row no-print" aria-label="Wettbewerb wählen">'
-        . '<span class="pick-row-label">Wettbewerb</span>' . implode('', $links) . '</nav>';
-}

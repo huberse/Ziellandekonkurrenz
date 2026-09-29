@@ -266,6 +266,14 @@ main.wide { max-width: 1500px; }
 /* .login-note steht am Dateiende, weil es nach .hint kommen muss. */
 
 /* Schmale Seiten wie das Anmeldeformular: mittig und gut lesbar. */
+/* Die erste Zeile der Anmeldung nennt Wettbewerb und Handlung in einem Satz
+   und in einer Schriftgroesse - vorher standen da zwei Grade uebereinander. */
+.anmeldung-kopf {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
 .narrow { max-width: 720px; margin-left: auto; margin-right: auto; }
 
 /* Wettbewerbsauswahl über den Verwaltungsseiten. */
@@ -528,39 +536,8 @@ table.data th.num, table.data th.mid { font-family: inherit; }
    derselben Oberkante. Auf der Live-Seite sichtbar gewesen. */
 .pick-go .btn { flex: none; }
 
-.pick-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.pick-row-label {
-  color: var(--ink-soft);
-  font-size: 0.88rem;
-  font-weight: 600;
-  margin-right: 2px;
-}
-.pick-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--ctl-h-sm);
-  padding: 4px 12px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  text-decoration: none;
-  font-size: 0.92rem;
-}
-.pick-chip:hover { border-color: var(--blau); color: var(--blau); }
-.pick-chip.on {
-  color: #fff;
-  background: var(--blau);
-  border-color: var(--blau);
-  font-weight: 600;
-}
-.pick-chip.on .muted { color: rgba(255, 255, 255, 0.75); }
+/* .pick-row und .pick-chip sind mit der Wettbewerbsauswahl fuer Unterseiten
+   weggefallen (1.9.16). Uebrig bleiben .pick, .pick-go und .pick-open. */
 
 /* ---------- Startseite ---------- */
 

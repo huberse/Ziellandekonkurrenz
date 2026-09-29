@@ -31,7 +31,7 @@ if (!schema_has_competitions()) {
 $wettbewerbe = competitions_uebersicht();
 // Das Abzeichen im Seitenkopf nennt den aktiven Wettbewerb. Genau den soll man
 // hier ja erst wählen, deshalb bleibt es auf dieser Seite weg.
-page_start('Start', 'public', 'index.php', false, true, true);
+page_start('Start', 'public', 'index.php', false, false, true);
 ?>
 <div class="start-anmeldung">
     <section class="panel">

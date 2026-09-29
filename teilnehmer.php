@@ -22,9 +22,8 @@ $st = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name
 $st->execute([$competition['id']]);
 $pilots = $st->fetchAll();
 
-page_start('Teilnehmer', 'public', 'teilnehmer.php');
+page_start('Teilnehmer', 'public', 'teilnehmer.php', false, false);
 ?>
-<?php competition_choices($competitions, (int) $competition['id'], 'teilnehmer.php'); ?>
 <div class="row-between no-print">
     <div>
         <h2>Teilnehmerliste<?= count($competitions) > 1 ? ' – ' . h($competition['name']) : '' ?></h2>
