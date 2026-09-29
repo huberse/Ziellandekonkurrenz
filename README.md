@@ -248,6 +248,23 @@ Die Sicherungen bleiben liegen, damit sich ein Update mit **Neueste Sicherung zu
 rückgängig machen lässt. `.update/` steht in `.gitignore` und sperrt sich selbst gegen direkten
 Abruf, sowohl über die Regel in `.htaccess` als auch über eine eigene Sperrdatei im Verzeichnis.
 
+### Die Meldung schreibt immer die gerade installierte Fassung
+
+Nach dem Aktualisieren zeigt die Seite, was passiert ist. Dieser Text entsteht
+**beim nächsten Aufruf**, nicht im Aufruf, der die Dateien schreibt. Grund:
+PHP lädt die Seite beim Programmstart in den Speicher – eine Seite, die gerade
+`admin/aktualisieren.php` ersetzt hat, läuft in diesem Request noch mit der alten
+Fassung. Eine Korrektur an der Meldung kann sich auf diese Weise nicht selbst
+ankündigen; das ist beim Sprung von 1.9.13 auf 1.9.16 passiert.
+
+Deshalb merkt der schreibende Aufruf nur die Zahlen (`update_bericht_merken()`),
+und der Text entsteht beim Aufruf danach (`update_bericht_holen()`).
+
+**Wenn eine Seite nach dem Update den alten Stand zeigt**, ist meist der
+Opcode-Cache schuld: `opcache.validate_timestamps = 0` lässt den Bytecode
+endgültig im Speicher. `diagnose.php` sagt das. Abhilfe: einmal `opcache_reset()`
+aufrufen oder den PHP-Dienst neu starten, danach die Seite neu laden.
+
 ### Geschützte Dateien: was davon zu halten ist
 
 | Datei | Grund | Wird mitgeliefert |

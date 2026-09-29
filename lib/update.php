@@ -90,6 +90,32 @@ function update_ist_geschuetzt(string $pfad): bool
     return array_key_exists($pfad, update_geschuetzt());
 }
 
+/**
+ * Merksatz fuer die Meldung nach einem Update, und das Abholen davon.
+ *
+ * Bewusst zweigeteilt: der Absender legt nur die Zahlen ab, der Text entsteht
+ * beim naechsten Aufruf. Wuerde der Absender den Text selbst bauen, kaeme er
+ * von der Fassung, die vor dem Einspielen lief - die neue Datei liegt dann
+ * schon auf dem Server, wird aber von diesem einen Request nicht mehr benutzt.
+ * Genau so hat 1.9.13 noch die alte Meldung zu 1.9.16 geschrieben, obwohl die
+ * Korrektur in 1.9.14 steckte.
+ *
+ * @return array|null null, wenn nach dem letzten Update nichts zu melden ist
+ */
+function update_bericht_merken(array $zahlen): void
+{
+    start_session();
+    $_SESSION['update_bericht'] = $zahlen;
+}
+
+function update_bericht_holen(): ?array
+{
+    start_session();
+    $bericht = $_SESSION['update_bericht'] ?? null;
+    unset($_SESSION['update_bericht']);
+    return is_array($bericht) ? $bericht : null;
+}
+
 // ---------------------------------------------------------------------------
 // Holen
 // ---------------------------------------------------------------------------

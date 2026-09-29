@@ -30,6 +30,24 @@ function schema_hinter_programm(): bool
 $installiert = update_bestand_installiert();
 $versionHier = $installiert !== null ? $installiert['version'] : null;
 
+// Meldung eines gerade gelaufenen Updates. Sie wird hier gebildet und nicht im
+// Absender, damit der Text von der Fassung stammt, die gerade eingespielt wurde.
+$gemerkt = update_bericht_holen();
+if ($gemerkt !== null) {
+    $text = 'Fassung ' . $gemerkt['version'] . ' ist eingespielt, ' . $gemerkt['geschrieben'] . ' Datei(en) geschrieben.';
+    if ((int) $gemerkt['stehen'] > 0) {
+        $text .= ' ' . (int) $gemerkt['stehen'] . ' Datei(en) sind stehen geblieben, weil sie von Hand '
+              . 'geaendert sind. Der Stand ist damit gemischt, siehe die Liste unten.';
+    } elseif ((int) $gemerkt['geschuetzt'] > 0) {
+        $text .= ' ' . (int) $gemerkt['geschuetzt'] . ' geschuetzte Datei(en) sind aelter als im Repository '
+              . 'und wurden deshalb nicht mitgeschrieben; das ist so vorgesehen und kein Fehler.';
+    }
+    if (!empty($gemerkt['migration'])) {
+        $text .= ' Danach bitte upgrade.php aufrufen.';
+    }
+    flash($text, (int) $gemerkt['stehen'] > 0 ? 'err' : 'ok');
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
 
@@ -57,20 +75,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $bericht = update_ausfuehren($plan, $remote['manifest']);
                 if ($bericht['ok']) {
-                    $zahl = count($bericht['ersetzen']) + count($bericht['neu']);
-                    $text = 'Fassung ' . $bericht['version'] . ' ist eingespielt, ' . $zahl . ' Datei(en) geschrieben.';
-                    if ($stehen > 0) {
-                        $text .= ' ' . $stehen . ' Datei(en) sind stehen geblieben, weil sie von Hand geaendert '
-                              . 'sind. Der Stand ist damit gemischt, siehe die Liste unten.';
-                    } elseif ($geschuetztAbweichend > 0) {
-                        $text .= ' ' . $geschuetztAbweichend . ' geschuetzte Datei(en) sind aelter als im '
-                              . 'Repository und wurden deshalb nicht mitgeschrieben; das ist so vorgesehen '
-                              . 'und kein Fehler.';
-                    }
-                    if (schema_hinter_programm()) {
-                        $text .= ' Danach bitte upgrade.php aufrufen.';
-                    }
-                    flash($text, $stehen > 0 ? 'err' : 'ok');
+                    // Nur die Zahlen merken, den Text nicht. Diese Seite ist
+                    // beim Programmstart in den Speicher geladen worden - der
+                    // Text waere also der des Standes von VOR dem Einspielen.
+                    // Genau das ist beim Sprung von 1.9.13 auf 1.9.16 passiert:
+                    // Die Korrektur der Meldung steckte in 1.9.14, und 1.9.13
+                    // hat sie noch mit dem alten Wortlaut versehen. Wer den Text
+                    // erst beim naechsten Aufruf bildet, schreibt ihn mit dem
+                    // Code, der gerade installiert wurde.
+                    update_bericht_merken([
+                        'version' => (string) $bericht['version'],
+                        'geschrieben' => count($bericht['ersetzen']) + count($bericht['neu']),
+                        'stehen' => $stehen,
+                        'geschuetzt' => $geschuetztAbweichend,
+                        'migration' => schema_hinter_programm(),
+                    ]);
                 } else {
                     flash('Nichts eingespielt. ' . implode(' ', $bericht['fehler']), 'err');
                 }

@@ -185,8 +185,9 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
 <?php else: ?>
     <?php // Eine Zeile, eine Groesse. Vorher stand hier eine Ueberschrift
           // "Anmeldung" in eigener Schriftgroesse und darunter ein Absatz -
-          // zwei Schriftgrade fuer einen einzigen Satz. ?>
-    <h2 class="anmeldung-kopf">Anmeldung &ndash; <?= h((string) $competition['name']) ?> hinzufügen</h2>
+          // zwei Schriftgrade fuer einen einzigen Satz. Der Name des
+          // Wettbewerbs genuegt; ein "hinzufuegen" darunter war zuviel. ?>
+    <h2 class="anmeldung-kopf">Anmeldung &ndash; <?= h((string) $competition['name']) ?></h2>
     <?php if (setting('registration_info') !== ''): ?>
         <p class="lead"><?= nl2br(h(setting('registration_info'))) ?></p>
     <?php endif; ?>

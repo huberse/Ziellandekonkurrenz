@@ -10,6 +10,34 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.17
+
+- **Die Meldung nach dem Aktualisieren kam noch in der alten Fassung.** Nach dem
+  Sprung von 1.9.13 auf 1.9.16 stand dort wieder „Der Stand ist damit gemischt“,
+  obwohl die Korrektur mit 1.9.14 drin war. Die Ursache war die Reihenfolge:
+  `update_ausfuehren()` schreibt die Dateien, und der Text entsteht danach im
+  selben Request – aus dem Code, der beim Programmstart in den Speicher
+  geladen wurde. Gemessen: **195 Zeichen zwischen dem Schreiben und dem Text**.
+  Eine Korrektur kann sich so nicht selbst ankündigen.
+  - Jetzt merkt der Absender nur die Zahlen, und der Text entsteht beim
+    nächsten Aufruf – mit dem Code, der gerade installiert wurde. Gemessen: im
+    schreibenden Request steht kein Text mehr.
+  - Damit ist auch die Liste der stehengebliebenen Dateien aus dem neuen Code:
+    sie nennt jetzt alle geschützten Dateien mit dem Zusatz, ob sie zum
+    Repository passen, statt nur der abweichenden eine.
+
+- **`diagnose.php` sagt, wenn der Opcode-Cache den alten Stand festhält.** Nach
+  einem Update kann eine Seite den Stand von vorher zeigen, obwohl die Datei
+  schon die neue ist. Ist `opcache.validate_timestamps` aus, merkt der Cache das
+  nie und läuft endgültig weiter. Das sieht aus wie ein Fehler im Update und ist
+  keiner – die Prüfung holt den laufenden Bestand gegen die Datei.
+
+- **Die erste Zeile der Anmeldung nennt nur den Titel**: „Anmeldung –
+  Schwarzbubenfliegen 2027“. Das „hinzufügen“ war zuviel.
+- **Die drei Schritte im Kasten der Startseite sind linksbündig**, während
+  Überschrift und Hinweis mittig bleiben. Eine mehrzeilige Liste mittig sieht
+  zerklüftet aus, weil die Nummern mitten im Satz stehen statt an einem Rand.
+
 ## 1.9.16
 
 - **Der öffentliche Bereich hat keine Navigationsleiste mehr.** Zur Startseite
