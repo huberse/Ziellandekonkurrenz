@@ -10,6 +10,41 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.18
+
+- **Ein benutzter Modelltyp lässt sich nicht mehr löschen.** Modelltypen sind wie
+  Vereine global und zwischen den Wettbewerben geteilt. Bisher genügte der
+  Blick auf abgeschlossene Wettbewerbe: ein in einem laufenden Wettbewerb
+  benutzter Typ war löschbar, und der Fremdschlüssel `fk_pilot_type` setzte die
+  Piloten **still auf NULL**. Kein Fehler, keine Meldung – die Startliste verlor
+  ihre Gruppierung, und die Meldung danach sprach nur davon, dass nun „n Piloten
+  ohne Typ" dastehen. Genau wie bei den Vereinen wird jetzt gesperrt, mit
+  genauer Angabe:
+  > Dieser Modelltyp wird noch benutzt und kann nicht gelöscht werden: 19
+  > Piloten in der Startliste und 1 Anmeldung. Soll er nur nicht mehr zur Auswahl
+  > stehen, dann das Kästchen „aktiv" wegnehmen statt zu löschen.
+  Geprüft an „Elektrisch" (19 Piloten, 1 Anmeldung): gesperrt, nichts verloren.
+  Ein unbenutzter Typ lässt sich weiterhin löschen.
+
+- **Wenn statt des gewünschten Wettbewerbs ein anderer gezeigt wird, steht das
+  jetzt da.** Bisher geschah das still: wer `?competition=<fremde Nummer>` in die
+  Adresse schrieb, sah einfach einen anderen Wettbewerb und bekam keinen
+  Hinweis. Die Daten fremder Wettbewerbe waren dabei nie zu sehen – der Wechsel
+  schützt davor –, aber man konnte leicht glauben, den gewünschten Wettbewerb
+  vor sich zu haben und im falschen zu arbeiten. Jetzt:
+  > Der Wettbewerb „MFV Brislach - Schwarzbubenfliegen 2026" gehört einem
+  > anderen Verein. Angezeigt wird „MG Breitenbach - Erlencup 2027".
+  Bewusst eine Meldung und keine Umleitung: eine Umleitung auf jeder
+  Verwaltungsseite liefe in eine Schleife, sobald der aktive Wettbewerb einem
+  fremden Verein gehört.
+
+- **Zu einem gemeldeten Verdacht: es gab keine Informationslücke.** Nachgemessen
+  mit zwei Wettbewerben an verschiedenen Veranstaltern und einem Konto, das nur
+  den eigenen Verein steuert: die Adresse `anmeldungen.php?competition=<fremd>`
+  zeigt **keinen** fremden Namen und **keine** fremde Bemerkung. Der
+  Verwaltungsschalter von `resolve_competition_param()` greift – er tauscht den
+  Wettbewerb, statt zu sperren. Was fehlte, war die Ansage, und die gibt es jetzt.
+
 ## 1.9.17
 
 - **Die Meldung nach dem Aktualisieren kam noch in der alten Fassung.** Nach dem

@@ -749,8 +749,12 @@ passenden Anmeldung. `competition_choices()` ist deshalb entfallen.
 
 Deshalb ruft jede Seite unter `admin/` die Auswahl mit einem zweiten Schalter auf
 (`resolve_competition_param($roh, true)`). Wer einen Wettbewerb nennt, den das Konto nicht steuern
-darf, wird dort auf einen eigenen umgeleitet und sieht dort nichts vom fremden. Die öffentlichen
-Seiten rufen die Auswahl ohne den Schalter auf.
+darf, sieht dort nichts vom fremden: statt des gewünschten Wettbewerbs wird einer gezeigt, den
+das Konto steuern darf, und **seit 1.9.18 steht dabei ein Hinweis da**, welcher Wettbewerb
+tatsächlich angezeigt wird. Das war vorher still, und man konnte leicht glauben, den gewünschten
+Wettbewerb vor sich zu haben. Eine Umleitung wäre in eine Schleife gelaufen, sobald schon der
+aktive Wettbewerb einem fremden Verein gehört – deshalb die Meldung. Die öffentlichen Seiten
+rufen die Auswahl ohne den Schalter auf.
 
 **Ein Verein, einmal angelegt.** Vereine und Modelltypen bleiben global, die Wettbewerbe sind
 datenseitig getrennt. Ein Verein lässt sich deshalb nur löschen, wenn **nirgends** mehr etwas an
@@ -766,6 +770,13 @@ Zwei Einträge für denselben Verein werden über **Doppelten Verein zusammenleg
 die Piloten wandern zum Zielverein, der Doppeleintrag verschwindet. Beides ist für Vereine
 blockiert, sobald sie in einem abgeschlossenen Wettbewerb vorkommen – die historische Zuordnung
 bleibt erhalten.
+
+**Modelltypen sind genau so abgesichert** (seit 1.9.18). Vorher prüfte die Seite nur abgeschlossene
+Wettbewerbe, und ein in einem laufenden Wettbewerb benutzter Typ ließ sich löschen: der
+Fremdschlüssel setzte die Piloten still auf NULL, die Startliste verlor ihre Gruppierung, und
+es gab keine Meldung. Jetzt wird wie bei den Vereinen gesperrt und die Meldung nennt die
+Anzahlen. **Für „nicht mehr anbieten" das Kästchen *aktiv* wegnehmen** – dann bleibt die
+Zuordnung stehen und der Typ verschwindet nur aus der Auswahl.
 
 ## Anmeldung
 
