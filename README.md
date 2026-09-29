@@ -375,7 +375,8 @@ weisen sie sich mit 403 ab.
    oder `178`. Die Strafpunkte stehen live in der letzten Spalte.
 8. **Rangliste** – öffentlich unter `rangliste.php`, je Modelltyp oder alle zusammen.
    Von der Startseite aus wählt man den Wettbewerb per Klick.
-9. **Vereinswertung** – öffentlich unter `vereinswertung.php`.
+9. **Vereinswertung** – steht am Ende der öffentlichen Rangliste, unter demselben
+   Filter wie die Piloten. `vereinswertung.php` leitet dorthin weiter.
 10. **Wettbewerb beenden** – sobald alle Resultate erfasst sind. Der Wettbewerb bleibt als
     Archiv erhalten und lässt sich mit *Wieder öffnen* zurückholen.
 
@@ -495,6 +496,11 @@ ohne JavaScript auf und lässt sich mit der Tastaste bedienen.
 Der Knopf **Anmelden** in der Navigationsleiste ist dafür weg. Er stand direkt neben dem Punkt
 **Anmeldung** und wurde dauernd verwechselt – ein Buchstabe Unterschied, ein Klick daneben. Das
 Symbol nimmt beiden die Verwechslungsmöglichkeit.
+
+Seit 1.9.16 hat der öffentliche Bereich **gar keine Navigationsleiste mehr**, und das Benutzermenü
+trägt zusätzlich den Eintrag **Wettkampfbüro**. Wer die Seite liest, nutzt den Zurück-Knopf des
+Browsers oder klickt den Titel in der Kopfzeile; zwischen den Wettbewerben geht es über die
+Kacheln der Startseite.
 
 **Was wo hingehört, ist jetzt getrennt:**
 
@@ -720,6 +726,10 @@ beides vermischt – die Verwaltungsprüfung beantwortet für Besucher immer mit
 damit auch die Wettbewerbsauswahl auf den öffentlichen Seiten ausser Kraft gesetzt, sodass dort
 immer der aktive Wettbewerb erschien.
 
+Seit 1.9.16 hat ausserdem keine öffentliche Seite eine eigene Auswahlleiste mehr. Die Kacheln auf
+der Startseite wählen den Wettbewerb, der Knopf **Anmelden** darauf führt mit `competition=` zur
+passenden Anmeldung. `competition_choices()` ist deshalb entfallen.
+
 Deshalb ruft jede Seite unter `admin/` die Auswahl mit einem zweiten Schalter auf
 (`resolve_competition_param($roh, true)`). Wer einen Wettbewerb nennt, den das Konto nicht steuern
 darf, wird dort auf einen eigenen umgeleitet und sieht dort nichts vom fremden. Die öffentlichen
@@ -777,7 +787,7 @@ Resultat hat.
 ```
 index.php              öffentliche Startseite: Wettbewerb wählen, kurze Erklärung
 rangliste.php          öffentliche Rangliste
-vereinswertung.php     öffentliche Vereinswertung
+vereinswertung.php     Weiterleitung auf rangliste.php (Stand 1.9.13)
 teilnehmer.php         öffentliche Teilnehmerliste
 anmeldung.php          öffentliches Anmeldeformular
 

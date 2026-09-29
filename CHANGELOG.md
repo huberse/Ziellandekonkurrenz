@@ -10,6 +10,47 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.16
+
+- **Der öffentliche Bereich hat keine Navigationsleiste mehr.** Zur Startseite
+  führt der Titel „Ziellandekonkurrenz" in der Kopfzeile; zwischen den
+  Wettbewerben führt die Kachelleiste. Beides hat man ohnehin benutzt, statt der
+  Leiste mit fünf Punkten. `install.php` und `upgrade.php` behalten ihre Leiste,
+  damit man von dort nicht in eine Sackgasse läuft.
+
+- **Die Wettbewerbsauswahl über der Seite ist weg** – die Zeile „Wettbewerb –
+  Erlencup 2027 – Schwarzbubenfliegen 2027 – …“ auf Rangliste, Teilnehmerliste
+  und Anmeldung. Sie war die Navigation des öffentlichen Teils und wird durch
+  die Kacheln ersetzt. Der Knopf **Anmelden** auf der Kachel führt mit
+  `competition=` direkt zur Anmeldung des richtigen Wettbewerbs; geprüft.
+  - `competition_choices()` hat damit keinen Aufrufer mehr und ist entfernt,
+    mitsamt der zugehörigen Stile `.pick-row` und `.pick-chip` (33 Zeilen).
+  - `vereinswertung.php` bleibt als Weiterleitung auf `rangliste.php`, damit alte
+    Links und Lesezeichen nicht ins Leere laufen. Wettbewerb und wandern mit.
+
+- **Die Vereinswertung steht am Ende der Rangliste**, unter demselben Filter wie
+  die Piloten. Sie hatte eine eigene Seite, weil es eine Leiste gab, in der sie
+  liegen konnte. „Gesamtwertung“ heißt bei den Vereinen dasselbe wie „alle
+  Modelltypen“; „Elektrisch“ und „Schlepp“ schränken jetzt beide Wertungen
+  gleichzeitig ein.
+- **Der Knopf „Drucken“ ist von der Rangliste und von der Vereinswertung
+  verschwunden.** Auf dem iPad druckt man ohnehin nicht, und am Wettbewerbsplatz
+  gibt es den Laufzettel als PDF.
+
+- **Die erste Zeile der Anmeldung ist ein Satz in einer Größe**: „Anmeldung –
+  Schwarzbubenfliegen 2027 hinzufügen“. Vorher stand dort die Überschrift
+  „Anmeldung“ in eigener Schriftgröße und darunter ein Absatz – zwei Grade
+  übereinander für eine einzige Aussage.
+
+- **„Wettkampfbüro“ steht jetzt im Menü hinter dem Benutzersymbol.** Mit der
+  weggefallenen Leiste wäre es sonst aus dem öffentlichen Teil verschwunden.
+
+- **Ein Fehler, den ich beim Testen selbst gemacht habe:** im Test habe ich das
+  Datum unquotiert gesetzt. `2027-08-15` rechnet PHP als `2027 - 8 - 15 = 2004`,
+  ein Datum von 2004 liegt in der Vergangenheit, und keine Kachel zeigte einen
+  Anmelde-Knopf. Ich suchte erst im Programm statt im Test. Derselbe Fehler wie
+  bei `isset('0')`: ein Wert, der aussieht wie eine Zahl, ist keiner.
+
 ## 1.9.15
 
 - **Die Knöpfe auf den Karten waren unterschiedlich hoch.** Auf der Live-Seite

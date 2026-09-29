@@ -152,18 +152,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $open) {
     }
 }
 
-page_start('Anmeldung', 'public', 'anmeldung.php');
+page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
 ?>
 <?php
-// Der gerade gezeigte Wettbewerb bleibt in der Auswahl, auch wenn er keine
-// Anmeldungen mehr annimmt - wer ein altes Lesezeichen hat, soll die
-// Abschluss-Seite sehen und nicht ins Leere. Das regelt competition_choices().
-if ($completed && $competitions && !in_array((int) $competition['id'],
-        array_map('intval', array_column($competitions, 'id')), true)) {
-    array_unshift($competitions, ['id' => (int) $competition['id'], 'name' => $competition['name'],
-                                  'completed_at' => '1']);
-}
-competition_choices($competitions, (int) $competition['id'], 'anmeldung.php', [], false);
+// Keine Auswahlliste: wer sich anmelden will, klickt den Knopf "Anmelden" auf
+// der Kachel des Wettbewerbs. Der Weg dorthin fuehrt mit competition= an die
+// richtige Stelle; ohne diesen Parameter zeigt die Seite den aktiven
+// Wettbewerb.
 ?>
 <div class="panel narrow">
 <?php if ($done): ?>
@@ -188,12 +183,13 @@ competition_choices($competitions, (int) $competition['id'], 'anmeldung.php', []
     <a class="btn ghost" href="teilnehmer.php<?= $competitionQS ?>">Teilnehmerliste ansehen</a>
 
 <?php else: ?>
-    <h2>Anmeldung</h2>
-    <p class="lead">
-        <?= setting('registration_info') !== ''
-            ? nl2br(h(setting('registration_info')))
-            : 'Trage dich hier für den Wettbewerb ein. Die Startnummer teilt dir die Wettkampfleitung zu.' ?>
-    </p>
+    <?php // Eine Zeile, eine Groesse. Vorher stand hier eine Ueberschrift
+          // "Anmeldung" in eigener Schriftgroesse und darunter ein Absatz -
+          // zwei Schriftgrade fuer einen einzigen Satz. ?>
+    <h2 class="anmeldung-kopf">Anmeldung &ndash; <?= h((string) $competition['name']) ?> hinzufügen</h2>
+    <?php if (setting('registration_info') !== ''): ?>
+        <p class="lead"><?= nl2br(h(setting('registration_info'))) ?></p>
+    <?php endif; ?>
 
     <?php if ($errors): ?>
         <div class="flash err"><?= h($errors['_form'] ?? 'Bitte die markierten Felder prüfen.') ?></div>
