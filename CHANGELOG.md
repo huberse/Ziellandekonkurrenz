@@ -10,6 +10,59 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.13
+
+- **Aktualisierung und Benutzer verwalten stehen im Menü hinter dem Benutzersymbol**,
+  beim SuperAdmin, direkt untereinander. Beide sind aus der Navigationsleiste
+  verschwunden. Sie betreffen nur den SuperAdmin; in der Leiste, die alle Konten
+  sehen, nahmen sie zwei Plätze für einen Bruchteil der Benutzer ein.
+
+- **Die Navigationsleiste passt jetzt wirklich auf eine Zeile.** Nach dem Wegfall
+  der beiden Punkte fehlten ihr noch **7 Pixel** – sie umbrach trotzdem, und
+  „Rangliste" rutschte auf eine zweite Zeile. Gemessen: 1147 Pixel Bedarf bei
+  1140 Pixeln nutzbarer Breite. Der waagerechte Innenabstand der Einträge geht
+  deshalb von 14 auf 9 Pixel; das sind rund 50 Pixel Luft, und jetzt sind es
+  1107 Pixel bei 1140. Ohne Puffer entscheidet die Nachkommastelle der Schrift,
+  und die unterscheidet sich je nach Betriebssystem.
+  - Beim Messen habe ich zweimal falsch gelegen: Erst zählte ich die
+    Zwischenräume um den Leerraum nicht mit. Dann setzte ich `nowrap`, worauf
+    die Einträge auf die Leiste schrumpften und der Bedarf zu klein aussah –
+    gemessen wurde am Ende nur noch die `max-width`. Erst als ich auch die
+    `max-width` aufhob, kam die wahre Zahl heraus. Beim ersten Messen lag ich
+    um 7 Pixel daneben und schloss daraus, es passe.
+  - Auf 1280, 1366, 1440, 1600 und 1920 Pixeln jetzt je eine Zeile. Die
+    öffentliche Seite war nie betroffen.
+
+- **Die Infobox „Konten" auf der Einstellungsseite ist weg.** Sie zählte die
+  Konten auf und verwies auf die Benutzerverwaltung – beides steht jetzt dort,
+  wo es hingehört: das Konto im Profil, die anderen Konten in der
+  Benutzerverwaltung. Der zugehörige Datenbankaufruf ist mit entfallen, er
+  hatte sonst keinen Zweck mehr.
+
+- **Auf dem iPad lief die Seite 6 Pixel zu breit.** Das Namensfeld auf der
+  Wettbewerbskarte hatte `min-width: 220px`; zusammen mit dem Knopf "Speichern"
+  (99px) und dem Abstand waren das 325px Mindestbreite, eine Karte bietet bei
+  1024px aber nur rund 291px. Der Knopf ragte ueber den Bildschirmrand. Jetzt
+  darf das Feld schrumpfen.
+  - Der Knopf war nur `visibility: hidden`, als sei er weg - und nahm dem
+    Namensfeld trotzdem 99px plus Abstand weg, obwohl er nichts anzeigt. Jetzt
+    ist er `display: none`, und das Feld hat die volle Kartenbreite: 282px
+    statt 186px. Beim Bearbeiten kommt der Knopf zuverlaessig hoch, auch per
+    Tabulatortaste - geprueft.
+
+- **Zielgeraete sind jetzt festgehalten: Laptop und iPad.** Ein Smartphone ist
+  bewusst kein Ziel; am Wettbewerbsplatz steht ein Laptop oder ein iPad. Vorher
+  stand das nirgends, und es lohnte sich, ueber die Lesbarkeit auf 360 Pixeln zu
+  streiten. 108 Kombinationen aus 9 Breiten (768 bis 1920 Pixel) und 12 Seiten
+  geprueft: kein Querlauf.
+
+- **Ab 2.0.0 gilt eine Regel fuer die Versionsnummer:** nur Dateien geaendert,
+  dann steigt die dritte Stelle; Datenbank geaendert, dann steigt die zweite
+  Stelle und die dritte faellt auf 0. Sie steht in der README, damit sie nicht
+  im Kopf von jemandem bleiben muss. 1.9.12 etwa hat den Vorgabewert von
+  `users.active` geaendert und steht trotzdem auf der dritten Stelle - die
+  Nummern bis 1.9.13 bleiben, wie sie sind.
+
 ## 1.9.12
 
 - **Ein neu angelegtes Konto war sofort gesperrt** und liess sich mit keinem Passwort

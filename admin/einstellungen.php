@@ -128,9 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 }
 
-$users = db()->query('SELECT id, username, display_name, created_at FROM users ORDER BY username')->fetchAll();
-$isAdmin = is_superadmin();
-
 page_start('Einstellungen', 'admin', 'einstellungen.php');
 ?>
 <h2>Einstellungen<?= count($competitions) > 1 ? ' – ' . h($competition['name']) : '' ?></h2>
@@ -335,21 +332,5 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
     <div class="btn-row"><button class="btn" type="submit">Einstellungen speichern</button></div>
     </fieldset>
 </form>
-
-<div class="panel" style="margin-top:24px">
-    <h3 style="margin-top:0">Konten</h3>
-    <p class="lead"><?= count($users) . (count($users) === 1 ? ' Konto' : ' Konten') ?>:
-        <?= h(implode(', ', array_column($users, 'username'))) ?></p>
-    <?php if ($isAdmin): ?>
-        <p class="lead">Als SuperAdmin pflegst du die Konten unter
-            <a href="benutzer.php">Benutzer</a>: anlegen, Anzeigename, Rolle, Sperre, Passwort
-            und Löschen.</p>
-    <?php else: ?>
-        <p class="lead">Neue Konten, Rollen und Sperren nimmt der SuperAdmin vor. Andere Rechte
-            brauchst du nicht: Du kannst den gesamten Wettbewerb steuern. Dein eigenes Passwort
-            änderst du im <a href="profil.php">Profil</a>, das findest du über das Benutzersymbol
-            oben rechts.</p>
-    <?php endif; ?>
-</div>
 
 <?php page_end();
