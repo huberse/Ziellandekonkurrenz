@@ -20,6 +20,7 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
 - [Aktualisieren einer bestehenden Installation](#aktualisieren-einer-bestehenden-installation)
 - [Aktualisierung von GitHub](#aktualisierung-von-github)
 - [Ablauf an einem Wettbewerbstag](#ablauf-an-einem-wettbewerbstag)
+- [Die Startseite](#die-startseite)
 - [Benutzer und Rechte](#benutzer-und-rechte)
 - [Wertung](#wertung)
 - [Einstellungen](#einstellungen)
@@ -36,8 +37,8 @@ Vereine laufen in derselben Installation; die Wettbewerbe bleiben vollständig g
 
 ## Was die App kann
 
-- **Öffentliche Seiten** ohne Konto: Rangliste je Modelltyp, Vereinswertung, Teilnehmerliste,
-  Anmeldeformular.
+- **Öffentliche Seiten** ohne Konto: Startseite mit Wettbewerbswahl und kurzer Erklärung,
+  Rangliste je Modelltyp, Vereinswertung, Teilnehmerliste, Anmeldeformular.
 - **Wettkampfbüro** mit Login, erreichbar die Erfassung, Startliste, Durchgänge, Vereine,
   Modelltypen, Anmeldungen, Export und Einstellungen.
 - **Benutzerverwaltung** mit zwei Rollen: alle steuern den ganzen Wettbewerb, nur der SuperAdmin
@@ -331,10 +332,48 @@ weisen sie sich mit 403 ab.
    eines für die geraden Startnummern, jeweils mit Flugzeit, Landewert und vier Ankreuzfeldern.
 7. **Resultate erfassen** – ein Durchgang pro Seite, eine Zeile pro Pilot. Flugzeit als `2:58`
    oder `178`. Die Strafpunkte stehen live in der letzten Spalte.
-8. **Rangliste** – öffentlich unter `index.php`, je Modelltyp oder alle zusammen.
+8. **Rangliste** – öffentlich unter `rangliste.php`, je Modelltyp oder alle zusammen.
+   Von der Startseite aus wählt man den Wettbewerb per Klick.
 9. **Vereinswertung** – öffentlich unter `vereinswertung.php`.
 10. **Wettbewerb beenden** – sobald alle Resultate erfasst sind. Der Wettbewerb bleibt als
     Archiv erhalten und lässt sich mit *Wieder öffnen* zurückholen.
+
+## Die Startseite
+
+`index.php` ist die Startseite. Sie beantwortet zwei Fragen: **welcher Wettbewerb** und **wofür
+stehen die Zahlen**. Beides auf einer Seite, ohne dass man sich anmelden muss.
+
+Oben steht die Auswahl als grosses Kartenfeld, nach Wettbewerbsdatum sortiert, das neueste Jahr
+oben. Auf der ganzen Karte ist ein Knopf; angeklickt wird nicht auf ein Wort, sondern auf die
+Fläche. Jede Karte nennt Datum, Ort, Verein und die Zahl der Piloten und Durchgänge. Steht ein
+Wettbewerb unter *Rangliste noch nicht frei*, gibt es keinen Knopf zur Rangliste – nach der
+Ausschaltung erscheint er von selbst, ohne dass die Karte manuell freigegeben werden muss.
+
+**Rangliste für jeden Wettbewerb, Anmeldung nur für offene.** Beides steht auf jeder Karte, aber
+nur getrennt: der Knopf *Rangliste* erscheint zu jedem Wettbewerb, dessen Rangliste freigegeben
+ist, der Knopf *Anmelden* nur dort, wo noch angemeldet werden kann. Ein Wettbewerb nimmt
+Anmeldungen an, wenn er nicht beendet ist, die Anmeldung nicht abgeschaltet wurde und sein Tag
+noch nicht vorbei ist – `competition_nimmt_anmeldungen_an()` entscheidet das, und dieselbe
+Funktion gilt für die Karten, für die Auswahl auf der Anmeldeseite und für den Hinweis dort.
+Wichtig dabei: eine abgeschaltete Anmeldung allein genügt nicht, es zählt auch das Datum. Sonst
+stünde ein Wettbewerb vom letzten Juni noch monatelang in der Auswahl, nur weil ihn niemand
+rechtzeitig abgeschlossen hat.
+
+Wer auf der Startseite einen vergangenen Wettbewerb wählt und dann zur *Anmeldung* geht, bekommt
+kein Formular, sondern die Liste der Wettbewerbe, für die es noch geht – oder den Satz, dass
+gerade für keiner die Anmeldung offen ist, mit einem Knopf zurück zu allen Wettbewerben. Die
+Auswahlleiste darüber bleibt stehen, und der gerade gezeigte Wettbewerb bleibt darin, auch wenn
+er beendet ist: er trägt dann den Vermerk *beendet*. So weiss man, wofür die Seite gerade
+spricht, statt vor einer leeren Auswahl zu stehen.
+
+Darunter steht die Erklärung in drei Blöcken: **wie man die Rangliste liest** (durchgestrichen,
+rote Zahl, gleiche Summe), **wie die Punkte entstehen** und **wie man sich anmeldet**. Sie
+nennt absichtlich keine festen Punktzahlen – die sind je Verein verschieden und stehen über der
+Rangliste.
+
+Die Unterseiten haben die Auswahl als schmale Knopfleiste über dem Inhalt. Kein Formular, kein
+JavaScript, ein Klick führt zum Wettbewerb. Ein beendeter Wettbewerb ist auf der Anmeldeseite
+nicht mehr wählbar, der gerade gezeigte bleibt aber sichtbar.
 
 ## Benutzer und Rechte
 
@@ -549,9 +588,18 @@ Administrator ihn mit *Wieder öffnen* zurück.
 Ein Wettbewerb mit Anmeldungen oder Resultaten wird nicht gelöscht, damit keine Daten
 verloren gehen.
 
-**Auswahl.** Die öffentlichen Seiten bieten bei mehreren Wettbewerben ein Dropdown, gruppiert
-nach *Offene Wettbewerbe* und *Abgeschlossene Wettbewerbe*, mit dem aktiven Wettbewerb oben.
-Ein gezielter Aufruf funktioniert mit `index.php?competition=2` – und zwar auch ohne
+**Auswahl.** Die öffentlichen Seiten bieten keine Auswahlliste mehr, sondern Knöpfe: auf der
+Startseite grosse Karten, auf den Unterseiten eine schmale Leiste darüber. Kein Formular, kein
+JavaScript, ein Klick führt zum Wettbewerb. Auf der Anmeldeseite stehen nur Wettbewerbe, die
+überhaupt noch Anmeldungen annehmen; der gerade gezeigte bleibt aber sichtbar, auch wenn er
+beendet ist, damit ein altes Lesezeichen nicht ins Leere zeigt. Die Startseite sortiert nach
+Wettbewerbsdatum, nicht nach Nummer – das neueste Jahr steht oben.
+
+In der Verwaltung bleibt es bei einem Dropdown, gruppiert nach *Offene Wettbewerbe* und
+*Abgeschlossene Wettbewerbe*, mit dem aktiven Wettbewerb oben. Dort wird oft mehrmals am
+Stück gewechselt, und ein schmales Feld nimmt weniger Platz weg als eine Kartenzeile.
+
+Ein gezielter Aufruf funktioniert mit `rangliste.php?competition=2` – und zwar auch ohne
 Anmeldung, denn die öffentlichen Seiten zeigen jeden Wettbewerb. Die frühere Form
 `?season=...` wird beim Lesen noch akzeptiert.
 
@@ -616,7 +664,8 @@ Resultat hat.
 ## Aufbau des Projekts
 
 ```
-index.php              öffentliche Rangliste
+index.php              öffentliche Startseite: Wettbewerb wählen, kurze Erklärung
+rangliste.php          öffentliche Rangliste
 vereinswertung.php     öffentliche Vereinswertung
 teilnehmer.php         öffentliche Teilnehmerliste
 anmeldung.php          öffentliches Anmeldeformular

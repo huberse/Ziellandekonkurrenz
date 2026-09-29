@@ -12,11 +12,12 @@ $competition = resolve_competition_param(competition_request_param());
 $competitions = all_competitions();
 
 if (!setting_bool('club_ranking_enabled', true) && !current_user()) {
-    redirect('index.php');
+    redirect('rangliste.php');
 }
 
 if (!setting_bool('public_results', true) && !current_user()) {
     page_start('Vereinswertung', 'public', 'vereinswertung.php');
+    competition_choices($competitions, (int) $competition['id'], 'vereinswertung.php');
     echo '<div class="panel"><h2>Noch keine Rangliste</h2><p class="lead">Die Resultate werden nach dem Wettbewerb aufgeschaltet.</p></div>';
     page_end();
     exit;
@@ -30,11 +31,13 @@ $data  = build_club_ranking($typeId, $competition['id']);
 $count = $data['count'];
 
 page_start('Vereinswertung', 'public', 'vereinswertung.php', true);
-$competitionQS = (int) $competition['id'] !== current_competition_id() ? '&competition=' . (int) $competition['id'] : '';
+$competitionQS = '&competition=' . (int) $competition['id'];
 ?>
+<?php competition_choices($competitions, (int) $competition['id'], 'vereinswertung.php',
+    ['typ' => $typ !== '' ? $typ : 'alle']); ?>
 <div class="row-between no-print">
     <div>
-        <h2>Vereinswertung<?= count($competitions) > 1 ? ' – Wettbewerb ' . h($competition['name']) : '' ?></h2>
+        <h2>Vereinswertung<?= count($competitions) > 1 ? ' – ' . h($competition['name']) : '' ?></h2>
         <p class="lead">Die <?= $count ?> besten Piloten eines Vereins ergeben zusammen das Vereinsresultat.
             Wenige Punkte sind gut.</p>
     </div>
@@ -43,16 +46,6 @@ $competitionQS = (int) $competition['id'] !== current_competition_id() ? '&compe
         <?php foreach ($types as $t): ?>
             <a class="btn <?= $typeId === (int) $t['id'] ? '' : 'ghost' ?>" href="?typ=<?= (int) $t['id'] ?><?= $competitionQS ?>"><?= h($t['name']) ?></a>
         <?php endforeach; ?>
-        <?php if (count($competitions) > 1): ?>
-            <form method="get" style="display:inline-block">
-                <input type="hidden" name="typ" value="<?= h($typ) ?>">
-                <select name="competition" data-auto-submit style="width:auto;display:inline-block">
-                    <?php foreach ($competitions as $s): ?>
-                        <option value="<?= (int) $s['id'] ?>" <?= (int) $s['id'] === (int) $competition['id'] ? 'selected' : '' ?>><?= h($s['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
-        <?php endif; ?>
         <a class="btn ghost" href="javascript:window.print()">Drucken</a>
     </div>
 </div>

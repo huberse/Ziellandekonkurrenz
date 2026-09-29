@@ -230,7 +230,7 @@ function region_pilot_schluessel(array $pilot): string
  * Gelesen wird ausschliesslich – die Wertung der einzelnen Wettbewerbe bleibt
  * unberührt. Je Wettbewerb zaehlt der Rang, den der Pilot dort in der
  * Wettbewerbsrangliste hat; dieser Rang enthaelt schon die geteilten Plaetze, wie
- * sie auf index.php erscheinen.
+ * sie auf rangliste.php erscheinen.
  *
  * @param int[] $competitionIds  die Wettbewerbe, die fuer den Regiocup zaehlen
  * @return array{

@@ -168,7 +168,7 @@ function find_competition(int $id): ?array
  * Wettbewerb ist öffentlich sichtbar, deshalb gilt jeder Wettbewerb aus der
  * Adresse – auch ohne Anmeldung. Vorher lag an dieser Stelle die
  * Verwaltungsprüfung, und die sagt für Besucher ohne Anmeldung immer „nein".
- * Damit wurde ?competition= auf anmeldung.php, index.php, teilnehmer.php und
+ * Damit wurde ?competition= auf anmeldung.php, rangliste.php, teilnehmer.php und
  * vereinswertung.php stillschweigend übergangen: wer zwei Wettbewerbe zur
  * Anmeldung offen hatte, sah bei beiden denselben Anmeldetext, dieselbe
  * Rangliste und dieselbe Teilnehmerliste.
@@ -489,6 +489,65 @@ function competition_pilot_counts(): array
 }
 
 /**
+ * Die Wettbewerbe für die öffentliche Startseite, alle Angaben in zwei Abfragen.
+ *
+ * Datum, Ort und die beiden Schalter public_results und registration_open stehen
+ * je Wettbewerb in competition_settings und werden sonst einzeln nachgeschlagen.
+ * Für die Startseite wären das zwei Abfragen je Wettbewerb; hier kommt alles
+ * auf einmal. Fehlt ein Wert beim Wettbewerb, gilt die globale Einstellung –
+ * genau wie bei competition_setting().
+ *
+ * @return array<int, array<string, mixed>>  neueste zuerst, mit den Feldern
+ *         competition_date, competition_place, public_results, registration_open
+ *         sowie den Zählern pilots, rounds, scores und club_name.
+ */
+function competitions_uebersicht(): array
+{
+    $rows = db()->query(
+        'SELECT c.*, cl.name AS club_name,
+                (SELECT COUNT(*) FROM pilots p WHERE p.competition_id = c.id AND p.active = 1) AS pilots,
+                (SELECT COUNT(*) FROM rounds r WHERE r.competition_id = c.id AND r.is_included = 1) AS rounds,
+                (SELECT COUNT(*) FROM scores s WHERE s.competition_id = c.id) AS scores
+           FROM competitions c
+           LEFT JOIN clubs cl ON cl.id = c.club_id
+          ORDER BY c.id DESC'
+    )->fetchAll();
+
+    $keys = ['competition_date', 'competition_place', 'public_results', 'registration_open'];
+    $st = db()->prepare('SELECT competition_id, skey, svalue FROM competition_settings
+                          WHERE skey IN (' . implode(',', array_fill(0, count($keys), '?')) . ')');
+    $st->execute($keys);
+    $jeWettbewerb = [];
+    foreach ($st as $row) {
+        $jeWettbewerb[(int) $row['competition_id']][(string) $row['skey']] = $row['svalue'];
+    }
+
+    $global = global_settings();
+    foreach ($rows as &$row) {
+        $id = (int) $row['id'];
+        foreach ($keys as $key) {
+            $row[$key] = $jeWettbewerb[$id][$key] ?? ($global[$key] ?? null);
+        }
+    }
+    unset($row);
+
+    // Nach Datum, nicht nach Nummer. Die Nummern folgen der Anlage, und wer
+    // einen Wettbewerb nachmacht, bekommt eine hoehere Nummer als das
+    // aeltere, spaeter stattgefundene. Ohne Datum steht er hinten.
+    usort($rows, static function (array $a, array $b): int {
+        $da = !empty($a['competition_date']) ? strtotime((string) $a['competition_date']) : false;
+        $db = !empty($b['competition_date']) ? strtotime((string) $b['competition_date']) : false;
+        if ($da !== $db) {
+            if ($da === false) { return 1; }
+            if ($db === false) { return -1; }
+            return $db <=> $da;
+        }
+        return (int) $b['id'] <=> (int) $a['id'];
+    });
+    return $rows;
+}
+
+/**
  * Durchgänge, Resultate und offene Anmeldungen je Wettbewerb in einer Abfrage:
  * id => ['rounds' => int, 'scores' => int, 'registrations' => int].
  */
@@ -559,6 +618,55 @@ function competition_is_completed(int $competitionId): bool
     $st->execute([$competitionId]);
     $value = $st->fetchColumn();
     return $value !== false && $value !== null;
+}
+
+/**
+ * Der Wettbewerbstag liegt vor heute.
+ *
+ * Ohne Datum gilt false: es fehlt dann eine Angabe, und daran soll die
+ * Anmeldung nicht hängen. Der Tag selbst zählt noch, bis 23:59 kann man sich
+ * für den Wettbewerb anmelden.
+ *
+ * @param array $competition  aus competitions_uebersicht() oder all_competitions()
+ */
+function competition_ist_vergangen(array $competition): bool
+{
+    $datum = array_key_exists('competition_date', $competition)
+        ? $competition['competition_date']
+        : competition_setting((int) $competition['id'], 'competition_date', '');
+    if (empty($datum)) {
+        return false;
+    }
+    $zeit = strtotime((string) $datum);
+    return $zeit !== false && $zeit < strtotime('today');
+}
+
+/**
+ * Nimmt dieser Wettbewerb noch Anmeldungen an?
+ *
+ * Drei Bedingungen müssen zusammenkommen: er ist nicht beendet, die Anmeldung
+ * ist nicht abgeschaltet, und der Tag ist noch nicht vorbei.
+ *
+ * Das Datum zählt mit, weil eine abgeschaltete Anmeldung allein nicht reicht.
+ * Sonst steht ein Wettbewerb vom letzten Juni noch monatelang in der Auswahl,
+ * nur weil ihn niemand rechtzeitig abgeschlossen hat. Umgekehrt bleibt ein
+ * künftiger Wettbewerb auch dann zur Anmeldung offen, wenn er noch nicht
+ * begonnen hat – das ist der normale Fall.
+ *
+ * Für die Rangliste gilt nichts davon: eine Rangliste darf zu jedem Wettbewerb
+ * angesehen werden, auch zu einem abgeschlossenen und alten.
+ *
+ * @param array $competition  aus competitions_uebersicht() oder all_competitions()
+ */
+function competition_nimmt_anmeldungen_an(array $competition): bool
+{
+    if (!empty($competition['completed_at']) || competition_ist_vergangen($competition)) {
+        return false;
+    }
+    $offen = array_key_exists('registration_open', $competition)
+        ? (string) $competition['registration_open']
+        : (string) competition_setting((int) $competition['id'], 'registration_open', '1');
+    return $offen === '1';
 }
 
 /**

@@ -10,16 +10,20 @@ if (!schema_has_competitions()) {
 }
 
 $competition = resolve_competition_param(competition_request_param());
-// Beendete Wettbewerbe nehmen keine Anmeldungen mehr an und stehen deshalb
-// nicht mehr in der Auswahl. Ein alter Lesezeichen zeigt weiterhin die
-// Abschluss-Seite, damit klar ist, warum nichts mehr geht.
-$competitions = open_competitions();
+// Nur Wettbewerbe, die wirklich noch Anmeldungen annehmen: nicht beendet, nicht
+// abgeschaltet und der Tag noch nicht vorbei. Die Rangliste gibt es zu jedem
+// Wettbewerb, die Anmeldung nicht. Ein altes Lesezeichen auf einen abgeschlossenen
+// Wettbewerb zeigt weiterhin die Abschluss-Seite, damit klar ist, warum nichts
+// mehr geht.
+$competitions = array_values(array_filter(all_competitions(), 'competition_nimmt_anmeldungen_an'));
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '';
 $doneQS = ($competitionQS !== '' ? $competitionQS . '&' : '?');
 $completed = competition_is_completed((int) $competition['id']);
+$vergangen = competition_ist_vergangen($competition);
 $types = db()->query('SELECT * FROM model_types WHERE active = 1 ORDER BY sort_order, name')->fetchAll();
 $clubs = db()->query('SELECT * FROM clubs WHERE active = 1 ORDER BY sort_order, name')->fetchAll();
-$open   = !$completed && setting_bool('registration_open', true);
+$open   = competition_nimmt_anmeldungen_an($competition)
+    && !$completed && setting_bool('registration_open', true);
 $errors = [];
 $done   = get('eingegangen') === '1';
 $mailSent = $done && get('mail') === 'ok';
@@ -148,24 +152,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $open) {
     }
 }
 
-// Die Auswahl braucht es nur, wenn es eine Alternative zum aktuellen Wettbewerb gibt.
-$showPicker = count($competitions) > 1 || (count($competitions) > 0 && $completed);
-
 page_start('Anmeldung', 'public', 'anmeldung.php');
 ?>
-<?php if ($showPicker): ?>
-    <form method="get" class="btn-row narrow" style="margin-bottom:16px">
-        <label for="competition-select" class="muted">Wettbewerb:</label>
-        <select id="competition-select" name="competition" data-auto-submit>
-            <?php if ($completed): ?>
-                <option value="<?= (int) $competition['id'] ?>" selected><?= h($competition['name']) ?> (beendet)</option>
-            <?php endif; ?>
-            <?php foreach ($competitions as $s): ?>
-                <option value="<?= (int) $s['id'] ?>" <?= (int) $s['id'] === (int) $competition['id'] ? 'selected' : '' ?>><?= h($s['name']) ?></option>
-            <?php endforeach; ?>
-        </select>
-    </form>
-<?php endif; ?>
+<?php
+// Der gerade gezeigte Wettbewerb bleibt in der Auswahl, auch wenn er keine
+// Anmeldungen mehr annimmt - wer ein altes Lesezeichen hat, soll die
+// Abschluss-Seite sehen und nicht ins Leere. Das regelt competition_choices().
+if ($completed && $competitions && !in_array((int) $competition['id'],
+        array_map('intval', array_column($competitions, 'id')), true)) {
+    array_unshift($competitions, ['id' => (int) $competition['id'], 'name' => $competition['name'],
+                                  'completed_at' => '1']);
+}
+competition_choices($competitions, (int) $competition['id'], 'anmeldung.php', [], false);
+?>
 <div class="panel narrow">
 <?php if ($done): ?>
     <h2>Anmeldung eingegangen</h2>
@@ -179,11 +178,13 @@ page_start('Anmeldung', 'public', 'anmeldung.php');
 <?php elseif ($completed): ?>
     <h2>Wettbewerb beendet</h2>
     <p class="lead">Für diesen Wettbewerb werden keine Anmeldungen mehr angenommen.</p>
+    <?php anmeldehinweis($competitions, true); ?>
     <a class="btn ghost" href="teilnehmer.php<?= $competitionQS ?>">Teilnehmerliste ansehen</a>
 
 <?php elseif (!$open): ?>
-    <h2>Anmeldung geschlossen</h2>
+    <h2><?= $vergangen ? 'Wettbewerb vorbei' : 'Anmeldung geschlossen' ?></h2>
     <p class="lead">Für diesen Wettbewerb werden keine Anmeldungen mehr entgegengenommen.</p>
+    <?php anmeldehinweis($competitions, true); ?>
     <a class="btn ghost" href="teilnehmer.php<?= $competitionQS ?>">Teilnehmerliste ansehen</a>
 
 <?php else: ?>

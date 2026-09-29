@@ -1,4 +1,12 @@
 <?php
+/**
+ * Startseite für Besucher.
+ *
+ * Zwei Fragen auf einer Seite: welcher Wettbewerb, und wofür stehen die Zahlen.
+ * Die Wettbewerbsauswahl ist das Hauptelement und steht deshalb gross oben -
+ * ein Klick führt zur Rangliste. Die Erklärung tritt zurück und steht darunter,
+ * ruhig und schmal.
+ */
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/scoring.php';
@@ -16,127 +24,65 @@ if (!schema_has_competitions()) {
     redirect('upgrade.php');
 }
 
-$competition = resolve_competition_param(competition_request_param());
-$competitions = all_competitions();
-
-if (!setting_bool('public_results', true) && !current_user()) {
-    page_start('Rangliste', 'public', 'index.php');
-    echo '<div class="panel"><h2>Noch keine Rangliste</h2><p class="lead">Die Resultate werden nach dem Wettbewerb aufgeschaltet.</p></div>';
-    page_end();
-    exit;
-}
-
-$types = all_model_types();
-$scope  = get('typ', setting('ranking_scope', 'group') === 'overall' ? 'alle' : (string) ($types[0]['id'] ?? 'alle'));
-
-$blocks = [];
-if ($scope === 'alle' || !$types) {
-    $blocks[] = ['title' => 'Gesamtwertung', 'data' => build_ranking(null, null, $competition['id'])];
-} else {
-    $gid = (int) $scope;
-    foreach ($types as $g) {
-        if ((int) $g['id'] === $gid) {
-            $blocks[] = ['title' => $g['name'], 'data' => build_ranking($gid, null, $competition['id'])];
-        }
-    }
-    if (!$blocks) {
-        $blocks[] = ['title' => 'Gesamtwertung', 'data' => build_ranking(null, null, $competition['id'])];
-    }
-}
-
-page_start('Rangliste', 'public', 'index.php', true);
-$competitionQS = (int) $competition['id'] !== current_competition_id() ? '&competition=' . (int) $competition['id'] : '';
+$wettbewerbe = competitions_uebersicht();
+// Das Abzeichen im Seitenkopf nennt den aktiven Wettbewerb. Genau den soll man
+// hier ja erst wählen, deshalb bleibt es auf dieser Seite weg.
+page_start('Start', 'public', 'index.php', false, true, true);
 ?>
-<div class="row-between no-print">
-    <div>
-        <h2>Rangliste<?= count($competitions) > 1 ? ' – Wettbewerb ' . h($competition['name']) : '' ?></h2>
-        <p class="lead"><?= h(rules_summary()) ?>. Wenige Punkte sind gut.</p>
-    </div>
-    <div class="btn-row dense">
-        <?php if (count($types) > 0): ?>
-            <a class="btn <?= $scope === 'alle' ? '' : 'ghost' ?>" href="?typ=alle<?= $competitionQS ?>">Gesamtwertung</a>
-            <?php foreach ($types as $g): ?>
-                <a class="btn <?= (string) $g['id'] === (string) $scope ? '' : 'ghost' ?>" href="?typ=<?= (int) $g['id'] ?><?= $competitionQS ?>"><?= h($g['name']) ?></a>
-            <?php endforeach; ?>
-        <?php endif; ?>
-        <?php if (count($competitions) > 1): ?>
-            <form method="get" class="dense" style="display:inline-block">
-                <?php if ($scope !== ''): ?><input type="hidden" name="typ" value="<?= h($scope) ?>"><?php endif; ?>
-                <select name="competition" data-auto-submit style="width:auto;display:inline-block">
-                    <?php foreach ($competitions as $s): ?>
-                        <option value="<?= (int) $s['id'] ?>" <?= (int) $s['id'] === (int) $competition['id'] ? 'selected' : '' ?>><?= h($s['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
-        <?php endif; ?>
-        <a class="btn ghost" href="javascript:window.print()">Drucken</a>
-    </div>
-</div>
+<section class="hero">
+    <h2>Wettbewerb wählen</h2>
+    <p class="lead">Hier stehen die Resultate der Segelflug-Wettbewerbe. Auf die Karte klicken, und die
+        Rangliste öffnet sich. <strong>Wenige Punkte sind gut.</strong></p>
 
-<?php foreach ($blocks as $block):
-    $rounds = $block['data']['rounds'];
-    $rows   = $block['data']['rows'];
-    ?>
-    <div class="panel">
-        <h3 style="margin-top:0"><?= h($block['title']) ?></h3>
-        <?php if (!$rows): ?>
-            <p class="lead">Für diese Auswahl sind noch keine Piloten erfasst.</p>
-        <?php else: ?>
-        <div class="table-scroll">
-        <table class="data">
-            <thead>
-            <tr>
-                <th>Rang</th>
-                <th class="num">Nr.</th>
-                <th>Pilot</th>
-                <th>Verein</th>
-                <?php if ($scope === 'alle'): ?><th>Modelltyp</th><?php endif; ?>
-                <?php foreach ($rounds as $r): ?>
-                    <th class="num">DG <?= (int) $r['round_number'] ?></th>
-                <?php endforeach; ?>
-                <th class="num">Total</th>
-            </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($rows as $row):
-                $p = $row['pilot'];
-                $podium = $row['rank'] && $row['rank'] <= 3 ? ' podium-' . $row['rank'] : '';
-                ?>
-                <tr class="<?= $podium ?>">
-                    <td class="rank"><?= $row['rank'] ? (int) $row['rank'] : '–' ?></td>
-                    <td class="num"><?= h($p['bib_number'] ?: '') ?></td>
-                    <td><?= h(full_name($p)) ?></td>
-                    <td class="small muted"><?= h($p['club_name'] ?: '') ?></td>
-                    <?php if ($scope === 'alle'): ?><td class="small muted"><?= h($p['model_type_name'] ?: '') ?></td><?php endif; ?>
-                    <?php foreach ($rounds as $r):
-                        $c = $row['cells'][(int) $r['id']] ?? null;
-                        $isDrop = $row['dropped'] === (int) $r['id'];
-                        if ($c === null) {
-                            echo '<td class="num cell-empty">·</td>';
-                        } else {
-                            $scored = score_is_flown($c['flags']) && empty($c['flags']['motor']);
-                            $cls = 'num' . ($isDrop ? ' dropped' : '') . ($scored ? '' : ' cell-missing');
-                            $title = $c['missing']
-                                ? 'Kein Resultat erfasst'
-                                : ($scored
-                                    ? 'Zeit ' . fmt_time($c['time']) . ', Landewert ' . fmt_num($c['dist'])
-                                    : score_outcome_label($c['flags']));
-                            echo '<td class="' . $cls . '" title="' . h($title) . '">' . h(fmt_num($c['penalty'])) . '</td>';
-                        }
-                    endforeach; ?>
-                    <td class="num total"><?= $row['has_any'] ? h(fmt_num($row['total'])) : '–' ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-        </div>
-        <p class="small muted" style="margin-bottom:0">
-            Durchgestrichene Werte sind Streichresultate. Rote Werte sind Aussenlandungen, nicht gestartete
-            Piloten, Motorstarts oder fehlende Resultate
-            (<?= h(fmt_num(setting_num('penalty_not_started'))) ?> Punkte). Bei Punktegleichheit entscheidet das
-            kleinere Streichresultat.
-        </p>
-        <?php endif; ?>
-    </div>
-<?php endforeach; ?>
+    <?php competition_cards($wettbewerbe); ?>
+</section>
+
+<div class="why">
+    <section class="panel">
+        <h3>So liest man die Rangliste</h3>
+        <dl class="legende">
+            <dt>DG</dt>
+            <dd>ein Durchgang, also ein geflogener Start. Ganz rechts steht <b>Total</b>, die Summe
+                aller Durchgänge.</dd>
+
+            <dt><span class="lg-drop">durchgestrichen</span></dt>
+            <dd>ein <b>Streichresultat</b>. Es steht noch in der Tabelle, zählt aber nicht zur Summe.</dd>
+
+            <dt><span class="lg-rot">rote Zahl</span></dt>
+            <dd>etwas Besonderes ist passiert: Aussenlandung, Bruchlandung, Motor angelassen oder der
+                Pilot ist gar nicht angetreten. Geht man mit dem Finger oder der Maus auf die Zahl,
+                steht der Grund dabei.</dd>
+
+            <dt>gleiche Summe</dt>
+            <dd>entscheidet das bessere Streichresultat, danach der beste Einzelwert. Wer gleichauf
+                liegt, hat denselben Rang.</dd>
+        </dl>
+    </section>
+
+    <section class="panel">
+        <h3>Wie die Punkte entstehen</h3>
+        <ul class="erklaerung">
+            <li>Die <b>Zeitabweichung</b> zählt immer – zu lang und zu kurz gleich.</li>
+            <li>Der <b>Landewert</b> kommt dazu, ausser bei einer Aussenlandung: dort ist das Landen
+                neben dem Feld gerade das Ereignis.</li>
+            <li><b>Aussenlandung und Bruchlandung</b> kommen beide dazu, wenn beides passiert ist.</li>
+            <li><b>Nicht angetreten</b> heisst: keine Zeit, kein Landewert, nur die Feststrafe.</li>
+            <li>Der <b>Motor</b> kommt zu allem dazu, er ersetzt nichts.</li>
+        </ul>
+        <p class="small muted">Die genauen Punkte stehen im Verein unter <em>Einstellungen → Strafpunkte</em>
+            und werden über der Rangliste angezeigt.</p>
+    </section>
+
+    <section class="panel">
+        <h3>Anmelden in drei Schritten</h3>
+        <ol class="erklaerung">
+            <li>Wettbewerb anklicken und das Formular ausfüllen: Name, Verein, Modelltyp, Modell und
+                deine E-Mail-Adresse.</li>
+            <li>Die Wettkampfleitung prüft die Anmeldung und trägt dich in die Startliste ein.</li>
+            <li>Danach stehst du in der Teilnehmerliste, mit deiner Startnummer.</li>
+        </ol>
+        <p class="small muted">Deine E-Mail-Adresse wird nur für die Bestätigung gebraucht und danach nicht
+            gespeichert. Die Bestätigung kommt vom Verein, nicht von dieser Seite.</p>
+    </section>
+</div>
 <?php page_end();
