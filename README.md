@@ -659,9 +659,12 @@ Unter **Einstellungen** werden die Einstellungen des ausgewählten Wettbewerbs b
 - Öffentlichkeit der Resultate
 - Vereinswertung: Anzahl der gewerteten Piloten je Verein
 - Anmeldeformular: offen oder geschlossen, Text über dem Formular, Absenderadresse
-- Regiocup: welcher Verein die Regiorangliste sehen und exportieren darf, auch wenn
-  die Ergebnisse sonst nicht öffentlich sind
 - Passwort des eigenen Kontos und weitere Zugänge
+
+Der Regiocup steht hier **nicht** mehr: welcher Verein die Regiorangliste sehen
+darf, ist keine Sache des einzelnen Wettbewerbs, sondern des ganzen Programms.
+Der SuperAdmin stellt es unter **Profil → Regiocup** ein und sieht dort gleich
+die Liste, bevor sie veröffentlicht ist.
 
 Die Einstellungen gelten nur für den Wettbewerb, der oben ausgewählt ist. Beim Anlegen eines
 neuen Wettbewerbs werden die Einstellungen des gerade ausgewählten als Vorlage kopiert – so
@@ -791,14 +794,14 @@ Ein Semikolon **im Kommentar** reicht ebenfalls, um `install.php` zu stoppen:
 die Datei wird an jedem Semikolon getrennt, und die Kommentare werden vorher
 entfernt. Nach SQL-Regel braucht ein Kommentar Leerraum davor.
 
-## Regiorangliste (kommt mit 2.0)
+## Regiorangliste
 
 **Beschlossen:** in die Regiowertung eines Jahres gehen **alle Wettbewerbe
 dieses Jahres ein, die den Regiocup-Knopf haben**. Nicht nur die des
 Veranstaltungsvereins, und nicht eine feste Auswahl – wer den Knopf drückt,
 nimmt teil. Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen.
 
-**Der Rechenweg ist schon da**, in `lib/region.php`:
+**Der Rechenweg steht** in `lib/region.php`, **die Anzeige seit 1.9.21**:
 
 | Funktion | macht |
 | --- | --- |
@@ -806,14 +809,51 @@ nimmt teil. Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen.
 | `region_wettbewerbe($jahr)` | davon nur die mit dem Regiocup-Kennzeichen |
 | `region_rangliste($ids)` | die eigentliche Regiorangliste über mehrere Wettbewerbe |
 | `region_fis_punkte()`, `region_piloten_punkte()` | Punkte nach FIS-System |
+| `region_club_id()` | welcher Verein die Liste sehen darf |
 | `region_darf_sehen()`, `region_darf_bearbeiten()` | wer sie sehen und wer sie ändern darf |
 
-`lib/region.php` wird bisher von **keiner Seite geladen** – die Rechnung steht,
-die Anzeige fehlt. Es fehlt also nur noch `admin/region.php` mit der Liste und
-dem Export, plus der Zugang über das Benutzermenü.
+| Datei | macht |
+| --- | --- |
+| `region.php` | die Liste, öffentlich wie die Rangliste; `?jahr=` wählt, `?csv=1` exportiert |
+| `lib/layout.php` `region_card()` | die Kachel auf der Startseite |
+| `lib/layout.php` `region_table()` | die Tabelle – **eine** für Seite und Vorschau |
+| `admin/profil.php` | Einstellung und Vorschau, nur für den SuperAdmin |
 
-Offen und noch nicht entschieden: ob der Export die Vereinswertung
-derselben Auswahl folgt, und ob ein Verein, der selbst Wettbewerbe
+### Wer sie sehen darf
+
+`region_darf_sehen()` entscheidet in dieser Reihenfolge:
+
+1. Sind die Resultate ohnehin öffentlich (`public_results`), darf sie jeder.
+2. Der SuperAdmin darf sie immer.
+3. Sonst nur die Mitglieder des Vereins aus `region_club_id`.
+
+Die Kachel auf der Startseite folgt derselben Regel. Sie erscheint also **nur,
+wenn sie auch erreichbar ist** – eine Kachel, die auf eine gesperrte Seite
+zeigt, wäre eine Sackgasse.
+
+### Die Einstellung gehört zum Programm, nicht zum Wettbewerb
+
+`region_club_id` stand bis 1.9.21 in den **Wettbewerbseinstellungen**. Das war
+ein Widerspruch: der Regiocup läuft über ein ganzes Jahr und damit über
+mehrere Wettbewerbe, jeder hätte seinen eigenen Verein freischalten können –
+und sichtbar wäre trotzdem nur der gerade aktive.
+
+Seit 1.9.21 steht sie beim SuperAdmin unter **Profil → Regiocup** und gilt für
+das ganze Programm. Zwei Fehler waren dabei zu bedenken und sind gelöst:
+
+- **Die Einrichtung legt den Vorgabewert global an.** `install.php` schreibt
+  `region_club_id = 0` in `settings`, also ist „global vorhanden“ kein
+  Kennzeichen für „programmgroß gesetzt“. Der Rückfall auf die alten Zeilen
+  greift deshalb nur, wenn programmgroß nichts eingestellt ist.
+- **Der Rückfall liest alle Wettbewerbe, nicht nur den aktiven.** Sonst hätte
+  er nur gegriffen, wenn gerade der Wettbewerb mit dem alten Wert aktiv
+  gewesen wäre – und still nichts angezeigt, obwohl der Verein eingestellt
+  war. Bei mehreren verschiedenen Altwerten entscheidet der aktive Wettbewerb.
+
+Beim Speichern werden die alten Zeilen **mitgelöscht**. Ohne das würde „niemand“
+nicht gelten: der Rückfall würde den alten Verein zurückholen.
+
+Offen und noch nicht entschieden: ob ein Verein, der selbst Wettbewerbe
 ausrichtet, seine eigene Rangliste ohne Umweg über die Regioliste sieht.
 
 ## Anmeldung
@@ -853,6 +893,7 @@ Resultat hat.
 ```
 index.php              öffentliche Startseite: Wettbewerb wählen, kurze Erklärung
 rangliste.php          öffentliche Rangliste
+region.php             öffentliche Regiorangliste, mit CSV-Export (seit 1.9.21)
 vereinswertung.php     Weiterleitung auf rangliste.php (Stand 1.9.13)
 teilnehmer.php         öffentliche Teilnehmerliste
 anmeldung.php          öffentliches Anmeldeformular
@@ -870,7 +911,8 @@ admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
 admin/benutzer.php     Benutzerverwaltung, nur für den SuperAdmin
 admin/aktualisieren.php Aktualisierung von GitHub, nur für den SuperAdmin
-admin/profil.php      Eigenes Profil: Anzeigename, Passwort, eigene Einstellungen
+admin/profil.php      Eigenes Profil: Anzeigename, Passwort; für den SuperAdmin
+                      zusätzlich der Regiocup mit Einstellung und Vorschau
 admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 

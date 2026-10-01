@@ -10,6 +10,41 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.21
+
+- **Der Regiocup war unsichtbar.** Die Rechnung lag fertig in `lib/region.php` –
+  aber keine Seite rief sie auf. Wer den Regiocup im Wettbewerb angeklickt hatte,
+  bekam davon nichts zu sehen: keine Liste, keine Kachel, keinen Export.
+  - **`region.php`** ist neu: die Regiorangliste über alle Wettbewerbe eines
+    Jahres, die den Regiocup-Knopf tragen – dazu ein CSV-Export mit den
+    Punkten je Start. Für Besucher und Mitglieder des eingestellten Vereins.
+  - **Eine Kachel auf der Startseite** zeigt die Regiorangliste mit Jahr,
+    Wettbewerbszahl, Piloten in der Wertung und den drei Vordersten. Sie
+    erscheint nur, wenn sie auch wirklich erreichbar ist.
+  - **Auf der Profilseite** kann der SuperAdmin den Verein einstellen **und
+    die Liste ansehen, bevor sie veröffentlicht ist**. Die Kachel dort ist eine
+    Vorschau, kein zweiter Ort mit eigenen Zahlen: beide benutzen dieselbe
+    Funktion `region_table()`.
+
+- **Die Einstellung „Verein, der die Regiorangliste sehen darf“ ist umgezogen.**
+  Sie stand in den **Wettbewerbseinstellungen** – und der Regiocup läuft über
+  ein ganzes Jahr, also über mehrere Wettbewerbe. Bei zwei Wettbewerben im
+  selben Jahr hätte jeder seinen anderen Verein freischalten können, und
+  sichtbar wäre trotzdem nur der gerade aktive. Sie steht jetzt beim
+  SuperAdmin unter dem Profil und gilt für das ganze Programm.
+  - Damit niemand seine Freigabe verliert, werden die alten Werte aus den
+    Wettbewerbseinstellungen weiterhin gelesen – **aus allen Wettbewerben**,
+    nicht nur aus dem gerade aktiven. Beim Speichern werden sie mitgelöscht,
+    damit „niemand“ auch wirklich niemand bedeutet.
+  - Das Formular in den Wettbewerbseinstellungen ist weg. Wer dort noch einen
+    Wert findet, hat eine Fassung vor 1.9.21.
+
+- **Die Sichtbarkeit ist geprüft, nicht behauptet.** Vier Fälle werden
+  gegeneinander getestet: SuperAdmin, eingestellter Verein, anderer Verein,
+  Besucher ohne Konto. Nur die ersten beiden sehen die Liste – und erhalten
+  den CSV-Export mit 200; die anderen bekommen den Sperrhinweis, eine
+  Umleitung statt der Datei und **keine** Kachel auf der Startseite.
+
 ## 1.9.20
 
 - **Eine frische Einrichtung war unmöglich.** Zwei Fehler auf demselben Weg,

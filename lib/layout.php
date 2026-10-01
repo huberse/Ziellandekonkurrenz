@@ -4,6 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/competition.php';
+// region_card() rechnet die Regiorangliste. region.php holt sich selbst,
+// was es braucht (Scoring, Wettbewerb, Rechte), deshalb genuegt das hier.
+require_once __DIR__ . '/region.php';
 
 /**
  * Das Benutzersymbol oben rechts in der Kopfzeile.
@@ -314,8 +317,10 @@ function competition_switch(array $competitions, array $current, string $query):
  * Name trägt den Sprung, seine Fläche wird über die Karte gezogen.
  *
  * @param array $wettbewerbe  aus competitions_uebersicht(), neueste zuerst
+ * @param bool  $mitRegion    die Regiorangliste als Kachel in derselben Reihe
+ *                            anhängen, wenn sie wer sehen darf
  */
-function competition_cards(array $wettbewerbe): void
+function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
 {
     if (!$wettbewerbe) {
         echo '<p class="lead">Es ist noch kein Wettbewerb angelegt.</p>';
@@ -395,6 +400,125 @@ function competition_cards(array $wettbewerbe): void
         }
         echo '</div>';
     }
+    if ($mitRegion) {
+        region_card();
+    }
+    echo '</div>';
+}
+
+/**
+ * Die Regiorangliste als Tabelle.
+ *
+ * Ausgelagert, weil sie an zwei Stellen steht: auf der oeffentlichen Seite und
+ * in der Vorschau auf der Profilseite des SuperAdmins. Zwei Abschriften
+ * waeren zwei Wahrheiten - die Vorschau waere dann die, die man nicht pflegt.
+ *
+ * @param array $daten        aus region_rangliste()
+ * @param array $wettbewerbe  aus region_wettbewerbe(), in Anzeigereihenfolge
+ */
+function region_table(array $daten, array $wettbewerbe): void
+{
+    if (!$daten['zeilen']) {
+        echo '<p class="lead">Für dieses Jahr sind noch keine gewerteten Resultate vorhanden.</p>';
+        return;
+    }
+    ?>
+    <div class="table-scroll">
+    <table class="data">
+        <thead>
+        <tr>
+            <th>Rang</th>
+            <th>Pilot</th>
+            <th>Verein</th>
+            <?php foreach ($wettbewerbe as $w): ?>
+                <th class="num" title="<?= h((string) $w['name']) ?>"><?= h(competition_kuerzel((string) $w['name'])) ?></th>
+            <?php endforeach; ?>
+            <th class="num">Punkte</th>
+        </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($daten['zeilen'] as $z):
+            $podium = (int) ($z['rang'] ?? 0) > 0 && (int) $z['rang'] <= 3 ? ' podium-' . (int) $z['rang'] : '';
+            ?>
+            <tr class="<?= $podium ?>">
+                <td class="rank"><?= (int) ($z['rang'] ?? 0) > 0 ? (int) $z['rang'] : '&ndash;' ?></td>
+                <td><?= h($z['name']) ?></td>
+                <td class="small muted"><?= h($z['club']) ?></td>
+                <?php foreach ($wettbewerbe as $w):
+                    $cid = (int) $w['id'];
+                    $rang = $z['plaetze'][$cid] ?? null;
+                    if ($rang === null) {
+                        echo '<td class="num cell-empty">·</td>';
+                        continue;
+                    }
+                    $istGestreichen = $z['gestrichen'] === $rang;
+                    $punkte = region_fis_punkte((int) $rang);
+                    $titel = $z['name'] . ' im Wettbewerb ' . $w['name'] . ': Rang ' . $rang . ' = '
+                        . fmt_num($punkte) . ' Punkte'
+                        . ($istGestreichen ? ' - dieser Start hat nicht gezaehlt' : '');
+                    echo '<td class="num' . ($istGestreichen ? ' dropped' : '') . '" title="' . h($titel) . '">'
+                        . h(fmt_num($punkte)) . '</td>';
+                endforeach; ?>
+                <td class="num total"><?= h(fmt_num($z['punkte'])) ?></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+    <p class="small muted" style="margin-bottom:0">
+        Ein durchgestrichener Start hat nicht gezählt. Ein Punkt entspricht dem
+        Rang im jeweiligen Wettbewerb: <?= h(implode(', ', array_slice(
+            array_map(static function (int $r): string {
+                return $r . '. Platz = ' . fmt_num(region_fis_punkte($r)) . ' Punkte';
+            }, [1, 2, 3, 4, 5]), 0, 3))) ?> und so weiter.
+    </p>
+    <?php
+}
+
+/**
+ * Kachel der Regiorangliste auf der Startseite.
+ *
+ * Sie erscheint nur, wenn das Jahr ueberhaupt einen Wettbewerb mit
+ * Regiocup-Kennzeichen hat UND wer davor steht sie sehen darf
+ * (region_darf_sehen()). Sind die Resultate sonst nirgends freigegeben, ist
+ * das nur der SuperAdmin und der eingestellte Verein. Eine Kachel, die den
+ * Weg zu einer gesperrten Liste zeigt, waere eine Sackgasse.
+ */
+function region_card(): void
+{
+    if (!region_darf_sehen()) {
+        return;
+    }
+    $jahre = region_jahre();
+    $jahr = $jahre ? (int) $jahre[0] : 0;
+    $wettbewerbe = $jahr > 0 ? region_wettbewerbe($jahr) : [];
+    if (!$wettbewerbe) {
+        return;
+    }
+    $daten = region_rangliste(array_map(static function (array $w): int {
+        return (int) $w['id'];
+    }, $wettbewerbe));
+    $zeilen = $daten['zeilen'] ?? [];
+    $besten = [];
+    foreach ($zeilen as $z) {
+        if ((int) ($z['rang'] ?? 0) > 0 && (int) $z['rang'] <= 3) {
+            $besten[] = $z['name'] . ' (' . fmt_num($z['punkte']) . ')';
+        }
+    }
+
+    echo '<div class="pick pick-region">';
+    echo '<h3 class="pick-name"><a href="region.php?jahr=' . $jahr . '">Regiorangliste ' . $jahr . '</a></h3>';
+    echo '<p class="pick-when">' . count($wettbewerbe)
+        . (count($wettbewerbe) === 1 ? ' Wettbewerb' : ' Wettbewerbe')
+        . ' · ' . region_anzahl_gewertet() . ' Starts zählen</p>';
+    echo '<p class="pick-count">' . count($zeilen)
+        . (count($zeilen) === 1 ? ' Pilot' : ' Piloten') . ' in der Wertung</p>';
+    echo '<p class="pick-tags"><span class="tag trophy">Regiocup</span></p>';
+    if ($besten) {
+        echo '<p class="pick-when small">'
+            . h('Vorne: ' . implode(' · ', array_slice($besten, 0, 3))) . '</p>';
+    }
+    echo '<div class="pick-go"><a class="btn" href="region.php?jahr=' . $jahr . '">Ansehen</a></div>';
     echo '</div>';
 }
 

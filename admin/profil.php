@@ -37,6 +37,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('profil.php');
     }
 
+    if ($action === 'regiocup') {
+        // Nur der SuperAdmin darf das setzen; die Seite ist fuer alle
+        // Konten erreichbar, deshalb hier noch einmal nachsehen.
+        if (!is_superadmin()) {
+            flash('Das darf nur der SuperAdmin.', 'err');
+            redirect('profil.php');
+        }
+        $verein = (int) post('region_club_id', '0');
+        global_setting_set('region_club_id', (string) ($verein > 0 ? $verein : 0));
+        // Die alten Werte aus den Wettbewerbseinstellungen mit wegraeumen.
+        // Blieben sie stehen, wuerde region_club_id() zurueckfallen, sobald
+        // hier "niemand" gesetzt wird - und der Verein haette die Freigabe
+        // wieder, die der SuperAdmin gerade entzogen hat.
+        db()->exec('DELETE FROM competition_settings WHERE skey = \'region_club_id\'');
+        flash('Freigabe für die Regiorangliste gespeichert.', 'ok');
+        redirect('profil.php?jahr=' . (int) post('jahr', '0'));
+    }
+
     if ($action === 'password') {
         $alt = post('old_password');
         $neu = post('new_password');
@@ -62,6 +80,28 @@ $me = current_user() ?: $me;
 $rolle = (int) ($me['is_superadmin'] ?? 0) === 1
     ? 'SuperAdmin – darf die Konten verwalten'
     : 'Wettkampfleitung';
+
+// Vorschau der Regiorangliste. Der SuperAdmin sieht sie hier auch dann, wenn
+// sie sonst nirgends freigegeben ist - darum ist das gerade der Punkt dieser
+// Seite: die Liste ansehen, BEVOR sie veroeffentlicht wird.
+$regiJahre = region_jahre();
+$regiJahr = (int) get('jahr', $regiJahre ? (string) $regiJahre[0] : '0');
+if ($regiJahre && !in_array($regiJahr, array_map('intval', $regiJahre), true)) {
+    $regiJahr = (int) $regiJahre[0];
+}
+$regiWettbewerbe = $regiJahr > 0 ? region_wettbewerbe($regiJahr) : [];
+$regiDaten = $regiWettbewerbe
+    ? region_rangliste(array_map(static function (array $w): int {
+        return (int) $w['id'];
+    }, $regiWettbewerbe))
+    : ['zeilen' => []];
+$regiVerein = region_club_id();
+$regiVereinName = 'niemand';
+foreach (all_clubs() as $c) {
+    if ((int) $c['id'] === $regiVerein) {
+        $regiVereinName = (string) $c['name'];
+    }
+}
 
 page_start('Profil', 'admin', 'profil.php');
 ?>
@@ -117,10 +157,66 @@ page_start('Profil', 'admin', 'profil.php');
     </div>
 </div>
 
+<?php if (is_superadmin()): ?>
+<div class="panel">
+    <h3 style="margin-top:0">Regiocup</h3>
+    <p class="lead">Ein Regiocup-Jahr ist die Summe aller Wettbewerbe, die das Regiocup-Kennzeichen
+        tragen. Wer hier freigeschaltet wird, sieht die Regiorangliste und kann sie als CSV
+        herunterladen – auch dann, wenn die Resultate sonst nirgends öffentlich sind.</p>
+    <form method="post">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="regiocup">
+        <input type="hidden" name="jahr" value="<?= $regiJahr ?>">
+        <div class="field" style="max-width:420px">
+            <label for="rci">Verein, der die Regiorangliste sehen darf</label>
+            <select id="rci" name="region_club_id">
+                <option value="0" <?= $regiVerein === null ? 'selected' : '' ?>>niemand</option>
+                <?php foreach (all_clubs() as $c): ?>
+                    <option value="<?= (int) $c['id'] ?>" <?= $regiVerein === (int) $c['id'] ? 'selected' : '' ?>><?= h((string) $c['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <p class="hint">Gilt für das ganze Programm, nicht für einen Wettbewerb: der Regiocup
+                läuft über ein Jahr und damit über mehrere Wettbewerbe. Steht hier „niemand“,
+                sieht die Liste nur, wer SuperAdmin ist – oder alle, solange die Resultate der
+                Wettbewerbe ohnehin öffentlich sind.</p>
+        </div>
+        <button class="btn ghost" type="submit">Freigabe speichern</button>
+    </form>
+</div>
+
+<div class="panel">
+    <div class="row-between no-print">
+        <div>
+            <h3 style="margin-top:0">Regiorangliste <?= $regiJahr > 0 ? h((string) $regiJahr) : '' ?></h3>
+            <p class="small muted" style="margin-bottom:0">
+                <?php if (!$regiWettbewerbe): ?>
+                    Kein Wettbewerb des Jahres hat das Regiocup-Kennzeichen.
+                <?php else: ?>
+                    <?= count($regiWettbewerbe) ?> Wettbewerb<?= count($regiWettbewerbe) === 1 ? '' : 'e' ?>:
+                    <?php foreach ($regiWettbewerbe as $i => $w): ?>
+                        <?= $i > 0 ? ' · ' : '' ?><?= h((string) $w['name']) ?>
+                    <?php endforeach; ?>
+                    <br>Freigegeben für <?= h($regiVereinName) ?>.
+                <?php endif; ?>
+            </p>
+        </div>
+        <div class="btn-row dense">
+            <?php foreach ($regiJahre as $j): ?>
+                <a class="btn <?= (int) $j === $regiJahr ? '' : 'ghost' ?>" href="profil.php?jahr=<?= (int) $j ?>"><?= (int) $j ?></a>
+            <?php endforeach; ?>
+            <?php if ($regiWettbewerbe): ?>
+                <a class="btn ghost" href="../region.php?jahr=<?= $regiJahr ?>">Seite öffnen</a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php region_table($regiDaten, $regiWettbewerbe); ?>
+</div>
+<?php else: ?>
 <div class="panel">
     <h3 style="margin-top:0">Eigene Einstellungen</h3>
     <p class="lead">Hier ist noch nichts. Dieser Platz ist für Einstellungen, die nur dich betreffen –
         zum Beispiel, welche Vereine und Wettbewerbe du ohne Umweg sehen möchtest. Sobald es etwas
         gibt, steht es hier und nicht in den Wettbewerbseinstellungen.</p>
 </div>
+<?php endif; ?>
 <?php page_end();
