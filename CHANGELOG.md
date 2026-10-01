@@ -10,6 +10,27 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.20
+
+- **Eine frische Einrichtung war unmöglich.** Zwei Fehler auf demselben Weg,
+  beide gefunden beim Wiederaufsetzen einer leeren Datenbank. Beide sind alt.
+  - **Die Tabellen standen in der falschen Reihenfolge.** `competitions.club_id`
+    verweist auf `clubs`, und `competitions` stand in `schema.sql` **vor**
+    `clubs`. MySQL und MariaDB lehnen das ab: „errno: 150 Foreign key
+    constraint is incorrectly formulated“. Nachgewiesen: die alte Fassung
+    bricht bei `competitions` ab, die neue lädt 11 Tabellen und 11
+    Fremdschlüssel. Nur verschoben, jeder Block byteweise unverändert.
+  - **Ein Semikolon im Kommentar hat die Anweisung zerschnitten.**
+    `install.php` trennt `schema.sql` an jedem Semikolon, und zwei Zeilen
+    tragen eins im Kommentar: `-- Vereinszugehörigkeit; NULL = …`. Die
+    `CREATE`-Anweisung wurde mitten drin abgeschnitten. Die Kommentare werden
+    jetzt entfernt, **bevor** getrennt wird.
+
+- Warum es nie aufgefallen ist: bestehende Installationen bekommen ihr Schema
+  über die Migrationen, nicht über `schema.sql`. Die Datei wird nur bei der
+  Ersteinrichtung gelesen – und die hat seit `club_id` (Migration 7, Fassung
+  1.9.0) niemand gebraucht.
+
 ## 1.9.19
 
 - **Die Meldung nach dem Aktualisieren bietet den Weg zu `upgrade.php` an**,

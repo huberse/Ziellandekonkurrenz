@@ -778,6 +778,44 @@ es gab keine Meldung. Jetzt wird wie bei den Vereinen gesperrt und die Meldung n
 Anzahlen. **Für „nicht mehr anbieten" das Kästchen *aktiv* wegnehmen** – dann bleibt die
 Zuordnung stehen und der Typ verschwindet nur aus der Auswahl.
 
+## Die Reihenfolge in `schema.sql` ist Absicht
+
+Jede Tabelle steht **nach** den Tabellen, auf die sie verweist. `competitions`
+verweist auf `clubs`, `pilots` auf `competitions` und `clubs`, `scores` auf
+`pilots` und `rounds`. MySQL und MariaDB lehnen einen Fremdschlüssel ab, dessen
+Ziel noch nicht existiert – bis 1.9.20 stand `competitions` vor `clubs`, und
+eine frische Einrichtung brach deshalb ab. Wer eine Spalte mit einem Verweis
+ergänzt, muss die neue Tabelle entsprechend einsortieren.
+
+Ein Semikolon **im Kommentar** reicht ebenfalls, um `install.php` zu stoppen:
+die Datei wird an jedem Semikolon getrennt, und die Kommentare werden vorher
+entfernt. Nach SQL-Regel braucht ein Kommentar Leerraum davor.
+
+## Regiorangliste (kommt mit 2.0)
+
+**Beschlossen:** in die Regiowertung eines Jahres gehen **alle Wettbewerbe
+dieses Jahres ein, die den Regiocup-Knopf haben**. Nicht nur die des
+Veranstaltungsvereins, und nicht eine feste Auswahl – wer den Knopf drückt,
+nimmt teil. Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen.
+
+**Der Rechenweg ist schon da**, in `lib/region.php`:
+
+| Funktion | macht |
+| --- | --- |
+| `region_wettbewerbe_des_jahres($jahr)` | alle Wettbewerbe mit Datum in diesem Jahr |
+| `region_wettbewerbe($jahr)` | davon nur die mit dem Regiocup-Kennzeichen |
+| `region_rangliste($ids)` | die eigentliche Regiorangliste über mehrere Wettbewerbe |
+| `region_fis_punkte()`, `region_piloten_punkte()` | Punkte nach FIS-System |
+| `region_darf_sehen()`, `region_darf_bearbeiten()` | wer sie sehen und wer sie ändern darf |
+
+`lib/region.php` wird bisher von **keiner Seite geladen** – die Rechnung steht,
+die Anzeige fehlt. Es fehlt also nur noch `admin/region.php` mit der Liste und
+dem Export, plus der Zugang über das Benutzermenü.
+
+Offen und noch nicht entschieden: ob der Export die Vereinswertung
+derselben Auswahl folgt, und ob ein Verein, der selbst Wettbewerbe
+ausrichtet, seine eigene Rangliste ohne Umweg über die Regioliste sieht.
+
 ## Anmeldung
 
 `anmeldung.php` ist das öffentliche Formular. Eingegangene Anmeldungen erscheinen unter

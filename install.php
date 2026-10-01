@@ -34,8 +34,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$hasAdmin) {
     } else {
         // 1. Schema
         $sql = file_get_contents(__DIR__ . '/sql/schema.sql');
+        // Die Kommentare müssen weg, BEVOR an den Semikolons getrennt wird.
+        // Zwei Zeilen des Schemas tragen im Kommentar ein Semikolon
+        // ("-- Vereinszugehörigkeit; NULL = Altbestand"). explode(';') hat
+        // dort die CREATE-Anweisung unbrauchbar zerschnitten, und die
+        // Einrichtung brach mit einem SQL-Fehler ab - ohne die Tabellen
+        // anzulegen. Nach SQL-Regel braucht ein Kommentar Leerraum davor;
+        // daran erkennt das Muster auch 'a--b' in einer Zeichenkette nicht
+        // als Kommentar.
+        $sql = (string) preg_replace('/(^|\s)--[^\n]*/', '$1', $sql);
         foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
-            $stmt = trim((string) preg_replace('/^(?:\s*--[^\n]*(?:\n|$))+/', '', $stmt));
             if (stripos($stmt, 'CREATE') === 0 || stripos($stmt, 'SET') === 0) {
                 $pdo->exec($stmt);
             }
