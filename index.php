@@ -47,5 +47,5 @@ page_start('Start', 'public', 'index.php', false, false, true);
     </section>
 </div>
 
-<?php competition_cards($wettbewerbe); ?>
+<?php competition_cards($wettbewerbe, true); ?>
 <?php page_end();

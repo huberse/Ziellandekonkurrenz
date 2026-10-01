@@ -354,8 +354,47 @@ function competition_kuerzel(string $name): string
  */
 function region_club_id(): ?int
 {
-    $wert = setting_num('region_club_id', 0);
-    return $wert > 0 ? (int) $wert : null;
+    // Der Regiocup laeuft ueber ein ganzes Jahr und damit ueber mehrere
+    // Wettbewerbe. Die Auswahl gehoert deshalb zum Programm und nicht zu dem
+    // einen Wettbewerb, in dessen Einstellungen sie bis 1.9.21 stand - sonst
+    // haette jedes Jahr eine andere Sichtbarkeit, je nachdem welcher
+    // Wettbewerb gerade aktiv ist.
+    //
+    // Bis 1.9.21 stand sie in den Wettbewerbseinstellungen. Die Einrichtung
+    // legt ihren Vorgabewert (0) aber selbst global an, deshalb reicht "global
+    // vorhanden" nicht als Kennzeichen fuer "programmgross gesetzt". Es gilt
+    // deshalb: was programmgross steht, gewinnt; steht dort nichts, werden die
+    // alten Wettbewerbswerte gelesen, damit niemand seinen Verein verliert.
+    //
+    // Gelesen werden ALLE Wettbewerbe, nicht nur der aktive. Sonst haette der
+    // Rueckfall nur gegriffen, wenn gerade der Wettbewerb mit dem alten Wert
+    // aktiv waere - und still nichts angezeigt, obwohl der Verein eingestellt
+    // war. Der SuperAdmin raeumt die alten Zeilen beim Speichern mit auf.
+    $programm = (float) (global_settings()['region_club_id'] ?? 0);
+    if ($programm > 0) {
+        return (int) $programm;
+    }
+
+    $st = db()->prepare("SELECT competition_id, svalue
+                         FROM competition_settings
+                         WHERE skey = 'region_club_id' AND svalue <> '0' AND svalue <> ''
+                         ORDER BY competition_id");
+    $st->execute();
+    $alt = [];
+    foreach ($st->fetchAll() as $zeile) {
+        $alt[(int) $zeile['competition_id']] = (int) $zeile['svalue'];
+    }
+    if (!$alt) {
+        return null;
+    }
+    if (count(array_unique($alt)) === 1) {
+        return (int) reset($alt);
+    }
+    // Mehrere verschiedene Vereine in alten Daten: der gerade aktive
+    // Wettbewerb entscheidet, sonst der aelteste Eintrag (die Liste ist
+    // aufsteigend nach Wettbewerb sortiert).
+    $aktiv = current_competition_id();
+    return isset($alt[$aktiv]) ? $alt[$aktiv] : (int) reset($alt);
 }
 
 /** Darf der angemeldete Benutzer die Regiorangliste sehen, auch ohne oeffentliche Ergebnisse? */
