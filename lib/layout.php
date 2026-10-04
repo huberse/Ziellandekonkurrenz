@@ -58,6 +58,12 @@ function user_menu(string $base, bool $mitTrenner = false): void
     // Navigationsleiste mehr hat. Wer angemeldet ist und im oeffentlichen
     // Teil blättert, findet sonst keinen Weg zurueck in die Verwaltung.
     echo '<a class="user-item" href="' . h($base) . '/admin/index.php">Wettkampfbüro</a>';
+    // Der Regiocup steht hier und nicht in der Leiste: er betrifft den
+    // SuperAdmin und den einen eingestellten Verein, und keinen sonst. Wer ihn
+    // sehen darf, soll ihn finden - ohne ihn allen anderen aufzudraengen.
+    if (function_exists('region_club_id') && (is_superadmin() || region_darf_sehen())) {
+        echo '<a class="user-item" href="' . h($base) . '/admin/regiocup.php">Regiocup</a>';
+    }
     if ((int) ($u['is_superadmin'] ?? 0) === 1) {
         echo '<a class="user-item" href="' . h($base) . '/admin/benutzer.php">Benutzer verwalten</a>';
         // Beide Punkte stehen hier und nicht mehr in der Navigationsleiste. Sie

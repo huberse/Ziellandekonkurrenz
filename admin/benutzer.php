@@ -141,10 +141,9 @@ page_start('Benutzer', 'admin', 'benutzer.php');
 ?>
 <h2>Benutzer</h2>
 <p class="lead">Diese Seite ist dem SuperAdmin vorbehalten. Er legt Konten an, ändert sie, sperrt
-    oder löscht sie. Alle anderen Konten steuern den gesamten Wettbewerb: Erfassung, Startliste,
-    Durchgänge, Vereine, Modelltypen, Anmeldungen, Export und die Einstellungen des jeweiligen
-    Wettbewerbs. Das eigene Passwort ändert jeder selbst unter
-    <a href="einstellungen.php">Einstellungen</a>.</p>
+    oder löscht sie. Alle anderen Konten steuern den Wettbewerb: Erfassung, Startliste,
+    Durchgänge, Vereine, Modelltypen, Anmeldungen und Export. Das eigene Passwort ändert jeder
+    selbst unter <a href="einstellungen.php">Einstellungen</a>.</p>
 
 <div class="panel">
     <h3 style="margin-top:0">Neues Konto anlegen</h3>
@@ -155,8 +154,7 @@ page_start('Benutzer', 'admin', 'benutzer.php');
             <div class="field">
                 <label for="nu">Benutzername</label>
                 <input type="text" id="nu" name="username" maxlength="60" autocomplete="off" required>
-                <p class="hint">Wird für die Anmeldung getippt: Buchstaben, Ziffern, Punkt,
-                    Unterstrich oder Bindestrich.</p>
+                <p class="hint">Für die Anmeldung: Buchstaben, Ziffern, Punkt, Unterstrich, Bindestrich.</p>
             </div>
             <div class="field">
                 <label for="nd">Anzeigename</label>
@@ -166,8 +164,7 @@ page_start('Benutzer', 'admin', 'benutzer.php');
             <div class="field">
                 <label for="npw">Passwort</label>
                 <input type="password" id="npw" name="password" minlength="8" autocomplete="new-password" required>
-                <p class="hint">Mindestens 8 Zeichen. Es gibt bewusst keine Rücksetzung per E-Mail;
-                    ein vergessenes Passwort setzt der SuperAdmin hier neu.</p>
+                <p class="hint">Mindestens 8 Zeichen. Eine Rücksetzung per E-Mail gibt es nicht.</p>
             </div>
             <div class="field">
                 <label for="nc">Verein</label>
@@ -180,7 +177,7 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                 <p class="hint">Nur Benutzer des gleichen Vereins dürfen die Wettbewerbe
                     dieses Vereins steuern und bearbeiten.</p>
             </div>
-            <div class="check" style="margin-top:26px">
+            <div class="check">
                 <input type="checkbox" id="ns" name="is_superadmin" value="1">
                 <label for="ns">SuperAdmin – darf selbst Benutzer verwalten</label>
             </div>
@@ -217,7 +214,6 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                 <th class="mid">SuperAdmin</th>
                 <th class="mid">aktiv</th>
                 <th>Passwort neu setzen</th>
-                <th>Angelegt</th>
                 <th class="no-print"></th>
             </tr>
         </thead>
@@ -232,19 +228,19 @@ page_start('Benutzer', 'admin', 'benutzer.php');
             $clubId = $u['club_id'] !== null ? (int) $u['club_id'] : 0;
         ?>
             <tr<?= $active ? '' : ' class="cell-missing"' ?>>
-                <td>
+                <td class="nowrap">
                     <b><?= h($u['username']) ?></b>
-                    <?php if ($isSelf): ?> <span class="tag on">du</span><?php endif; ?>
-                    <?php if ($super && !$isSelf): ?> <span class="tag live">SuperAdmin</span><?php endif; ?>
-                    <?php if (!$active): ?> <span class="tag off">gesperrt</span><?php endif; ?>
+                    <?php if ($isSelf): ?><span class="tag on">du</span><?php endif; ?>
+                    <?php if ($super && !$isSelf): ?><span class="tag live">SuperAdmin</span><?php endif; ?>
+                    <?php if (!$active): ?><span class="tag off">gesperrt</span><?php endif; ?>
                 </td>
                 <td>
                     <input type="text" form="<?= $fid ?>" name="display_name" maxlength="120"
-                           style="min-width:11rem" value="<?= h($u['display_name'] ?? '') ?>"
+                           style="min-width:9rem" value="<?= h($u['display_name'] ?? '') ?>"
                            aria-label="Anzeigename von <?= h($u['username']) ?>">
                 </td>
                 <td>
-                    <select form="<?= $fid ?>" name="club_id" style="min-width:11rem"
+                    <select form="<?= $fid ?>" name="club_id" style="min-width:9rem"
                             aria-label="Verein von <?= h($u['username']) ?>">
                         <option value="0">keinem Verein</option>
                         <?php foreach ($clubs as $club): ?>
@@ -272,10 +268,9 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                 </td>
                 <td>
                     <input type="password" form="<?= $fid ?>" name="password" minlength="8"
-                           autocomplete="new-password" placeholder="unverändert lassen" style="min-width:11rem"
+                           autocomplete="new-password" placeholder="unverändert" style="min-width:9rem"
                            aria-label="Neues Passwort für <?= h($u['username']) ?>">
                 </td>
-                <td class="small muted nowrap"><?= h(date('d.m.Y', strtotime($u['created_at']))) ?></td>
                 <td class="nowrap no-print">
                     <button class="btn ghost" type="submit" form="<?= $fid ?>" name="action" value="update">Übernehmen</button>
                     <button class="btn danger" type="submit" form="<?= $fid ?>" name="action" value="delete"

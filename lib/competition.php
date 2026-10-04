@@ -26,10 +26,21 @@ function current_competition(): array
     }
 
     try {
-        $row = db()->query('SELECT * FROM competitions WHERE is_current = 1 ORDER BY id DESC LIMIT 1')->fetch();
+        $hasCompletedColumn = function_exists('competition_schema_column_exists')
+            && competition_schema_column_exists(db(), 'competitions', 'completed_at');
+
+        // "Aktiv" und "offen" sind zwei verschiedene Dinge. `is_current` = 1
+        // allein sagt nicht, dass der Wettbewerb noch offen ist: bei einem
+        // Bestand aus vor 1.9.22 kann ein beendeter Wettbewerb das Kennzeichen
+        // noch tragen, weil das Beenden es nicht mitgenommen hat. Genau daran
+        // ist "beendet, aber aktiv" entstanden. Deshalb wird ein beendeter
+        // Wettbewerb hier nie als aktivgegeben - auch wenn die Spalte es behauptet.
+        $row = $hasCompletedColumn
+            ? db()->query('SELECT * FROM competitions WHERE is_current = 1 AND completed_at IS NULL
+                           ORDER BY id DESC LIMIT 1')->fetch()
+            : db()->query('SELECT * FROM competitions WHERE is_current = 1 ORDER BY id DESC LIMIT 1')->fetch();
+
         if (!$row) {
-            $hasCompletedColumn = function_exists('competition_schema_column_exists')
-                && competition_schema_column_exists(db(), 'competitions', 'completed_at');
             $fallbackSql = $hasCompletedColumn
                 ? 'SELECT * FROM competitions WHERE completed_at IS NULL ORDER BY id DESC LIMIT 1'
                 : 'SELECT * FROM competitions ORDER BY id DESC LIMIT 1';
@@ -408,6 +419,17 @@ function seed_competition_settings(int $competitionId, ?int $sourceCompetitionId
  * SuperAdmin darf einen anderen Verein wählen: $clubId setzt die Zuordnung
  * ausdrücklich, null übernimmt den eigenen Verein und erlaubt – falls
  * vorhanden – einen Wettbewerb ohne Vereinszuordnung.
+ *
+ * $makeCurrent setzt den Wettbewerb **nicht** zwangsläufig auf aktiv. Neu
+ * angelegt ist er "offen", und bleibt es auch: wer den Wettbewerb gerade
+ * bearbeitet, will beim Anlegen des nächsten nicht aus seinem Wettbewerb
+ * herausfallen. Aktiviert wird ausdrücklich, über activate_competition() oder
+ * den Knopf in der Liste.
+ *
+ * Eine Ausnahme gibt es, und sie ist die einzige: gibt es überhaupt keinen
+ * aktiven Wettbewerb, muss einer her, sonst zeigt jede Seite ins Leere. Dann
+ * wird der neue aktiv – und der wird auch so gemeldet, damit die Meldung nicht
+ * etwas verspricht, das nicht eingetreten ist.
  */
 function create_competition(string $name, int $roundsCount, int $targetTime, bool $makeCurrent = false, ?int $clubId = null, bool $region = false): int
 {
@@ -443,9 +465,17 @@ function create_competition(string $name, int $roundsCount, int $targetTime, boo
         for ($i = 1; $i <= $roundsCount; $i++) {
             $ins->execute([$competitionId, $i, $targetTime, $i === 1 ? 1 : 0]);
         }
-        if ($makeCurrent) {
-            $pdo->exec('UPDATE competitions SET is_current = 0');
+
+        // Ohne aktiven Wettbewerb zeigt jede Seite ins Leere, dann muss einer
+        // her - der neue. Sonst bleibt er offen, auch wenn $makeCurrent true
+        // sagt: das Anlegen soll den gerade laufenden Wettbewerb nicht
+        // verdrängen.
+        $hatAktiven = (int) $pdo->query('SELECT COUNT(*) FROM competitions WHERE is_current = 1')->fetchColumn() > 0;
+        if (!$hatAktiven) {
             $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$competitionId]);
+            $aktiviert = true;
+        } else {
+            $aktiviert = false;
         }
         $pdo->commit();
     } catch (Throwable $e) {
@@ -453,7 +483,7 @@ function create_competition(string $name, int $roundsCount, int $targetTime, boo
         throw $e;
     }
 
-    if ($makeCurrent) {
+    if ($aktiviert) {
         $st = $pdo->prepare('SELECT * FROM competitions WHERE id = ?');
         $st->execute([$competitionId]);
         $GLOBALS['current_competition_cache'] = $st->fetch() ?: ['id' => $competitionId, 'name' => $name, 'is_current' => 1];
@@ -842,6 +872,11 @@ function complete_competition(int $competitionId): array
     $pdo = db();
     $pdo->beginTransaction();
     try {
+        // Der Zwischenspeicher muss vor dem Lesen weg: current_competition()
+        // merkt sich den alten Wettbewerb fuer die ganze Anfrage, und genau
+        // dorther geholt wird nach dem Beenden. Ohne das zeigt die Meldung
+        // weiter den beendeten Wettbewerb.
+        unset($GLOBALS['current_competition_cache']);
         $st = $pdo->prepare('SELECT * FROM competitions WHERE id = ? FOR UPDATE');
         $st->execute([$competitionId]);
         $competition = $st->fetch();
@@ -856,6 +891,25 @@ function complete_competition(int $competitionId): array
         if (!$alreadyCompleted) {
             $update = $pdo->prepare('UPDATE competitions SET completed_at = NOW() WHERE id = ? AND completed_at IS NULL');
             $update->execute([$competitionId]);
+        }
+
+        // Ein beendeter Wettbewerb darf nicht aktiv bleiben. Sonst zeigt der
+        // Kopf weiter seinen Namen, die Verwaltung bearbeitet ein Archiv, und
+        // beim Anlegen des nächsten Wettbewerbs gibt es nichts mehr, wohin man
+        // zurückfallen könnte. Ist ein anderer Wettbewerb offen, übernimmt der
+        // neueste; ist keiner offen, bleibt einfach keiner aktiv.
+        $istAktiv = (int) $competition['is_current'] === 1;
+        if ($istAktiv) {
+            $pdo->exec('UPDATE competitions SET is_current = 0');
+            // Ohne Platzhalter: PDO kennt bei query() keine, und ein '?'
+            // waere dort ein Syntaxfehler. Die ID ist eine ganze Zahl aus der
+            // Datenbank und wird deshalb direkt eingetragen.
+            $next = $pdo->query('SELECT id FROM competitions
+                                 WHERE completed_at IS NULL AND id <> ' . (int) $competitionId . '
+                                 ORDER BY id DESC LIMIT 1')->fetchColumn();
+            if ($next !== false) {
+                $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([(int) $next]);
+            }
         }
         $pdo->commit();
         return $progress;

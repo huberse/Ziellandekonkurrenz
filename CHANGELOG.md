@@ -10,6 +10,80 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.22
+
+- **In der Benutzerverwaltung war der Knopf „Löschen“ nicht erreichbar.** Die
+  Tabelle war 1214 Pixel breit, ihr Kasten nur 1098 – die letzte Spalte stand
+  einfach außerhalb. Zwei Ursachen: die Spalte **Angelegt** war zu breit, und
+  die drei Eingabefelder hatten eine Mindestbreite, die sie nicht brauchten.
+  - Die Spalte **Angelegt** ist weg. Sie stand ohnehin nur als Datum da.
+  - Die Felder gehen auf `min-width: 9rem`; der Platzhalter im Passwortfeld
+    hieß „unverändert lassen“ und wäre bei der schmaleren Breite ohnehin
+    abgeschnitten worden. Er heißt jetzt „unverändert“.
+  - Die Tabelle misst jetzt genau 1098 Pixel und passt damit ohne Rest in
+    1280. Geprüft: **die letzte Spalte wird nicht mehr abgeschnitten**.
+
+- **Die Ankreuzfelder waren auf 32 Pixel gestreckt.** Die Regel
+  `.dense input { height: 32px }` hat auch Checkboxen erwischt. Dadurch war
+  jede Zeile mit einem Kästchen 9 Pixel höher als eine ohne – in der
+  Benutzerverwaltung sichtbar daran, dass die Zeile mit den Abzeichen
+  niedriger war als die mit den Kästchen, was verkehrt aussieht. Die Kästchen
+  sind jetzt 18×18 wie vorgesehen.
+  Betroffen waren **alle** dichten Tabellen: Benutzer, Vereine, Modelltypen,
+  Durchgänge und Erfassung.
+
+- **Weiterer Leerraum auf der Benutzerverwaltung entfernt:** ein `margin-top`
+  von 26px über dem SuperAdmin-Kästchen, ein Einleitungstext, der jede
+  Verwaltungsseite aufzählte, obwohl sie in der Leiste steht, und ein
+  vierzeiliger Hinweis am Passwortfeld, der die ganze Formularzeile hochzog.
+  Die Seite ist dadurch von 1137 auf 1074 Pixel gekommen.
+
+- **Ein neuer Wettbewerb war sofort „aktiv“ – und hat damit den laufenden verdrängt.**
+  Wer mitten in der Erfassung den Wettbewerb für das nächste Jahr anlegte, stand
+  danach plötzlich in einem leeren Wettbewerb und musste ihn erst wieder aktivieren.
+  Neu angelegt ist er jetzt **offen**; aktiviert wird ausdrücklich in der Liste der
+  Wettbewerbe. Eine Ausnahme bleibt und wird auch so gemeldet: gibt es überhaupt
+  keinen aktiven Wettbewerb, muss einer her, sonst zeigt jede Seite ins Leere.
+
+- **Ein beendeter Wettbewerb konnte weiter „aktiv“ dastehen.** Nicht der Cache –
+  es waren zwei Stellen: das Beenden selbst hat das Kennzeichen nicht mitgenommen,
+  und die Anzeige prüfte „aktiv“ vor „beendet“, also gewinnte das falsche Etikett.
+  Behoben an beiden, und `current_competition()` weist einen beendeten Wettbewerb
+  auch dann ab, wenn die Spalte noch so dasteht – damit berichtigt sich ein
+  Altbestand von selbst, ohne Migration. Beim Beenden übernimmt der neueste noch
+  offene Wettbewerb; ist keiner offen, bleibt kurz keiner aktiv.
+
+- **Der Regiocup ist eine eigene Seite: `admin/regiocup.php`, im Benutzermenü.**
+  Vorher stand er als Sektion im Profil, und dort war er nur für den SuperAdmin
+  sichtbar – obwohl die Einstellung gerade für einen *anderen* Verein gedacht ist.
+  Jetzt erreicht die Seite auch die Mitglieder des eingestellten Vereins, mit der
+  Liste und ohne das Formular. Alle anderen sehen dieselbe Sperre wie `region.php`.
+
+- **Der eingestellte Verein muss nicht für die Anmeldung freigeschaltet sein.**
+  Das war die eigentliche Überraschung beim Testen: `clubs.active` steuert nur das
+  Anmeldeformular, und ein Verein, der lediglich zusieht, soll dafür nicht dort
+  auftauchen müssen. Beide Listen sind unabhängig; in der Auswahl steht so ein
+  Verein als *„(nicht in der Anmeldung)“*, damit man die beiden nicht verwechselt.
+
+Geprüft:
+
+- `bash ~/segelflug-test/scripts/regi_seite.sh` vergleicht drei Fälle
+  gegeneinander – SuperAdmin, eingestellter Verein, anderer Verein – und prüft
+  Seite, Menüeintrag, Tabelle und Formular einzeln. Der Verein wird dabei
+  absichtlich zugleich aus der Anmeldung herausgenommen.
+- `python3 ~/segelflug-test/browsertest/kaestchen.py` geht alle dichten
+  Tabellen mit Ankreuzfeldern durch und meldet jede ungleich große.
+- `python3 ~/segelflug-test/browsertest/breiten.py` misst neun Seiten auf acht
+  Breiten von 1920 bis 600.
+
+Drei eigene Fehler unterwegs, alle gefunden und behoben:
+
+- `query()` mit einem Platzhalter, den nur `execute()` kennt
+- ein `+` statt `.` in einer Verkettung – hätte in der Fehlermeldung gepasst
+- meine eigene Breitenprüfung meldete 72 Fehlalarme, weil sie Inhalte in einem
+  waagerecht scrollbaren Kasten gegen den Seitenrand gemessen hat. Sie war damit
+  unbrauchbar; sie prüft jetzt die Seite und lässt den Kasten gelten.
+
 ## 1.9.21
 
 - **Der Regiocup war unsichtbar.** Die Rechnung lag fertig in `lib/region.php` –

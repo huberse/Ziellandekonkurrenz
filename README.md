@@ -503,6 +503,16 @@ Passwort anmelden, bis der SuperAdmin sie in der Liste ein zweites Mal bearbeite
 Ursache stand in der Datenbank, nicht im Passwort; `upgrade.php` stellt den Vorgabewert der
 Spalte `users.active` wieder auf 1.
 
+Die Kontenliste zeigt **Konto, Anzeigename, Verein, SuperAdmin, aktiv, neues Passwort** und die
+zwei Knöpfe. Die Spalte *Angelegt* ist seit 1.9.22 weg: sie stand nur als Datum da und war breit
+genug, um den Knopf **Löschen** aus der Tabelle zu drücken. Auf einem Laptop mit 1280 Pixeln passt
+die Liste jetzt ohne Rest hinein; darunter nimmt der Kasten die Tabelle waagerecht auf.
+
+Die Ankreuzfelder in den dichten Tabellen sind 18×18 Pixel. Vor 1.9.22 hat die Regel
+`.dense input { height: 32px }` auch sie gestreckt, wodurch jede Zeile mit einem Kästchen 9 Pixel
+höher war als eine ohne – sichtbar daran, dass die Zeile mit den Abzeichen niedriger war. Betroffen
+waren Vereine, Modelltypen, Durchgänge, Erfassung und die Kontenliste.
+
 ## Anmelden und das eigene Profil
 
 Oben rechts in der Kopfzeile steht ein **Benutzersymbol**, wie man es von den grossen Seiten
@@ -663,8 +673,8 @@ Unter **Einstellungen** werden die Einstellungen des ausgewählten Wettbewerbs b
 
 Der Regiocup steht hier **nicht** mehr: welcher Verein die Regiorangliste sehen
 darf, ist keine Sache des einzelnen Wettbewerbs, sondern des ganzen Programms.
-Der SuperAdmin stellt es unter **Profil → Regiocup** ein und sieht dort gleich
-die Liste, bevor sie veröffentlicht ist.
+Der SuperAdmin stellt es unter **Regiocup** im Benutzermenü ein und sieht dort
+gleich die Liste, bevor sie veröffentlicht ist.
 
 Die Einstellungen gelten nur für den Wettbewerb, der oben ausgewählt ist. Beim Anlegen eines
 neuen Wettbewerbs werden die Einstellungen des gerade ausgewählten als Vorlage kopiert – so
@@ -679,8 +689,31 @@ Name des Wettbewerbs selbst bleibt auch nach dem Abschluss änderbar.
 
 Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel
 `MFV Brislach - Schwarzbubenfliegen 2027`, eigene Durchgänge, eine leere Startliste und eigene
-Einstellungen. Er kann sofort aktiviert werden. Der aktive Wettbewerb ist der Vorgabe für
-Erfassung, Anmeldung, Export und die öffentlichen Seiten.
+Einstellungen. Der aktive Wettbewerb ist der Vorgabe für Erfassung, Anmeldung, Export und die
+öffentlichen Seiten.
+
+### Drei Zustände, und sie schliessen einander aus
+
+| Zustand | bedeutet |
+| --- | --- |
+| **offen** | angelegt, nicht aktiv, nicht beendet |
+| **aktiv** | offen **und** der, an dem gerade gearbeitet wird |
+| **beendet** | abgeschlossen, Ergebnis gespeichert und gesperrt |
+
+**Ein neuer Wettbewerb ist offen, nicht aktiv.** Vor 1.9.22 war er sofort aktiv, und das hat
+unbeabsichtigt den laufenden Wettbewerb verdrängt: wer mitten in der Erfassung den Wettbewerb für
+das nächste Jahr anlegte, stand plötzlich in einem leeren Wettbewerb und musste ihn erst wieder
+aktivieren. Aktiviert wird jetzt ausdrücklich, in der Liste der Wettbewerbe.
+
+Eine Ausnahme bleibt: **gibt es überhaupt keinen aktiven Wettbewerb**, muss einer her, sonst zeigt
+jede Seite ins Leere. Dann wird der neue aktiv – und die Meldung sagt es auch so.
+
+**Ein beendeter Wettbewerb ist nie aktiv.** Er bleibt als Archiv stehen, seine Ergebnisse sind
+gesperrt. Vor 1.9.22 trug er nach dem Beenden weiter das Kennzeichen „aktiv“: der Seitenkopf zeigte
+ihn weiter an, und die Verwaltung bearbeitete ein Archiv. Zwei Stellen haben das begünstigt – das
+Beenden selbst und die Reihenfolge der Anzeige, in der „aktiv“ vor „beendet“ geprüft wurde. Beide
+sind behoben; `current_competition()` weist einen beendeten Wettbewerb auch dann ab, wenn die
+Spalte noch so dasteht, damit ein Altbestand sich selbst berichtigt.
 
 Beim Anlegen werden die Einstellungen des gerade ausgewählten Wettbewerbs als Vorlage kopiert.
 So haben zwei Vereinswettbewerbe unterschiedliche Regeln, ohne dass die bestehenden
@@ -718,9 +751,10 @@ Anzahl der Durchgänge, offene Anmeldungen und den Fortschritt der Resultate.
 **Beenden.** Sobald für jeden aktiven Piloten in jedem gewerteten Durchgang ein Resultat
 vorliegt – Aussenlandung und „nicht angetreten" zählen mit –, kann der Wettbewerb beendet
 werden. Danach bleiben Startliste, Resultate, PDF und Export sichtbar; gesperrt sind
-Resultate, Anmeldungen und Wettbewerbseinstellungen. Der bisherige aktive Wettbewerb bleibt
-aktiv, der Name des abgeschlossenen bleibt änderbar. Bei einem Korrekturfehler holt ein
-Administrator ihn mit *Wieder öffnen* zurück.
+Resultate, Anmeldungen und Wettbewerbseinstellungen. War er der aktive, hört er auf, aktiv zu
+sein: der neueste noch offene Wettbewerb übernimmt, sonst bleibt kurz keiner aktiv. Der Name des
+abgeschlossenen bleibt änderbar. Bei einem Korrekturfehler holt ein Administrator ihn mit
+*Wieder öffnen* zurück.
 
 Ein Wettbewerb mit Anmeldungen oder Resultaten wird nicht gelöscht, damit keine Daten
 verloren gehen.
@@ -815,9 +849,26 @@ nimmt teil. Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen.
 | Datei | macht |
 | --- | --- |
 | `region.php` | die Liste, öffentlich wie die Rangliste; `?jahr=` wählt, `?csv=1` exportiert |
+| `admin/regiocup.php` | Einstellung und Vorschau, für SuperAdmin **und** den eingestellten Verein |
 | `lib/layout.php` `region_card()` | die Kachel auf der Startseite |
 | `lib/layout.php` `region_table()` | die Tabelle – **eine** für Seite und Vorschau |
-| `admin/profil.php` | Einstellung und Vorschau, nur für den SuperAdmin |
+
+Seit 1.9.22 ist der Regiocup eine eigene Seite im Wettkampfbüro,
+`admin/regiocup.php`, und steht im Benutzermenü. Vorher stand er als Sektion im
+Profil – dort war er nur für den SuperAdmin sichtbar, obwohl die Einstellung
+gerade für einen *anderen* Verein gedacht ist.
+
+Die Seite ist erreichbar für:
+
+- den **SuperAdmin** – mit dem Formular, mit dem er den Verein einstellt,
+- die **Mitglieder des eingestellten Vereins** – mit der Liste, ohne Formular,
+- alle anderen **nicht** – sie sehen dieselbe Sperre wie `region.php`.
+
+Der eingestellte Verein muss dafür **nicht** für die Anmeldung freigeschaltet
+sein. `clubs.active` steuert nur das Anmeldeformular; ein Verein, der lediglich
+zusieht, soll dafür nicht dort auftauchen müssen. In der Auswahl steht er
+deshalb als *„(nicht in der Anmeldung)"* – damit man nicht versehentlich einen
+Verein wählt, den man für die Anmeldung braucht, und umgekehrt.
 
 ### Wer sie sehen darf
 
@@ -911,8 +962,8 @@ admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
 admin/benutzer.php     Benutzerverwaltung, nur für den SuperAdmin
 admin/aktualisieren.php Aktualisierung von GitHub, nur für den SuperAdmin
-admin/profil.php      Eigenes Profil: Anzeigename, Passwort; für den SuperAdmin
-                      zusätzlich der Regiocup mit Einstellung und Vorschau
+admin/profil.php      Eigenes Profil: Anzeigename, Passwort
+admin/regiocup.php    Regiocup: Einstellung und Vorschau (1.9.22)
 admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 

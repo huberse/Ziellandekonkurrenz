@@ -35,9 +35,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id = create_competition($name, $count, $target > 0 ? $target : 180, true, $clubId,
                                         isset($_POST['region']));
                 $competitionQS = '';
+                // create_competition() aktiviert nur, wenn es sonst keinen
+                // aktiven Wettbewerb gibt. Die Meldung sagt, was wirklich
+                // eingetreten ist - und wie man weitermacht, wenn er offen
+                // blieb. Jedes Stück bringt seinen eigenen Punkt mit, sonst
+                // klebt der nächste Satz mitten dran.
+                $st = db()->prepare('SELECT is_current FROM competitions WHERE id = ?');
+                $st->execute([$id]);
+                $aktiv = (int) $st->fetchColumn() === 1;
+                $wie = $aktiv
+                    ? 'und aktiv gesetzt. Erfassung und Rangliste zeigen jetzt diesen Wettbewerb.'
+                    : 'und bleibt offen: der bisher aktive Wettbewerb läuft weiter. Aktivieren Sie ihn '
+                      . 'in der Liste unten, wenn er an der Reihe ist.';
                 $wer = $clubId !== null && $clubId > 0 ? 'Veranstalter: ' . club_name($clubId) . '. ' : '';
-                $auch = isset($_POST['region']) ? ' Zählt zum Regiocup des Jahres.' : '';
-                flash("Wettbewerb „{$name}“ angelegt und aktiv gesetzt. {$wer}{$auch}Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.", 'ok');
+                $auch = isset($_POST['region']) ? 'Zählt zum Regiocup des Jahres. ' : '';
+                flash("Wettbewerb „{$name}“ angelegt {$wie} {$wer}{$auch}"
+                    . 'Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.', 'ok');
             } catch (Throwable $e) {
                 flash($e instanceof DomainException
                     ? $e->getMessage()
@@ -199,8 +212,9 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
 
 <div class="panel">
     <h3 style="margin-top:0">Neuen Wettbewerb anlegen</h3>
-    <p class="lead">Wird sofort zum aktiven Wettbewerb. Erfassung, Durchgänge und Rangliste zeigen danach diesen Wettbewerb;
-        ältere Wettbewerbe bleiben über die Liste unten erreichbar.</p>
+    <p class="lead">Der neue Wettbewerb ist zuerst <b>offen</b>, nicht aktiv: der bisher aktive Wettbewerb
+        läuft unterbrechungsfrei weiter. Aktivieren Sie den neuen erst in der Liste unten, wenn er an
+        der Reihe ist – dann zeigen Erfassung, Durchgänge und Rangliste ihn.</p>
     <form method="post">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="create">
@@ -244,7 +258,7 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                 Lass das Feld leer, wenn es ein Wettbewerb ohne Regiopunkte ist – später lässt sich das
                 jederzeit ändern.</p>
         </div>
-        <button class="btn big" type="submit">Wettbewerb anlegen und aktivieren</button>
+        <button class="btn big" type="submit">Wettbewerb anlegen</button>
     </form>
 </div>
 
@@ -260,13 +274,19 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
         }
         $imRegiocup = (int) ($s['region'] ?? 0) === 1;
     ?>
-        <div class="competition-card<?= $s['is_current'] ? ' current' : '' ?><?= $completed ? ' archived' : '' ?>">
+        <?php // Die Rahmenfarbe folgt demselben Vorrang: ein beendeter Wettbewerb
+              // wird auch dann nicht als aktiver hervorgehoben. ?>
+        <div class="competition-card<?= $s['is_current'] && !$completed ? ' current' : '' ?><?= $completed ? ' archived' : '' ?>">
             <div class="card-top">
                 <span class="card-tags">
-                    <?php if ($s['is_current']): ?>
-                        <span class="tag on">aktiv</span>
-                    <?php elseif ($completed): ?>
+                    <?php // "beendet" vor "aktiv": ein beendeter Wettbewerb darf
+                          // nicht als aktiv dastehen, auch wenn is_current noch
+                          // so dasteht. Genau diese Reihenfolge hat den Eindruck
+                          // "beendet, aber trotzdem aktiv" erzeugt. ?>
+                    <?php if ($completed): ?>
                         <span class="tag off">beendet</span>
+                    <?php elseif ($s['is_current']): ?>
+                        <span class="tag on">aktiv</span>
                     <?php else: ?>
                         <span class="tag live">offen</span>
                     <?php endif; ?>

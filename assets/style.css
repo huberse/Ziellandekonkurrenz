@@ -634,10 +634,23 @@ input:focus, select:focus, textarea:focus { border-color: var(--blau); }
 
 /* Kompakte Bedienelemente. Die Markierung sitzt auf dem Bereich, nicht auf dem
    einzelnen Element, damit eine Zeile nicht halb kompakt und halb normal sein
-   kann: .dense verkleinert alles darin, .btn.small einzelne Knöpfe. */
-.dense input, .dense select, .dense .btn, .btn.small { height: var(--ctl-h-sm); }
-.dense input, .dense select { padding: 0 8px; font-size: 0.85rem; }
+   kann: .dense verkleinert alles darin, .btn.small einzelne Knöpfe.
+
+   Ausgenommen sind die Ankreuzfelder. Sie sind mit der Regel auf 32px
+   gestreckt worden und haben dadurch jede Zeile, in der sie vorkamen, um
+   neun Pixel höher gemacht - in der Benutzerverwaltung sichtbar daran, dass
+   die Zeile mit den Abzeichen 9px niedriger war als die mit den Kästchen. */
+.dense input:not([type=checkbox]):not([type=radio]),
+.dense select, .dense .btn, .btn.small { height: var(--ctl-h-sm); }
+.dense input:not([type=checkbox]):not([type=radio]),
+.dense select { padding: 0 8px; font-size: 0.85rem; }
+.dense input[type=checkbox], .dense input[type=radio] { width: 18px; height: 18px; padding: 0; }
 .dense .btn, .btn.small { padding: 0 10px; font-size: 0.85rem; }
+
+/* In einer dichten Tabelle sind die Abzeichen genauso hoch wie die
+   Bedienelemente daneben, und sie reissen die Zeile auf eine zweite Zeile.
+   Das sah aus, als haenge die Zeile an einem Abzeichen. */
+table.data.dense .tag { padding: 1px 6px; font-size: 0.72rem; }
 
 .field { margin-bottom: 14px; }
 .hint { font-size: 0.8rem; color: var(--ink-soft); font-weight: 400; margin-top: 4px; }
