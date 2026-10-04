@@ -121,6 +121,8 @@ if (is_file(__DIR__ . '/config.php')) {
         }
         try {
             $version = (int) $pdo->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations')->fetchColumn();
+            // Ab 12 gehoert die Stammliste der Piloten dazu. Wer auf 2.0.0 geht,
+            // ohne upgrade.php zu rufen, bekommt das hier gesagt.
             check('Versionierte Migrationen', $version >= 4, 'upgrade.php ausführen.');
             $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'completed_at'");
@@ -201,6 +203,32 @@ if (is_file(__DIR__ . '/config.php')) {
             $st->execute();
             $fkCount = (int) $st->fetchColumn();
             check('Wettbewerb-Constraints', $indexCount >= 9 && $fkCount >= 3, 'upgrade.php ausführen.');
+
+            // Seit 2.0.0 stehen die Stammdaten der Piloten in pilot_profiles.
+            // Ohne diese Tabelle liefert jede Seite mit einer Pilotenliste einen
+            // SQL-Fehler - das merkt man dann, wenn man etwas anklickt.
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.TABLES
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pilot_profiles'");
+            $st->execute();
+            $hatProfile = (int) $st->fetchColumn() > 0;
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE()
+                                   AND ((TABLE_NAME = 'pilots' AND COLUMN_NAME = 'profile_id')
+                                     OR (TABLE_NAME = 'pilots' AND COLUMN_NAME = 'first_name')
+                                     OR (TABLE_NAME = 'registrations' AND COLUMN_NAME = 'smv_number'))");
+            $st->execute();
+            $spalten = (int) $st->fetchColumn();
+            check('Stammdaten der Piloten (2.0.0)', $hatProfile && $spalten === 2, 'upgrade.php ausführen.');
+
+            // Ab 2.0.1 kann ein Wettbewerb als abgesagt markiert werden. Ohne die
+            // Spalte meldet die Karte zwar "abgesagt", gespeichert wird es nicht -
+            // und niemand merkt es, bis jemand einen Wettbewerb sucht, der
+            // eigentlich ausgefallen ist.
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE()
+                                   AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'cancelled_at'");
+            $st->execute();
+            check('Absage von Wettbewerben (2.0.1)', (int) $st->fetchColumn() > 0, 'upgrade.php ausführen.');
         } catch (PDOException $e) {
             check('Versionierte Migrationen', false, 'upgrade.php ausführen.');
         }

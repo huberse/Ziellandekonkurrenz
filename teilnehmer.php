@@ -13,21 +13,33 @@ $competitions = all_competitions();
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '';
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 
-$st = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name
+$st = db()->prepare('SELECT p.*, pr.first_name, pr.last_name, pr.smv_number,
+                              t.name AS model_type_name, c.name AS club_name
                        FROM pilots p
+                       JOIN pilot_profiles pr ON pr.id = p.profile_id
                        LEFT JOIN model_types t ON t.id = p.model_type_id
                        LEFT JOIN clubs c ON c.id = p.club_id
                        WHERE p.competition_id = ?
-                       ORDER BY p.active DESC, t.sort_order, t.name, p.bib_number + 0, p.last_name');
+                       ORDER BY p.active DESC, t.sort_order, t.name, p.bib_number + 0, pr.last_name');
 $st->execute([$competition['id']]);
 $pilots = $st->fetchAll();
 
 page_start('Teilnehmer', 'public', 'teilnehmer.php', false, false);
 ?>
+<?php $abgesagtHinweis = wettbewerb_abgesagt_hinweis($competition); ?>
+<?php if ($abgesagtHinweis !== ''): ?>
+    <?php // Die Startliste ist beim Abbruch stehen geblieben. Wer sie
+          // ausdruckt, muss wissen, dass sie unvollstaendig ist. ?>
+    <div class="flash info"><?= h($abgesagtHinweis) ?></div>
+<?php endif; ?>
 <div class="row-between no-print">
     <div>
         <h2>Teilnehmerliste<?= count($competitions) > 1 ? ' – ' . h($competition['name']) : '' ?></h2>
-        <p class="lead"><?= count($pilots) ?> Piloten in der Startliste<?= $competitionCompleted ? ' (Archiv)' : '' ?>.</p>
+        <p class="lead"><?= count($pilots) ?> Piloten in der Startliste<?=
+            // "Archiv" waere hier gelogen: die Liste ist beim Abbruch
+            // stehen geblieben und wurde nie zu Ende geflogen.
+            !empty($competition['cancelled_at']) ? ' (abgesagt, unvollständig)'
+            : ($competitionCompleted ? ' (Archiv)' : '') ?>.</p>
     </div>
     <div class="btn-row dense">
         <a class="btn ghost" href="javascript:window.print()">Drucken</a>

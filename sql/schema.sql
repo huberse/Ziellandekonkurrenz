@@ -65,6 +65,16 @@ CREATE TABLE IF NOT EXISTS competitions (
   is_current TINYINT(1)   NOT NULL DEFAULT 0,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   completed_at DATETIME   NULL, -- NULL = offen, gesetzter Zeitpunkt = abgeschlossen
+    -- Seit 2.0.1: der Wettbewerb fiel aus, etwa wegen Wetter. Er ist trotzdem
+    -- abgeschlossen - gesperrt wird er wie ein beendeter -, aber die
+    -- Ergebnisse sind unvollstaendig. Was schon geflogen ist, zaehlt in der
+    -- Regiowertung weiter, sonst waere die bis dahin geleistete Arbeit umsonst.
+    --
+    -- Beide Spalten gehoeren zusammen: cancelled_at ist gesetzt UND
+    -- completed_at auch. Eine eigene "geschlossen"-Regel neben completed_at
+    -- waere an dreissig Stellen zu pflegen, und an der ersten, die man
+    -- vergisst, waere ein abgesagter Wettbewerb wieder bearbeitbar.
+    cancelled_at DATETIME   NULL, -- gesetzt = fand nicht statt
   UNIQUE KEY uq_competition_name (name),
   KEY idx_competition_club (club_id),
   CONSTRAINT fk_competition_club FOREIGN KEY (club_id)
@@ -93,29 +103,57 @@ CREATE TABLE IF NOT EXISTS rounds (
   CONSTRAINT fk_round_competition FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Die Stammdaten eines Piloten: SMV-Nummer und Name. Genau ein Satz je Person,
+-- ueber alle Wettbewerbe hinweg. Ohne SMV-Nummer bleibt smv_number NULL --
+-- MySQL laesst in einem eindeutigen Index mehrere NULL zu, "999999" als
+-- gespeicherten Wert dagegen nicht: zwei Piloten ohne Nummer waeren sonst
+-- derselbe. Angezeigt wird "999999" trotzdem, siehe pilot_smv_anzeige().
+--
+-- Die Nummer ist Text und keine Zahl, weil sie mit Null beginnen darf.
+CREATE TABLE IF NOT EXISTS pilot_profiles (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    smv_number  VARCHAR(6)   NULL,
+    first_name  VARCHAR(80)  NOT NULL,
+    last_name   VARCHAR(80)  NOT NULL,
+    active      TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_profile_smv (smv_number),
+    KEY idx_profile_name (last_name, first_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Der Eintrag eines Piloten in der Startliste eines Wettbewerbs: Startnummer,
+-- Verein, Modell, Modelltyp. Alles, was je Wettbewerb verschieden sein kann.
+--
+-- Name und SMV-Nummer stehen nicht hier, sondern in pilot_profiles. Wer in
+-- drei Jahren dreimal fliegt, hat drei Eintraege und einen Stammsatz. Der Verein
+-- steht bewusst hier und nicht am Stamm: wer den Verein wechselt, behaelt die
+-- Historie beim alten.
 CREATE TABLE IF NOT EXISTS pilots (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  competition_id INT         NOT NULL,
-  bib_number     VARCHAR(10) NULL,
-  first_name  VARCHAR(80)  NOT NULL,
-  last_name   VARCHAR(80)  NOT NULL,
-  club_id     INT          NULL,
-  model_type_id    INT          NULL,
-  model_name  VARCHAR(120) NULL,
-  notes       VARCHAR(255) NULL,
-  active      TINYINT(1)   NOT NULL DEFAULT 1,
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_pilot_type (model_type_id),
-  KEY idx_pilot_club (club_id),
-  KEY idx_pilot_competition (competition_id),
-  UNIQUE KEY uq_pilot_id_competition (id, competition_id),
-  UNIQUE KEY uq_pilot_competition_bib (competition_id, bib_number),
-  CONSTRAINT fk_pilot_type FOREIGN KEY (model_type_id)
-    REFERENCES model_types(id) ON DELETE SET NULL,
-  CONSTRAINT fk_pilot_club FOREIGN KEY (club_id)
-    REFERENCES clubs(id) ON DELETE SET NULL,
-  CONSTRAINT fk_pilot_competition FOREIGN KEY (competition_id)
-    REFERENCES competitions(id) ON DELETE CASCADE
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    competition_id INT         NOT NULL,
+    profile_id  INT          NOT NULL,
+    bib_number     VARCHAR(10) NULL,
+    club_id     INT          NULL,
+    model_type_id    INT          NULL,
+    model_name  VARCHAR(120) NULL,
+    notes       VARCHAR(255) NULL,
+    active      TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_pilot_type (model_type_id),
+    KEY idx_pilot_club (club_id),
+    KEY idx_pilot_competition (competition_id),
+    KEY idx_pilot_profile (profile_id),
+    UNIQUE KEY uq_pilot_id_competition (id, competition_id),
+    UNIQUE KEY uq_pilot_competition_bib (competition_id, bib_number),
+    CONSTRAINT fk_pilot_type FOREIGN KEY (model_type_id)
+      REFERENCES model_types(id) ON DELETE SET NULL,
+    CONSTRAINT fk_pilot_club FOREIGN KEY (club_id)
+      REFERENCES clubs(id) ON DELETE SET NULL,
+    CONSTRAINT fk_pilot_profile FOREIGN KEY (profile_id)
+      REFERENCES pilot_profiles(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_pilot_competition FOREIGN KEY (competition_id)
+      REFERENCES competitions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS scores (
@@ -147,7 +185,11 @@ CREATE TABLE IF NOT EXISTS scores (
 
 CREATE TABLE IF NOT EXISTS registrations (
   id         INT AUTO_INCREMENT PRIMARY KEY,
-  competition_id INT         NULL,
+    competition_id INT         NULL,
+    -- Die SMV-Nummer, wie sie im Formular stand. Beim Freigeben wandert sie an
+    -- den Stammdatensatz, hier steht sie nur als Protokoll des Eingangs. Wer
+    -- sich ohne Nummer meldet, hat hier NULL.
+    smv_number VARCHAR(6)   NULL,
   first_name     VARCHAR(80) NOT NULL,
   last_name  VARCHAR(80)  NOT NULL,
   club_id    INT          NULL,

@@ -332,6 +332,14 @@ function set_current_competition(int $id): void
         if (!$row) {
             throw new RuntimeException('Wettbewerb nicht gefunden.');
         }
+        // Beide Spalten prüfen und nicht nur completed_at: die Absage setzt
+        // zwar immer beide, aber wenn die eine davon aus einem anderen Grund
+        // fehlte, wäre ein abgesagter Wettbewerb auf einmal wieder aktivierbar.
+        if ($row['cancelled_at'] !== null) {
+            throw new DomainException('Ein abgesagter Wettbewerb kann nicht aktiviert werden. '
+                . 'Er fand nicht statt - bitte unter „Wieder öffnen“ zurücknehmen, '
+                . 'wenn doch ein Ersatztermin gesucht wird.');
+        }
         if ($row['completed_at'] !== null) {
             throw new DomainException('Abgeschlossene Wettbewerbe können nicht aktiviert werden.');
         }
@@ -917,7 +925,14 @@ function lock_open_competition(PDO $pdo, int $competitionId): array
 }
 
 /** Wettbewerb abschliessen; der aktive Wettbewerb bleibt dabei unverändert. */
-function complete_competition(int $competitionId): array
+/**
+ * Einen Wettbewerb abschliessen.
+ *
+ * $erzwingen = true schliesst ihn auch, obwohl Ergebnisse fehlen. Dann bleiben
+ * die Luecken fuer immer unausgewertet - deshalb fragt die Karte vorher nach
+ * und nennt die Zahl.
+ */
+function complete_competition(int $competitionId, bool $erzwingen = false): array
 {
     $pdo = db();
     $pdo->beginTransaction();
@@ -935,7 +950,11 @@ function complete_competition(int $competitionId): array
         }
         $progress = competition_result_progress($competitionId);
         $alreadyCompleted = $competition['completed_at'] !== null;
-        if (!$alreadyCompleted && !$progress['complete']) {
+        // $erzwingen kommt von der Karte bei den Wettbewerben, deren Ergebnis
+        // unvollstaendig ist. Ohne diesen Weg waere ein Wettbewerb, dem ein
+        // Pilot oder ein Durchgang fehlt, nie zu schliessen - und am
+        // Saisonende bliebe er aktiv.
+        if (!$alreadyCompleted && !$progress['complete'] && !$erzwingen) {
             throw new DomainException('Noch nicht alle Resultate sind erfasst.');
         }
         if (!$alreadyCompleted) {
@@ -971,10 +990,109 @@ function complete_competition(int $competitionId): array
     }
 }
 
+/**
+ * Einen Wettbewerb als abgesagt markieren: er fand nicht statt.
+ *
+ * Beispiel Wetter ohne Ersatztermin. Der Wettbewerb ist danach wie ein
+ * beendeter gesperrt - Startliste, Ergebnisse und Anmeldungen lassen sich
+ * nicht mehr aendern.
+ *
+ * Die Ergebnisse, die bis dahin geflogen wurden, bleiben erhalten und sind
+ * weiter einsehbar - nur werden sie nicht gewertet. **Fuer den Regiocup zaehlt
+ * ein abgesagter Wettbewerb nicht**, auch nicht anteilig: sonst hinge der
+ * Punktestand eines Piloten davon ab, an welchem Tag abgesagt wurde. Nach der
+ * Absage laesst sich nichts mehr nachtragen.
+ *
+ * @return array Fortschritt, damit die Karte sagen kann, was fehlt
+ */
+function cancel_competition(int $competitionId): array
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $st = $pdo->prepare('SELECT * FROM competitions WHERE id = ? FOR UPDATE');
+        $st->execute([$competitionId]);
+        $competition = $st->fetch();
+        if (!$competition) {
+            throw new RuntimeException('Wettbewerb nicht gefunden.');
+        }
+        $progress = competition_result_progress($competitionId);
+
+        // Sind alle Ergebnisse da, fand der Wettbewerb statt - dann kann er
+        // nicht als abgesagt gemeldet werden, und beides zugleich waere eine
+        // widerspruechliche Aussage. Geprueft wird der Fortschritt und nicht
+        // die Spalte completed_at: der Wettbewerb kann vollstaendig geflogen
+        // sein, ohne dass ihn jemand abgeschlossen hat, und dann gilt dasselbe.
+        if ($progress['complete']) {
+            throw new DomainException('Für diesen Wettbewerb liegen alle Ergebnisse vor - '
+                . 'er hat stattgefunden und kann nicht als abgesagt gemeldet werden. '
+                . 'Soll er trotzdem nicht zählen, bitte „Beenden“ verwenden.');
+        }
+
+        $pdo->prepare('UPDATE competitions SET completed_at = COALESCE(completed_at, NOW()),
+                       cancelled_at = COALESCE(cancelled_at, NOW())
+                       WHERE id = ?')->execute([$competitionId]);
+
+        // Ein abgesagter Wettbewerb darf nicht aktiv bleiben - am Saisonende
+        // darf keiner aktiv sein.
+        $aktiv = (int) $competition['is_current'] === 1;
+        if ($aktiv) {
+            $naechster = $pdo->query('SELECT id FROM competitions
+                                      WHERE completed_at IS NULL AND id <> ' . (int) $competitionId . '
+                                      ORDER BY id DESC LIMIT 1')->fetchColumn();
+            $pdo->exec('UPDATE competitions SET is_current = 0');
+            if ($naechster !== false) {
+                $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([(int) $naechster]);
+            }
+        }
+        $pdo->commit();
+        return $progress;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+/**
+ * Einen abgesagten Wettbewerb nachträglich doch als stattgefunden behandeln.
+ *
+ * Der umgekehrte Weg zu cancel_competition(): die Ergebnisse bleiben, die
+ * Absage verschwindet. Danach gilt wieder die normale Regel - der Wettbewerb
+ * laesst sich wie jeder andere beenden.
+ */
+function occurred_competition(int $competitionId): void
+{
+    $pdo = db();
+    $st = $pdo->prepare('UPDATE competitions SET cancelled_at = NULL WHERE id = ?');
+    $st->execute([$competitionId]);
+    if ($st->rowCount() === 0) {
+        $check = $pdo->prepare('SELECT cancelled_at FROM competitions WHERE id = ?');
+        $check->execute([$competitionId]);
+        $zeile = $check->fetch();
+        if (!$zeile) {
+            throw new RuntimeException('Wettbewerb nicht gefunden.');
+        }
+        if ($zeile['cancelled_at'] === null) {
+            throw new DomainException('Dieser Wettbewerb ist gar nicht abgesagt.');
+        }
+    }
+}
+
+/** Ist der Wettbewerb als abgesagt markiert? */
+function competition_is_cancelled(array $competition): bool
+{
+    return !empty($competition['cancelled_at']);
+}
+
 /** Einen abgeschlossenen Wettbewerb bewusst wieder zur Bearbeitung öffnen. */
 function reopen_competition(int $competitionId): void
 {
-    $st = db()->prepare('UPDATE competitions SET completed_at = NULL WHERE id = ?');
+    // Auch die Absage mitnehmen. Sonst waere ein abgesagter Wettbewerb wieder
+    // offen, aber weiter als abgesagt gemeldet - und die Anzeige widersprache
+    // sich selbst.
+    $st = db()->prepare('UPDATE competitions SET completed_at = NULL, cancelled_at = NULL WHERE id = ?');
     $st->execute([$competitionId]);
     if ($st->rowCount() === 0) {
         $check = db()->prepare('SELECT id FROM competitions WHERE id = ?');
@@ -1118,6 +1236,17 @@ function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true)
             if (competition_schema_table_exists($pdo, 'clubs')) {
                 $columns['competitions'][] = 'club_id';
             }
+            // Seit 2.0.0: die Stammdaten des Piloten liegen in pilot_profiles.
+            if (!competition_schema_table_exists($pdo, 'pilot_profiles')) {
+                $issues[] = 'Tabelle pilot_profiles fehlt, die Migration 12 ist nicht gelaufen';
+            } else {
+                $columns['pilot_profiles'] = ['id', 'smv_number', 'first_name', 'last_name', 'active'];
+            }
+            $columns['pilots'][] = 'profile_id';
+            $columns['registrations'][] = 'smv_number';
+            if (competition_schema_column_exists($pdo, 'pilots', 'first_name')) {
+                $issues[] = 'pilots.first_name ist noch vorhanden, die Migration 12 ist nicht gelaufen';
+            }
         }
         foreach ($columns as $table => $required) {
             foreach ($required as $column) {
@@ -1154,6 +1283,10 @@ function competition_schema_diagnostics(PDO $pdo, bool $withLaterColumns = true)
             ['registrations', 'idx_registration_pilot', ['pilot_id'], false],
             ['competition_settings', 'PRIMARY', ['competition_id', 'skey'], true],
         ];
+        if ($withLaterColumns) {
+            $indexes[] = ['pilot_profiles', 'uq_profile_smv', ['smv_number'], true];
+            $indexes[] = ['pilots', 'idx_pilot_profile', ['profile_id'], false];
+        }
         foreach ($indexes as [$table, $name, $expected, $unique]) {
             $actual = competition_schema_index($pdo, $table, $name);
             if ($actual === null) {
@@ -1234,6 +1367,18 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
             if (competition_schema_table_exists($pdo, 'clubs')) {
                 $columns['competitions'][] = 'club_id';
             }
+            // Seit 2.0.0 stehen die Stammdaten des Piloten in pilot_profiles.
+            // Gefordert wird das erst, wenn alle Migrationen durch sind -
+            // davor wuerde die Wettbewerbsmigration selbst daran scheitern.
+            if (!competition_schema_table_exists($pdo, 'pilot_profiles')) {
+                return false;
+            }
+            $columns['pilot_profiles'] = ['id', 'smv_number', 'first_name', 'last_name', 'active'];
+            $columns['pilots'][] = 'profile_id';
+            $columns['registrations'][] = 'smv_number';
+            if (competition_schema_column_exists($pdo, 'pilots', 'first_name')) {
+                return false;          // noch nicht umgestellt
+            }
         }
         foreach ($columns as $table => $required) {
             foreach ($required as $column) {
@@ -1299,6 +1444,7 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
         if ($withLaterColumns) {
             $foreignKeys[] = ['users', 'fk_user_club', ['club_id'], 'clubs', ['id']];
             $foreignKeys[] = ['competitions', 'fk_competition_club', ['club_id'], 'clubs', ['id']];
+            $foreignKeys[] = ['pilots', 'fk_pilot_profile', ['profile_id'], 'pilot_profiles', ['id']];
         }
         foreach ($foreignKeys as [$table, $name, $columns, $referencedTable, $referencedColumns]) {
             $actual = competition_schema_foreign_key($pdo, $table, $name);
@@ -1312,6 +1458,10 @@ function competition_schema_is_ready(PDO $pdo, bool $withLaterColumns = true): b
             if (competition_schema_foreign_key_count($pdo, $table) < $expected) {
                 return false;
             }
+        }
+        // Ohne den vierten Fremdschluessel fehlt pilots.profile_id die Bindung.
+        if ($withLaterColumns && competition_schema_foreign_key_count($pdo, 'pilots') < 4) {
+            return false;
         }
         return true;
     } catch (Throwable $e) {

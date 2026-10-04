@@ -42,10 +42,11 @@ if (!$competitionCompleted) {
     }
 }
 
-$recent = db()->prepare('SELECT s.*, r.round_number, p.first_name, p.last_name, p.bib_number
+$recent = db()->prepare('SELECT s.*, r.round_number, pr.first_name, pr.last_name, pr.smv_number, p.bib_number
                        FROM scores s
                        JOIN rounds r ON r.id = s.round_id
                        JOIN pilots p ON p.id = s.pilot_id
+                       JOIN pilot_profiles pr ON pr.id = p.profile_id
                        WHERE r.competition_id = ?
                        ORDER BY s.updated_at DESC, s.id DESC LIMIT 12');
 $recent->execute([$competition['id']]);
@@ -88,7 +89,11 @@ page_start('Übersicht', 'admin', 'index.php');
     <div class="stat">
         <b><?= $active ? (int) $active['round_number'] : '–' ?></b>
         <span><?= $competitionCompleted
-            ? 'Wettbewerb beendet, es läuft kein Durchgang'
+            // "beendet" waere bei einem abgesagten Wettbewerb falsch: er wurde
+            // nicht zu Ende geflogen, sondern fiel aus.
+            ? (!empty($competition['cancelled_at'])
+                ? 'Wettbewerb abgesagt, es läuft kein Durchgang'
+                : 'Wettbewerb beendet, es läuft kein Durchgang')
             : ($active ? 'läuft gerade, Zielzeit ' . fmt_time((float) $active['target_time_seconds']) : 'kein Durchgang freigegeben') ?></span>
         <?php if ($active && $pilotCount): $pc = min(100, (int) round($progress[(int) $active['id']] / $pilotCount * 100)); ?>
             <div class="progress"><i style="width:<?= $pc ?>%"></i></div>

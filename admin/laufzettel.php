@@ -9,12 +9,14 @@ require_login();
 $competition = resolve_competition_param(competition_request_param(), true);
 require_competition_access((int) $competition['id']);
 $rounds = all_rounds($competition['id']);
-$pilotStmt = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name
+$pilotStmt = db()->prepare('SELECT p.*, pr.first_name, pr.last_name, pr.smv_number,
+                                      t.name AS model_type_name, c.name AS club_name
                              FROM pilots p
+                             JOIN pilot_profiles pr ON pr.id = p.profile_id
                              LEFT JOIN model_types t ON t.id = p.model_type_id
                              LEFT JOIN clubs c ON c.id = p.club_id
                              WHERE p.active = 1 AND p.competition_id = ?
-                             ORDER BY p.bib_number + 0, p.bib_number, p.last_name, p.first_name');
+                             ORDER BY p.bib_number + 0, p.bib_number, pr.last_name, pr.first_name');
 $pilotStmt->execute([(int) $competition['id']]);
 $pilots = $pilotStmt->fetchAll();
 
@@ -116,7 +118,14 @@ page_start('Laufzettel', 'admin', 'laufzettel.php');
         <a href="wettbewerbe.php">Wettbewerbe ansehen</a></div>
 <?php endif; ?>
 <?php if (competition_is_completed((int) $competition['id'])): ?>
-    <div class="flash info no-print">Dieser Wettbewerb ist abgeschlossen. Der Laufzettel bleibt als Archiv sichtbar und kann weiterhin als PDF heruntergeladen werden.</div>
+    <?php // Beim abgesagten Wettbewerb fehlen Durchgaenge. Einen Laufzettel
+          // dafuer zu drucken ist sinnlos, und wer ihn trotzdem zieht, muss
+          // wissen, dass er unvollstaendig ist. ?>
+    <div class="flash info no-print"><?php if (!empty($competition['cancelled_at'])): ?>
+        Dieser Wettbewerb fand nicht statt und wurde abgesagt. Der Laufzettel ist unvollständig.
+    <?php else: ?>
+        Dieser Wettbewerb ist abgeschlossen. Der Laufzettel bleibt als Archiv sichtbar und kann weiterhin als PDF heruntergeladen werden.
+    <?php endif; ?></div>
 <?php endif; ?>
 
 <?php if (!$rounds): ?>

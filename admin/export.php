@@ -20,13 +20,15 @@ $out = fopen('php://output', 'w');
 fwrite($out, "\xEF\xBB\xBF"); // BOM, damit Excel Umlaute richtig zeigt
 
 if ($what === 'einzelresultate') {
-    fputcsv($out, ['Startnummer', 'Vorname', 'Name', 'Verein', 'Modelltyp', 'Durchgang',
+    fputcsv($out, ['Startnummer', 'SMV-Nummer', 'Vorname', 'Name', 'Verein', 'Modelltyp', 'Durchgang',
         'Zielzeit s', 'Flugzeit s', 'Landewert', 'Wertung', 'Zeitstrafe', 'Landestrafe', 'Strafpunkte'], ';');
 
-    $rows = db()->prepare('SELECT p.bib_number, p.first_name, p.last_name, c.name AS club_name, t.name AS model_type_name,
+    $rows = db()->prepare('SELECT p.bib_number, pr.first_name, pr.last_name, pr.smv_number,
+                                  c.name AS club_name, t.name AS model_type_name,
                                 r.round_number, r.target_time_seconds, s.*
                          FROM scores s
                          JOIN pilots p ON p.id = s.pilot_id
+                         JOIN pilot_profiles pr ON pr.id = p.profile_id
                          JOIN rounds r ON r.id = s.round_id
                          LEFT JOIN model_types t ON t.id = p.model_type_id
                          LEFT JOIN clubs c ON c.id = p.club_id
@@ -36,7 +38,8 @@ if ($what === 'einzelresultate') {
     $rows = $rows->fetchAll();
     foreach ($rows as $r) {
         fputcsv($out, [
-            $r['bib_number'], $r['first_name'], $r['last_name'], $r['club_name'], $r['model_type_name'],
+            $r['bib_number'], pilot_smv_anzeige($r['smv_number'] ?? null),
+            $r['first_name'], $r['last_name'], $r['club_name'], $r['model_type_name'],
             $r['round_number'], $r['target_time_seconds'], $r['flight_time_seconds'], $r['landing_value'],
             score_outcome_label(score_flags($r)),
             $r['time_penalty'], $r['landing_penalty'], $r['penalty'],

@@ -93,8 +93,13 @@ function wettbewerb_anlegen(PDO $pdo): int
     }
     // Mindestens ein Pilot: ohne Startliste gibt die Erfassungsseite kein
     // Formular und damit auch kein JavaScript aus.
-    $pdo->prepare('INSERT INTO pilots (competition_id, bib_number, first_name, last_name, club_id, model_type_id, active)
-                   VALUES (?,?,?,?,?,?,1)')->execute([$w, '01', 'Testpilot', 'Regel', $club, $typ]);
+    // Seit 2.0.0 stehen Name und SMV-Nummer in pilot_profiles; pilots verweist
+    // nur noch darauf. Der Test baut sich darum einen Stammsatz.
+    $pdo->prepare('INSERT INTO pilot_profiles (smv_number, first_name, last_name) VALUES (?,?,?)')
+        ->execute([sprintf('%06d', 900000 + $w), 'Testpilot', 'Regel']);
+    $profil = (int) $pdo->lastInsertId();
+    $pdo->prepare('INSERT INTO pilots (competition_id, profile_id, bib_number, club_id, model_type_id, active)
+                   VALUES (?,?,?,?,?,1)')->execute([$w, $profil, '01', $club, $typ]);
     $pdo->prepare('UPDATE competitions SET is_current = 0')->execute();
     $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$w]);
     return $w;
@@ -108,6 +113,10 @@ function wettbewerb_raeumen(PDO $pdo, int $w): void
     foreach (['rounds', 'pilots', 'competition_settings'] as $t) {
         $pdo->prepare("DELETE FROM $t WHERE competition_id = ?")->execute([$w]);
     }
+    // Die Stammsaetze des Tests mit abräumen; profile_id hat ON DELETE RESTRICT,
+    // die Zeilen muessen also vorher weg.
+    $pdo->prepare('DELETE FROM pilots WHERE competition_id = ?')->execute([$w]);
+    $pdo->prepare("DELETE FROM pilot_profiles WHERE smv_number LIKE '9%'")->execute();
     $pdo->prepare('DELETE FROM competitions WHERE id = ?')->execute([$w]);
     $pdo->prepare('UPDATE competitions SET is_current = 0')->execute();
     $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = 1')->execute();

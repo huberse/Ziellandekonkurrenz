@@ -1078,6 +1078,16 @@ function migration_pending_column_steps(PDO $pdo): array
         || !migration_column_exists($pdo, 'scores', 'not_started')) {
         $steps[] = static function (PDO $pdo): array { return migration_kaestchen_unabhaengig($pdo); };
     }
+    if (migration_table_exists($pdo, 'pilots')
+        && (!migration_table_exists($pdo, 'pilot_profiles')
+            || migration_column_exists($pdo, 'pilots', 'first_name')
+            || !migration_column_exists($pdo, 'pilots', 'profile_id'))) {
+        $steps[] = static function (PDO $pdo): array { return migration_pilot_profiles($pdo); };
+    }
+    if (migration_table_exists($pdo, 'competitions')
+        && !migration_column_exists($pdo, 'competitions', 'cancelled_at')) {
+        $steps[] = static function (PDO $pdo): array { return migration_competition_cancelled($pdo); };
+    }
     return $steps;
 }
 
@@ -1127,6 +1137,14 @@ function migration_definitions(): array
         11 => [
             'description' => 'Die vier Kaestchen werden unabhaengige Felder',
             'run' => function (PDO $pdo): array { return migration_kaestchen_unabhaengig($pdo); },
+        ],
+        12 => [
+            'description' => 'Stammdaten der Piloten: SMV-Nummer und Name einmal je Person',
+            'run' => function (PDO $pdo): array { return migration_pilot_profiles($pdo); },
+        ],
+        13 => [
+            'description' => 'Wettbewerbe koennen als abgesagt markiert werden',
+            'run' => function (PDO $pdo): array { return migration_competition_cancelled($pdo); },
         ],
     ];
 }
@@ -1304,6 +1322,194 @@ function migration_crash_landing(PDO $pdo): array
     $log[] = "Strafpunkte für die Bruchlandung wurden mit {$fallback} Punkten angelegt; "
         . 'bitte je Verein unter Einstellungen → Strafpunkte prüfen.';
     return $log;
+}
+
+/**
+ * Stammdaten der Piloten: eine Person, ein Satz.
+ *
+ * Vorher stand der Name an jedem Startlisteneintrag. Wer in drei Jahren
+ * dreimal flog, hatte dreimal denselben Namen im System und nichts darueber,
+ * dass es dieselbe Person ist. Genau daran scheitert die Regiowertung, denn
+ * `region_pilot_schluessel()` erkennt Piloten nur ueber den Namen: zwei
+ * Personen mit gleichem Namen werden zu einer, wer seinen Namen aendert, zu
+ * zweien.
+ *
+ * Ab jetzt gibt es pilot_profiles (wer: SMV-Nummer und Name) und pilots (wer
+ * fliegt in welchem Wettbewerb: Startnummer, Verein, Modell). scores.pilot_id
+ * zeigt weiter auf pilots, an Resultaten aendert sich also nichts.
+ *
+ * Der Weg aus dem Bestand ist eine Namenssuche, weil noch niemand eine
+ * SMV-Nummer eingetragen hat. Zwei verschiedene Menschen mit demselben Namen
+ * landen dadurch in einem Stammsatz - dieselbe Schwachstelle wie vorher, nur
+ * jetzt sichtbar und von Hand reparierbar statt still in der Regioliste. Die
+ * Zahl der Zusammenfassungen wird deshalb gemeldet.
+ *
+ * Ohne SMV-Nummer bleibt die Spalte NULL. MySQL laesst in einem eindeutigen
+ * Index mehrere NULL zu, "999999" als gespeicherten Wert dagegen nicht: zwei
+ * Piloten ohne Nummer waeren sonst derselbe. Angezeigt wird 999999 trotzdem.
+ *
+ * @return string[] Logzeilen
+ */
+function migration_pilot_profiles(PDO $pdo): array
+{
+    $log = [];
+    if (!migration_table_exists($pdo, 'pilots')) {
+        throw new RuntimeException('Die Tabelle pilots fehlt; die Startliste ist unvollständig.');
+    }
+    if (migration_table_exists($pdo, 'pilot_profiles')
+        && migration_column_exists($pdo, 'pilots', 'profile_id')
+        && !migration_column_exists($pdo, 'pilots', 'first_name')) {
+        return ['Die Stammdaten der Piloten waren schon eingerichtet.'];
+    }
+
+    require_once __DIR__ . '/profiles.php';
+
+    if (!migration_table_exists($pdo, 'pilot_profiles')) {
+        $pdo->exec('CREATE TABLE pilot_profiles (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            smv_number  VARCHAR(6)   NULL,
+            first_name  VARCHAR(80)  NOT NULL,
+            last_name   VARCHAR(80)  NOT NULL,
+            active      TINYINT(1)   NOT NULL DEFAULT 1,
+            created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_profile_smv (smv_number),
+            KEY idx_profile_name (last_name, first_name)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+        $log[] = 'Tabelle pilot_profiles angelegt.';
+    }
+
+    if (!migration_column_exists($pdo, 'pilots', 'profile_id')) {
+        // Erst NULL: die vorhandenen Zeilen haben noch keinen Stammsatz, und
+        // NOT NULL liesse sich nur setzen, wenn die Spalte vorher gefuellt ist.
+        $pdo->exec('ALTER TABLE pilots ADD COLUMN profile_id INT NULL AFTER competition_id');
+        $log[] = 'pilots.profile_id ergänzt.';
+    }
+    if (migration_table_exists($pdo, 'registrations')
+        && !migration_column_exists($pdo, 'registrations', 'smv_number')) {
+        $pdo->exec('ALTER TABLE registrations ADD COLUMN smv_number VARCHAR(6) NULL AFTER competition_id');
+        $log[] = 'registrations.smv_number ergänzt, damit die Nummer aus dem Formular protokolliert bleibt.';
+    }
+
+    $log = array_merge($log, migration_pilot_profiles_fuellen($pdo));
+
+    // Jetzt, wo die Spalte gefuellt ist: die Namen duerfen weg, der Fremdschluessel
+    // darf kommen, profile_id darf NOT NULL werden.
+    if (migration_column_exists($pdo, 'pilots', 'first_name')) {
+        $pdo->exec('ALTER TABLE pilots DROP COLUMN first_name');
+        $pdo->exec('ALTER TABLE pilots DROP COLUMN last_name');
+        $log[] = 'Name und Nachname aus pilots entfernt; sie stehen jetzt in pilot_profiles.';
+    }
+    $pdo->exec('ALTER TABLE pilots MODIFY COLUMN profile_id INT NOT NULL');
+    if (!migration_index_exists($pdo, 'pilots', 'idx_pilot_profile')) {
+        $pdo->exec('CREATE INDEX idx_pilot_profile ON pilots (profile_id)');
+    }
+    if (!migration_index_exists($pdo, 'pilots', 'fk_pilot_profile')) {
+        $pdo->exec('ALTER TABLE pilots ADD CONSTRAINT fk_pilot_profile
+                    FOREIGN KEY (profile_id) REFERENCES pilot_profiles(id) ON DELETE RESTRICT');
+    }
+    $log[] = 'pilots.profile_id ist jetzt pflichtig und zeigt auf pilot_profiles.';
+
+    return $log;
+}
+
+/**
+ * Die vorhandenen Startlisteneintraege bekommen einen Stammsatz.
+ *
+ * Gleicher Name heisst hier gleiche Person - es ist die einzige Information,
+ * die es im Bestand gibt. @return string[]
+ */
+function migration_pilot_profiles_fuellen(PDO $pdo): array
+{
+    foreach (['first_name', 'last_name'] as $spalte) {
+        if (!migration_column_exists($pdo, 'pilots', $spalte)) {
+            return [];
+        }
+    }
+    $anzahl = (int) $pdo->query('SELECT COUNT(*) FROM pilots')->fetchColumn();
+    if ($anzahl === 0) {
+        return ['Keine Startlisteneinträge, also nichts aus dem Bestand zu übernehmen.'];
+    }
+
+    $st = $pdo->prepare('SELECT id, first_name, last_name FROM pilots ORDER BY id');
+    $st->execute();
+    $profileId = [];
+    $jeName = [];
+    $neu = 0;
+    $zusammengefasst = 0;
+
+    $pdo->beginTransaction();
+    try {
+        foreach ($st as $zeile) {
+            $pilotId = (int) $zeile['id'];
+            if (isset($profileId[$pilotId])) {
+                continue;
+            }
+            // Derselbe Schluessel wie in region_pilot_schluessel(), sonst gaebe
+            // es fuer eine Person spaeter zwei verschiedene Stammsaetze.
+            $schluessel = pilot_name_schluessel((string) $zeile['first_name'], (string) $zeile['last_name']);
+            if ($schluessel === '') {
+                throw new RuntimeException('Ein Startlisteneintrag hat weder Vor- noch Nachnamen (ID '
+                    . $pilotId . '). Bitte vor der Migration korrigieren.');
+            }
+            if (!isset($jeName[$schluessel])) {
+                $anlegen = $pdo->prepare('INSERT INTO pilot_profiles (first_name, last_name) VALUES (?, ?)');
+                $anlegen->execute([trim((string) $zeile['first_name']), trim((string) $zeile['last_name'])]);
+                $jeName[$schluessel] = (int) $pdo->lastInsertId();
+                $neu++;
+            } else {
+                $zusammengefasst++;
+            }
+            $profileId[$pilotId] = $jeName[$schluessel];
+        }
+        $setzen = $pdo->prepare('UPDATE pilots SET profile_id = ? WHERE id = ?');
+        foreach ($profileId as $pilotId => $id) {
+            $setzen->execute([$id, $pilotId]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+    if ($neu === 0) {
+        throw new RuntimeException('Es gibt Startlisteneinträge, aber es wurde kein Stammsatz angelegt.');
+    }
+
+    $log = [$neu . ' Stammdatensätze aus ' . $anzahl . ' Startlisteneinträgen angelegt.'];
+    if ($zusammengefasst > 0) {
+        $log[] = $zusammengefasst . ' Einträge sind mit einem Stammdatensatz zusammengefasst worden, weil der '
+            . 'Name gleich war. Zwei verschiedene Menschen mit demselben Namen sind damit einer – bitte '
+            . 'unter Piloten prüfen und bei Bedarf trennen.';
+    }
+    return $log;
+}
+
+/**
+ * Wettbewerbe koennen als abgesagt markiert werden.
+ *
+ * Ein Wettbewerb kann ausfallen, etwa wegen Wetter, und es findet sich kein
+ * Ersatztermin. Bisher gab es dafuer keinen Zustand: "beendet" meinte, alle
+ * Resultate seien da. Ein solcher Wettbewerb war damit nie zu schliessen -
+ * und am Saisonende blieb er aktiv.
+ *
+ * cancelled_at ist gesetzt UND completed_at auch. Der Wettbewerb ist damit wie
+ * ein beendeter gesperrt, was an dreissig Stellen bereits richtig ist; neu ist
+ * nur die Beschriftung.
+ *
+ * @return string[] Logzeilen
+ */
+function migration_competition_cancelled(PDO $pdo): array
+{
+    if (!migration_table_exists($pdo, 'competitions')) {
+        throw new RuntimeException('Die Tabelle competitions fehlt; die Absage laesst sich nicht ergaenzen.');
+    }
+    if (migration_column_exists($pdo, 'competitions', 'cancelled_at')) {
+        return ['Die Absagemoeglichkeit war schon da.'];
+    }
+    $pdo->exec('ALTER TABLE competitions ADD COLUMN cancelled_at DATETIME NULL AFTER completed_at');
+    return ['competitions.cancelled_at ergaenzt. Bisher ist kein Wettbewerb abgesagt.'];
 }
 
 function run_pending_migrations(PDO $pdo): array

@@ -402,17 +402,22 @@ weisen sie sich mit 403 ab.
 `index.php` ist die Startseite. Sie beantwortet zwei Fragen: **wie melde ich mich an** und
 **welcher Wettbewerb**. Beides auf einer Seite, ohne dass man sich anmelden muss.
 
-Ganz oben steht der **Anmeldeweg in drei Schritten**, als schmaler Kasten in der Mitte der Seite
-und mit mittigem Text. Er war vorher der dritte von drei Erklärblöcken unter den Karten; wer sich
-eintragen lassen wollte, musste an der Ranglistenerklärung und der Punkteerklärung vorbei, um
-dort anzukommen, wo es losgeht.
+Ganz oben steht der **Anmeldeweg in drei Schritten**, mit mittigem Text. Er war vorher der dritte
+von drei Erklärblöcken unter den Karten; wer sich eintragen lassen wollte, musste an der
+Ranglistenerklärung und der Punkteerklärung vorbei, um dort anzukommen, wo es losgeht.
 
-Darunter stehen die Wettbewerbe als **geschlossener Block in der Mitte der Seite**: Kacheln mit
-höchstens 380 Pixel Breite, die auf die vorhandene Breite wachsen und nie unter 300 Pixel
-schrumpfen. Auf dem Laptop stehen drei nebeneinander, auf dem iPad im Querformat ebenfalls
-drei, nur schmaler. Das Raster ist dafür Flex, weil nur so auch eine unvollständige letzte
-Zeile mittig steht – ein Raster zentriert nur die Spalten, eine einzelne Kachel darunter säße
-linksbündig.
+Er ist **genau zwei Kacheln breit** und steht bündig über den ersten beiden Kacheln. Vorher hatte
+er fest 640 Pixel und stand für sich mittig; links blieb eine breite Lücke, weil seine Kante nicht
+mit der Kante des Kachelblocks zusammenfiel. Damit das überhaupt geht, rechnen beide Blöcke ihre
+Breite aus **einer** Angabe: `--kachel-breite` steht in `main`, und die Kacheln wie der Kasten
+nehmen daraus. Der Deckel von 380 Pixel je Kachel sitzt auf dem Block, für beide gemeinsam – an
+der Kachel allein ließ er die Rechnung daneben falsch werden.
+
+Darunter stehen die Wettbewerbe als **geschlossener Block**: Kacheln mit höchstens 380 Pixel
+Breite, die auf die vorhandene Breite wachsen und nie unter 300 Pixel schrumpfen. Auf dem Laptop
+stehen drei nebeneinander, auf dem iPad im Querformat ebenfalls drei, nur schmaler. Das Raster ist
+dafür Flex, weil nur so auch eine unvollständige letzte Zeile mittig steht – ein Raster zentriert
+nur die Spalten, eine einzelne Kachel darunter säße linksbündig. Das ist gewollt und bleibt so.
 
 Die Karte nennt Datum, Ort, Verein und die Zahl der Piloten und Durchgänge. Auf der ganzen Fläche
 ist ein Knopf; angeklickt wird nicht auf ein Wort, sondern auf die Fläche. Alle Knöpfe einer
@@ -692,13 +697,14 @@ Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel
 Einstellungen. Der aktive Wettbewerb ist der Vorgabe für Erfassung, Anmeldung, Export und die
 öffentlichen Seiten.
 
-### Drei Zustände, und sie schliessen einander aus
+### Vier Zustände, und sie schliessen einander aus
 
 | Zustand | bedeutet |
 | --- | --- |
 | **offen** | angelegt, nicht aktiv, nicht beendet |
 | **aktiv** | offen **und** der, an dem gerade gearbeitet wird |
 | **beendet** | abgeschlossen, Ergebnis gespeichert und gesperrt |
+| **abgesagt** | fand **nicht statt**, etwa wegen Wetter ohne Ersatztermin |
 
 **Ein neuer Wettbewerb ist offen, nicht aktiv.** Vor 1.9.22 war er sofort aktiv, und das hat
 unbeabsichtigt den laufenden Wettbewerb verdrängt: wer mitten in der Erfassung den Wettbewerb für
@@ -714,6 +720,31 @@ ihn weiter an, und die Verwaltung bearbeitete ein Archiv. Zwei Stellen haben das
 Beenden selbst und die Reihenfolge der Anzeige, in der „aktiv“ vor „beendet“ geprüft wurde. Beide
 sind behoben; `current_competition()` weist einen beendeten Wettbewerb auch dann ab, wenn die
 Spalte noch so dasteht, damit ein Altbestand sich selbst berichtigt.
+
+**Ein abgesagter Wettbewerb ist beendet und gesperrt – er fand nur nicht statt.** Das ist der
+Unterschied, und er betrifft die Regiowertung: **ein abgesagter Wettbewerb zählt gar nicht**, auch
+nicht anteilig. Wäre er an zwei von fünf Durchgängen ausgefallen, brächten diese zwei Starts nichts
+in die Regioliste. Sonst hinge der Punktestand eines Piloten davon ab, an welchem Tag abgesagt
+wurde, und nicht davon, ob er geflogen ist. Was erfasst wurde, bleibt sichtbar – nur wird es nicht
+gewertet. Rangliste und Teilnehmerliste sagen oben, wie viele von wie vielen Ergebnissen vorliegen.
+
+Gesperrt ist er wie ein beendeter, weil `cancelled_at` gesetzt ist **und** `completed_at` auch. Das
+ist Absicht: rund dreißig Stellen im Programm schließen über `completed_at` ab, und eine eigene
+Regel daneben wäre an der ersten, die man vergisst, wieder zu öffnen. Neu ist nur die Beschriftung.
+
+Auf der Karte im Wettbewerbs-Büro gibt es dafür **☁ Abgesagt**, und zwar bei jedem offenen
+Wettbewerb, bei dem nicht alles erfasst ist – auch dann, wenn nichts fehlt. Der häufigste Fall ist
+der Wetterausfall vor dem ersten Durchgang: da fehlt gar nichts, es wurde nur nie geflogen.
+Abgelehnt wird die Absage, wenn alle Ergebnisse vorliegen; dann hat der Wettbewerb stattgefunden.
+
+Zurück geht es auf zwei Wegen, weil beides vorkommt: **✓ Fand doch statt** und **↺ Wieder öffnen**.
+Erstere hebt die Absage auf und lässt den Wettbewerb als durchgeführt gelten, zweite öffnet ihn
+wieder zur Bearbeitung, falls doch ein Ersatztermin gesucht wird.
+
+**Am Saisonende muss jeder Wettbewerb zu.** Dafür sorgen zwei Knöpfe: **✓ Beenden**, wenn nichts
+fehlt, und **✓ Trotzdem beenden**, wenn doch etwas fehlt – mit der Zahl der Lücken in der Rückfrage.
+Ohne den zweiten war ein Wettbewerb, dem ein Pilot oder ein Durchgang fehlte, nie zu schließen, und
+genau dann steht man am Saisonende da.
 
 Beim Anlegen werden die Einstellungen des gerade ausgewählten Wettbewerbs als Vorlage kopiert.
 So haben zwei Vereinswettbewerbe unterschiedliche Regeln, ohne dass die bestehenden
@@ -935,8 +966,47 @@ ausrichtet, seine eigene Rangliste ohne Umweg über die Regioliste sieht.
 lässt sich pro Wettbewerb schliessen und mit einem eigenen Text versehen; die Auswahl zeigt nur
 Wettbewerbe, die noch nicht beendet sind.
 
-Das Formular fragt Vorname, Name, Verein, E-Mail, Modelltyp, Modell und Bemerkung ab – ein
-Telefonfeld gibt es nicht.
+Das Formular fragt **SMV-Nummer**, Vorname, Name, Verein, E-Mail, Modelltyp, Modell und
+Bemerkung ab – ein Telefonfeld gibt es nicht. Die SMV-Nummer steht als erstes Feld.
+
+### Die SMV-Nummer und was daran öffentlich ist
+
+Die Nummer kommt aus dem Link: der Verein verschickt je Mitglied
+`anmeldung.php?smv=123456`. Steht die Nummer in den **Stammdaten**, kommt der Name gleich mit
+ausgefüllt.
+
+**Das ist eine bewusste Entscheidung und kein Versehen.** Die Nummer ist öffentlich – sie steht in
+jedem Link, den derverein verschickt, und jeder, der sie kennt, sieht damit auch den Namen. Nach
+meiner Einschätzung ist das vertretbar: die Liste umfasst die rund fünfzig Mitglieder eines
+Vereins, nicht das ganze SMV-Verzeichnis, und der Pilot sieht ohnehin seinen eigenen Namen.
+Wenn das für den RMV Nordwest anders ist, dann gehört die Vorabfüllung abgeschaltet – dann
+tippt jeder seinen Namen selbst, und die Nummer bringt nur die Wiedererkennung in der
+Regiowertung.
+
+Der Eintrag in die Stammliste entsteht beim **Freigeben**, nicht beim Abschicken. Eine offene
+Anmeldung kann abgelehnt werden, und dann gehört ihr Name nicht in die Stammdaten.
+
+### Ohne Nummer
+
+Das Feld ist freiwillig. Ohne Nummer bleibt die Spalte **leer** und wird als **999999**
+angezeigt. Gespeichert wird sie nicht als 999999: MySQL lässt in einem eindeutigen Index
+mehrere NULL zu, aber keinen zweiten Wert 999999 – der zweite Pilot ohne Nummer wäre sonst
+zurückgewiesen worden. Zwei Piloten ohne Nummer sind also nur über ihren Namen
+auseinanderzuhalten, und das steht so auch auf der Seite.
+
+### Stammdaten und Startliste
+
+| | Stammdaten | Startliste |
+| --- | --- | --- |
+| steht in | `pilot_profiles` | `pilots` |
+| enthält | SMV-Nummer, Vor- und Nachname | Startnummer, Verein, Modell, Modelltyp, Bemerkung |
+| gilt für | alle Wettbewerbe | einen Wettbewerb |
+
+Der **Verein steht bewusst am Eintrag** und nicht am Stamm: wer den Verein wechselt, behält
+seine Historie beim alten.
+
+Eine Korrektur am Namen im Wettkampfbüro wirkt darum auf **alle** Jahre dieses Piloten. Das ist
+der Zweck der Stammdaten – und der Grund, warum sie getrennt sind.
 
 **Die E-Mail-Adresse wird nicht gespeichert.** Sie dient ausschliesslich der Bestätigung und wird
 danach verworfen – die Spalte dazu gibt es in der Datenbank nicht mehr. Auch beim Freigeben der
@@ -973,7 +1043,8 @@ anmeldung.php          öffentliches Anmeldeformular
 admin/index.php        Übersicht
 admin/wettbewerbe.php  Wettbewerbe anlegen, aktivieren, beenden
 admin/erfassung.php    Resultate erfassen
-admin/piloten.php      Startliste
+admin/piloten.php      Startliste: wer fliegt in diesem Wettbewerb
+admin/stammdaten.php   Stammdaten der Piloten: SMV-Nummer und Name (2.0.0)
 admin/durchgaenge.php  Durchgänge und Zielzeiten
 admin/vereine.php      Vereine
 admin/modelltypen.php  Modelltypen
@@ -995,6 +1066,7 @@ diagnose.php           Fehlersuche – danach löschen
 lib/competition.php    Wettbewerbe, Kontext der Einstellungen, Abschlussstatus
 lib/scoring.php        Strafpunkte, Rangliste, Vereinswertung
 lib/region.php         Regiowertung: FIS-Punkte, beste vier von fünf Starts
+lib/profiles.php       Stammdaten der Piloten: SMV-Nummer und Name je Person
 lib/db.php             Datenbankzugriff und Einstellungen
 lib/mail.php           Anmeldebestätigung
 lib/pdf.php            abhängigkeitsfreier PDF-Generator

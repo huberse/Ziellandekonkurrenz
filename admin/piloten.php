@@ -14,6 +14,19 @@ $competition = resolve_competition_param(competition_request_param(), true);
 require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 
+// Die Stammdaten der Piloten dieses Wettbewerbs. Sie werden fuer das Formular
+// gebraucht (Name und Nummer stehen dort nicht mehr am Eintrag) und fuer den
+// Vergleich beim Speichern: ein Name, der unveraendert bleibt, soll keinen
+// Zeitstempel bekommen.
+$pilotProfil = [];
+$st = db()->prepare('SELECT pr.* FROM pilots p
+                     JOIN pilot_profiles pr ON pr.id = p.profile_id
+                     WHERE p.competition_id = ?');
+$st->execute([(int) $competition['id']]);
+foreach ($st as $zeile) {
+    $pilotProfil[(int) $zeile['id']] = $zeile;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     if ($competitionCompleted) {
@@ -35,8 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int) post('id');
             $data = [
                 'bib_number' => text_limit(post('bib_number'), 10) ?: null,
-                'first_name' => text_limit(post('first_name'), 80),
-                'last_name'  => text_limit(post('last_name'), 80),
                 'club_id'    => post('club_id') !== '' ? (int) post('club_id') : club_id_for_name(text_limit(post('club_new'), 120)),
                 'model_type_id' => post('model_type_id') !== '' ? (int) post('model_type_id') : null,
                 'model_name' => text_limit(post('model_name'), 120) ?: null,
@@ -44,10 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'active'     => isset($_POST['active']) ? 1 : 0,
                 'competition_id'  => $competition['id'],
             ];
+            $vorname = text_limit(post('first_name'), 80);
+            $nachname = text_limit(post('last_name'), 80);
+            $rohNummer = post('smv_number');
             $validClubIds = array_map('intval', array_column($clubs, 'id'));
             $validTypeIds = array_map('intval', array_column($types, 'id'));
-            if ($data['first_name'] === '' || $data['last_name'] === '') {
+            if ($vorname === '' || $nachname === '') {
                 throw new DomainException('Ohne Namen geht es nicht.');
+            }
+            if (!pilot_smv_ist_gueltig($rohNummer)) {
+                throw new DomainException('Die SMV-Nummer hat bis zu sechs Ziffern. Leer lassen, wenn es keine gibt.');
             }
             if ($data['club_id'] !== null && !in_array($data['club_id'], $validClubIds, true)) {
                 throw new DomainException('Bitte einen gültigen Verein wählen.');
@@ -58,12 +75,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (competition_bib_number_exists((int) $competition['id'], $data['bib_number'], $id ?: null)) {
                 throw new DomainException('Diese Startnummer ist in diesem Wettbewerb bereits vergeben.');
             }
+
+            $bestehenderProfileId = null;
             if ($id) {
-                $sql = 'UPDATE pilots SET bib_number=:bib_number, first_name=:first_name, last_name=:last_name,
+                $holen = $pdo->prepare('SELECT profile_id FROM pilots WHERE id = ? AND competition_id = ?');
+                $holen->execute([$id, $competition['id']]);
+                $bestehenderProfileId = $holen->fetchColumn();
+                if ($bestehenderProfileId === false) {
+                    throw new DomainException('Der Pilot gehört nicht zu diesem Wettbewerb.');
+                }
+                $bestehenderProfileId = (int) $bestehenderProfileId;
+            }
+
+            // Die Nummer gehoert zum Stamm, nicht zum Eintrag. Beim Bearbeiten
+            // wird sie am bestehenden Stammdatensatz geaendert - sonst entstuende
+            // bei jedem Speichern ein zweiter Stammsatz fuer dieselbe Person.
+            $nummer = pilot_smv_normalisieren($rohNummer);
+            if ($bestehenderProfileId !== null) {
+                $anders = pilot_smv_normalisieren((string) ($pilotProfil[$bestehenderProfileId]['smv_number'] ?? ''));
+                if ($anders !== $nummer) {
+                    $belegt = $pdo->prepare('SELECT id FROM pilot_profiles WHERE smv_number = ? AND id <> ?');
+                    $belegt->execute([$nummer, $bestehenderProfileId]);
+                    if ($nummer !== null && $belegt->fetchColumn()) {
+                        throw new DomainException('Diese SMV-Nummer gehört bereits zu einem anderen Piloten.');
+                    }
+                    $setzen = $pdo->prepare('UPDATE pilot_profiles SET smv_number = ?, updated_at = NOW() WHERE id = ?');
+                    $setzen->execute([$nummer, $bestehenderProfileId]);
+                }
+                // Der Name wird nur geschrieben, wenn er sich aendert. Sonst
+                // wuerde ein Klick auf Speichern den Zeitstempel heben.
+                $vorherName = trim((string) ($pilotProfil[$bestehenderProfileId]['first_name'] ?? ''))
+                    . '|' . trim((string) ($pilotProfil[$bestehenderProfileId]['last_name'] ?? ''));
+                if ($vorherName !== $vorname . '|' . $nachname) {
+                    $umbenennen = $pdo->prepare('UPDATE pilot_profiles
+                                                 SET first_name = ?, last_name = ?, updated_at = NOW() WHERE id = ?');
+                    $umbenennen->execute([$vorname, $nachname, $bestehenderProfileId]);
+                }
+                $profileId = $bestehenderProfileId;
+            } else {
+                $angelegt = profile_oder_anlegen($nummer, $vorname, $nachname, $pdo);
+                $profileId = $angelegt['id'];
+            }
+
+            if ($id) {
+                $sql = 'UPDATE pilots SET bib_number=:bib_number, profile_id=:profile_id,
                         club_id=:club_id, model_type_id=:model_type_id, model_name=:model_name,
                         notes=:notes, active=:active WHERE id=:id AND competition_id=:competition_id';
                 $st = $pdo->prepare($sql);
-                $st->execute($data + ['id' => $id]);
+                $st->execute($data + ['profile_id' => $profileId, 'id' => $id]);
                 if ($st->rowCount() === 0) {
                     $check = $pdo->prepare('SELECT id FROM pilots WHERE id = ? AND competition_id = ?');
                     $check->execute([$id, $competition['id']]);
@@ -73,9 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $successMessage = 'Pilot gespeichert.';
             } else {
-                $st = $pdo->prepare('INSERT INTO pilots (bib_number, first_name, last_name, club_id, model_type_id, model_name, notes, active, competition_id)
-                                     VALUES (:bib_number,:first_name,:last_name,:club_id,:model_type_id,:model_name,:notes,:active,:competition_id)');
-                $st->execute($data);
+                $st = $pdo->prepare('INSERT INTO pilots (bib_number, profile_id, club_id, model_type_id, model_name, notes, active, competition_id)
+                                     VALUES (:bib_number,:profile_id,:club_id,:model_type_id,:model_name,:notes,:active,:competition_id)');
+                $st->execute($data + ['profile_id' => $profileId]);
                 $successMessage = 'Pilot für den Wettbewerb „' . $competition['name'] . '“ aufgenommen.';
             }
 
@@ -113,8 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Nummern inaktiver Piloten bleiben gesperrt, weil der eindeutige
                 // Index über Wettbewerb und Startnummer Doppelungen nicht zulässt.
                 $in = implode(',', array_fill(0, count($pilotIds), '?'));
-                $gesperrt = $pdo->prepare("SELECT p.bib_number, p.first_name, p.last_name
+                $gesperrt = $pdo->prepare("SELECT p.bib_number, pr.first_name, pr.last_name
                                            FROM pilots p
+                                           JOIN pilot_profiles pr ON pr.id = p.profile_id
                                            WHERE p.competition_id = ? AND p.id NOT IN ($in)
                                              AND p.bib_number IS NOT NULL AND p.bib_number <> ''
                                            ORDER BY p.bib_number");
@@ -175,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'import') {
             $raw = post('csv');
             $lines = preg_split('/\r\n|\r|\n/', $raw);
-            $st = $pdo->prepare('INSERT INTO pilots (first_name, last_name, club_id, model_type_id, bib_number, competition_id) VALUES (?,?,?,?,?,?)');
+            $st = $pdo->prepare('INSERT INTO pilots (profile_id, club_id, model_type_id, bib_number, competition_id) VALUES (?,?,?,?,?)');
             $typeByName = [];
             foreach ($types as $g) { $typeByName[mb_strtolower($g['name'])] = (int) $g['id']; }
             $n = 0; $skipped = 0;
@@ -183,7 +243,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $line = trim($line);
                 if ($line === '') { continue; }
                 $cols = array_map('trim', preg_split('/[;\t]/', $line));
-                if (mb_strtolower($cols[0]) === 'vorname' || mb_strtolower($cols[0]) === 'name') { continue; }
+                $kopf = mb_strtolower((string) ($cols[0] ?? ''));
+                if ($kopf === 'vorname' || $kopf === 'name' || $kopf === 'smv') { continue; }
+                // Zwei Formen: mit SMV-Nummer in der ersten Spalte, oder ohne.
+                // Erkannt an der Spaltenzahl: mit Nummer sind es sechs, ohne
+                // fuenf (Vorname, Name, Verein, Modelltyp, Startnummer).
+                $smv = null;
+                if (count($cols) >= 6 && pilot_smv_normalisieren((string) $cols[0]) !== null) {
+                    $smv = pilot_smv_normalisieren((string) array_shift($cols));
+                }
                 $first = text_limit($cols[0] ?? '', 80);
                 $last  = text_limit($cols[1] ?? '', 80);
                 if ($last === '' && strpos($first, ' ') !== false) {
@@ -199,7 +267,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $skipped++;
                     continue;
                 }
-                $st->execute([$first, $last, $clubId, $gid, $bib, $competition['id']]);
+                // Der Stammsatz wird je Zeile gesucht, nicht je Zeile neu
+                // angelegt: dieselbe Person steht in mehreren Jahren in
+                // mehreren Dateien, und soll daraus nicht mehrere Stammsaetze
+                // werden.
+                $angelegt = profile_oder_anlegen($smv, $first, $last, $pdo);
+                $st->execute([$angelegt['id'], $clubId, $gid, $bib, $competition['id']]);
                 $n++;
             }
             $successMessage = "$n Piloten für den Wettbewerb „{$competition['name']}“ importiert."
@@ -224,18 +297,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $editId = (int) get('bearbeiten', '0');
 $edit = null;
 if ($editId) {
-    $st = db()->prepare('SELECT * FROM pilots WHERE id = ? AND competition_id = ?');
+    $st = db()->prepare('SELECT p.*, pr.first_name, pr.last_name, pr.smv_number
+                        FROM pilots p
+                        JOIN pilot_profiles pr ON pr.id = p.profile_id
+                        WHERE p.id = ? AND p.competition_id = ?');
     $st->execute([$editId, $competition['id']]);
     $edit = $st->fetch() ?: null;
 }
 
-$st = db()->prepare('SELECT p.*, t.name AS model_type_name, c.name AS club_name,
+$st = db()->prepare('SELECT p.*, pr.first_name, pr.last_name, pr.smv_number,
+                       t.name AS model_type_name, c.name AS club_name,
                        (SELECT COUNT(*) FROM scores s WHERE s.pilot_id = p.id) AS score_count
                        FROM pilots p
+                       JOIN pilot_profiles pr ON pr.id = p.profile_id
                        LEFT JOIN model_types t ON t.id = p.model_type_id
                        LEFT JOIN clubs c ON c.id = p.club_id
                        WHERE p.competition_id = ?
-                       ORDER BY t.sort_order, t.name, p.bib_number + 0, p.bib_number, p.last_name');
+                       ORDER BY t.sort_order, t.name, p.bib_number + 0, p.bib_number, pr.last_name');
 $st->execute([$competition['id']]);
 $pilots = $st->fetchAll();
 
@@ -256,13 +334,14 @@ if (get('action') === 'csv') {
     // Kopfzeile nennt zugleich den Wettbewerb: beim Ausdrucken mehrerer
     // Aufkleberbogen ist sonst nicht erkennbar, welcher zu welchem gehoert.
     fputcsv($out, ['Startliste', (string) $competition['name'], date('d.m.Y')], ';');
-    fputcsv($out, ['Startnummer', 'Vorname', 'Name', 'Verein', 'Modelltyp', 'Modell'], ';');
+    fputcsv($out, ['Startnummer', 'SMV-Nummer', 'Vorname', 'Name', 'Verein', 'Modelltyp', 'Modell'], ';');
     foreach ($pilots as $p) {
         if ($nurAktive && empty($p['active'])) {
             continue;
         }
         fputcsv($out, [
             (string) $p['bib_number'],
+            pilot_smv_anzeige($p['smv_number'] ?? null),
             (string) $p['first_name'],
             (string) $p['last_name'],
             (string) ($p['club_name'] ?: ''),
@@ -280,8 +359,11 @@ page_start('Piloten', 'admin', 'piloten.php');
     <div>
         <h2>Piloten<?= $notCurrent ? ' – Wettbewerb ' . h($competition['name']) : '' ?></h2>
         <p class="lead"><?= count($pilots) ?> für den Wettbewerb „<?= h($competition['name']) ?>“ gemeldet.
-            Piloten gelten nur für diesen Wettbewerb – für einen neuen Wettbewerb meldet sich jeder wieder neu an,
-            entweder über <a href="../anmeldung.php?competition=<?= (int) $competition['id'] ?>">das Anmeldeformular</a> oder hier direkt.</p>
+            Für einen neuen Wettbewerb meldet sich jeder wieder an, entweder über
+            <a href="../anmeldung.php?competition=<?= (int) $competition['id'] ?>">das Anmeldeformular</a> oder hier
+            direkt. Name und SMV-Nummer stehen in den <a href="stammdaten.php?competition=<?= (int) $competition['id'] ?>">Stammdaten</a>
+            und gelten für alle Wettbewerbe; hier ändert sich je Wettbewerb nur die Startnummer,
+            der Verein und das Modell.</p>
     </div>
 </div>
 
@@ -315,12 +397,22 @@ page_start('Piloten', 'admin', 'piloten.php');
                 <input type="text" id="bib" name="bib_number" value="<?= h($edit['bib_number'] ?? '') ?>">
             </div>
             <div class="field">
+                <label for="sm">SMV-Nummer</label>
+                <input type="text" id="sm" name="smv_number" inputmode="numeric" maxlength="6"
+                       value="<?= h($edit['smv_number'] ?? '') ?>" placeholder="ohne">
+                <p class="hint">Bis zu sechs Ziffern. Leer lassen, wenn es keine gibt – angezeigt
+                    wird dann 999999. Steht die Nummer schon in den Stammdaten, gehört der Pilot
+                    zu diesem Eintrag, auch in anderen Jahren.</p>
+            </div>
+            <div class="field">
                 <label for="fn">Vorname</label>
                 <input type="text" id="fn" name="first_name" value="<?= h($edit['first_name'] ?? '') ?>" required>
             </div>
             <div class="field">
                 <label for="ln">Name</label>
                 <input type="text" id="ln" name="last_name" value="<?= h($edit['last_name'] ?? '') ?>" required>
+                <p class="hint">Steht in den Stammdaten und gilt für alle Wettbewerbe. Ein Tippfehler
+                    hier ist also gleich in allen Jahren des Piloten behoben.</p>
             </div>
             <div class="field">
                 <label for="cl">Verein</label>
@@ -387,7 +479,7 @@ page_start('Piloten', 'admin', 'piloten.php');
 <div class="panel" style="padding:0">
     <div class="table-scroll">
     <table class="data">
-        <thead><tr><th class="num">Nr.</th><th>Pilot</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th class="num">Resultate</th><th></th></tr></thead>
+        <thead><tr><th class="num">Nr.</th><th>Pilot</th><th class="num">SMV</th><th>Verein</th><th>Modelltyp</th><th>Modell</th><th class="num">Resultate</th><th></th></tr></thead>
         <tbody>
         <?php foreach ($pilots as $p): ?>
             <tr<?= $p['active'] ? '' : ' class="muted"' ?>>
@@ -396,6 +488,7 @@ page_start('Piloten', 'admin', 'piloten.php');
                     <?= h(full_name($p)) ?>
                     <?php if (!$p['active']): ?> <span class="tag off">inaktiv</span><?php endif; ?>
                 </td>
+                <td class="num small muted"><?= h(pilot_smv_anzeige($p['smv_number'] ?? null)) ?></td>
                 <td class="small"><?= h($p['club_name'] ?: '') ?></td>
                 <td class="small"><?= h($p['model_type_name'] ?: '–') ?></td>
                 <td class="small"><?= h($p['model_name'] ?: '') ?></td>
@@ -418,7 +511,7 @@ page_start('Piloten', 'admin', 'piloten.php');
             </tr>
         <?php endforeach; ?>
         <?php if (!$pilots): ?>
-            <tr><td colspan="8" class="muted" style="padding:20px">Noch niemand für diesen Wettbewerb gemeldet.</td></tr>
+            <tr><td colspan="9" class="muted" style="padding:20px">Noch niemand für diesen Wettbewerb gemeldet.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>
@@ -429,14 +522,15 @@ page_start('Piloten', 'admin', 'piloten.php');
 <div class="panel no-print">
     <h3 style="margin-top:0">Liste einfügen</h3>
     <p class="lead">Fügt Piloten für den Wettbewerb „<?= h($competition['name']) ?>“ hinzu. Eine Zeile pro Pilot, Felder mit
-       Strichpunkt getrennt: <code>Vorname;Name;Verein;Modelltyp;Startnummer</code>.
-       Aus Excel kopierte Spalten funktionieren auch.</p>
+       Strichpunkt getrennt: <code>SMV-Nummer;Vorname;Name;Verein;Modelltyp;Startnummer</code>.
+       Die SMV-Nummer darf fehlen, dann sind es fünf Spalten. Aus Excel kopierte Spalten
+       funktionieren auch.</p>
     <form method="post">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="import">
         <input type="hidden" name="competition" value="<?= (int) $competition['id'] ?>">
         <div class="field">
-            <textarea name="csv" placeholder="Serge;Huber;MFV Brislach;Schlepp;01"></textarea>
+            <textarea name="csv" placeholder="123456;Serge;Huber;MFV Brislach;Schlepp;01&#10;Serge;Huber;MFV Brislach;Schlepp;02"></textarea>
         </div>
         <button class="btn ghost" type="submit">Importieren</button>
     </form>

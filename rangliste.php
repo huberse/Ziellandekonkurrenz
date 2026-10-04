@@ -58,6 +58,13 @@ $vereine = $vereinSichtbar
 page_start('Rangliste', 'public', 'rangliste.php', true, false);
 $competitionQS = '&competition=' . (int) $competition['id'];
 ?>
+<?php $abgesagtHinweis = wettbewerb_abgesagt_hinweis($competition); ?>
+<?php if ($abgesagtHinweis !== ''): ?>
+    <?php // Gelb, nicht rot: der Wettbewerb ist nicht schiefgegangen, er fand
+          // nur nicht statt. Trotzdem muss es oben stehen, sonst haelt jemand
+          // die Tabelle fuer ein vollstaendiges Ergebnis. ?>
+    <div class="flash info"><?= h($abgesagtHinweis) ?></div>
+<?php endif; ?>
 <div class="row-between no-print">
     <div>
         <h2>Rangliste<?= count($competitions) > 1 ? ' – ' . h($competition['name']) : '' ?></h2>

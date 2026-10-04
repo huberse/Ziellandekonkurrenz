@@ -114,11 +114,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Diese Startnummer ist in diesem Wettbewerb bereits vergeben.');
             }
 
+            // Der Name kommt aus den Stammdaten, nicht aus dieser Anmeldung. Stand
+            // die SMV-Nummer schon dort, gehoert der Pilot zu diesem Eintrag - und
+            // damit auch in den anderen Jahren zu derselben Person. Die Nummern der
+            // uebrigen Eintraege bleiben, wie sie sind; nur dieser Pilot beommt den
+            // Namen aus dem Stamm.
+            $smv = pilot_smv_normalisieren((string) ($reg['smv_number'] ?? ''));
+            $bekannt = $smv !== null ? profile_finden($smv, $pdo) : null;
+            $angelegt = profile_oder_anlegen($smv, $firstName, $lastName, $pdo);
+            $profileId = $angelegt['id'];
+
+            // Steht dieser Pilot in diesem Wettbewerb schon in der Startliste?
+            // Dann darf kein zweiter Eintrag entstehen. Vor 2.0.0 war das ueber
+            // den Namen geregelt, und der Name steht jetzt am Stamm - ein Pilot
+            // kann also mit einer anderen Schreibweise kommen und waere durch
+            // die Namenssuche nicht mehr zu finden. Die SMV-Nummer ist der
+            // Schluessel, und danach wird gefragt.
+            $schonDa = $pdo->prepare('SELECT p.id, p.bib_number FROM pilots p
+                                      WHERE p.competition_id = ? AND p.profile_id = ? AND p.active = 1');
+            $schonDa->execute([$pilotCompetitionId, $profileId]);
+            $vorhanden = $schonDa->fetch();
+            if ($vorhanden) {
+                throw new DomainException(trim($firstName . ' ' . $lastName)
+                    . ' steht mit Startnummer ' . ($vorhanden['bib_number'] ?? '–')
+                    . ' bereits in der Startliste dieses Wettbewerbs. Statt einen zweiten '
+                    . 'Eintrag zu erzeugen, prüfe die bestehende Zeile.');
+            }
+
             // Die Kontaktdaten wandern bewusst nicht mit in die Startliste: sie
             // werden nirgends gebraucht und sollen nicht gespeichert bleiben.
-            $ins = $pdo->prepare('INSERT INTO pilots (bib_number, first_name, last_name, club_id, model_type_id, model_name, notes, competition_id)
-                                  VALUES (?,?,?,?,?,?,?,?)');
-            $ins->execute([$bib, $firstName, $lastName, $clubId, $modelTypeId, text_limit((string) $reg['model_name'], 120) ?: null,
+            $ins = $pdo->prepare('INSERT INTO pilots (bib_number, profile_id, club_id, model_type_id, model_name, notes, competition_id)
+                                  VALUES (?,?,?,?,?,?,?)');
+            $ins->execute([$bib, $profileId, $clubId, $modelTypeId, text_limit((string) $reg['model_name'], 120) ?: null,
                 text_limit((string) $reg['notes'], 255) ?: null, $pilotCompetitionId]);
             $pid = (int) $pdo->lastInsertId();
 
@@ -129,7 +156,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Anmeldung wurde parallel bearbeitet.');
             }
             $pdo->commit();
-            flash(trim($firstName . ' ' . $lastName) . " ist mit Startnummer $bib in der Startliste.", 'ok');
+            $hinweis = '';
+            if ($bekannt !== null) {
+                $stammName = profile_name($bekannt);
+                if (mb_strtolower($stammName) !== mb_strtolower(trim($firstName . ' ' . $lastName))) {
+                    // Der Pilot hat im Formular einen anderen Namen getippt als in
+                    // den Stammdaten. Die Stammdaten gewinnen, sonst entstuende fuer
+                    // dieselbe Person ein zweiter Stammsatz.
+                    $hinweis = ' In den Stammdaten steht dieser Pilot als „' . $stammName
+                        . '“ - dieser Name wurde übernommen.';
+                }
+            }
+            flash(trim($firstName . ' ' . $lastName) . " ist mit Startnummer $bib in der Startliste." . $hinweis, 'ok');
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
@@ -264,7 +302,17 @@ page_start('Anmeldungen', 'admin', 'anmeldungen.php');
             <tr>
                 <td class="small nowrap"><?= h(date('d.m.Y H:i', strtotime($r['created_at']))) ?></td>
                 <?php if ($showAll): ?><td class="small muted"><?= h($r['competition_name'] ?? 'Nicht zugeordnet') ?></td><?php endif; ?>
-                <td class="nowrap"><?= h(trim($r['first_name'] . ' ' . $r['last_name'])) ?></td>
+                <td class="nowrap">
+                    <?php $smvAnzeige = pilot_smv_anzeige($r['smv_number'] ?? null); ?>
+                    <?= h(trim($r['first_name'] . ' ' . $r['last_name'])) ?>
+                    <?php if (($r['smv_number'] ?? null) !== null): ?>
+                        <span class="tag<?= profile_finden((string) $r['smv_number']) ? ' live' : '' ?>"
+                              title="<?= profile_finden((string) $r['smv_number'])
+                                  ? 'Diese Nummer steht schon in den Stammdaten'
+                                  : 'Diese Nummer steht noch nicht in den Stammdaten - sie kommt beim Freigeben dazu' ?>">
+                            <?= h($smvAnzeige) ?></span>
+                    <?php endif; ?>
+                </td>
                 <td class="small"><?= h($r['club_name'] ?: $r['club'] ?: '') ?><?= $r['club_id'] === null && $r['club'] ? ' <span class="tag live">neu</span>' : '' ?></td>
                 <td class="small"><?= h($r['model_type_name'] ?: '–') ?></td>
                 <td class="small"><?= h($r['model_name'] ?: '') ?></td>

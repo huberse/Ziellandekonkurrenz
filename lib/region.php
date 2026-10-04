@@ -294,7 +294,7 @@ function region_wettbewerbe_des_jahres(int $jahr): array
         return [];
     }
     $zeilen = db()->query(
-        'SELECT c.id, c.name, c.club_id, c.region, cl.name AS club_name,
+        'SELECT c.id, c.name, c.club_id, c.region, c.cancelled_at, cl.name AS club_name,
                 cs.svalue AS competition_date
          FROM competitions c
          LEFT JOIN clubs cl ON cl.id = c.club_id
@@ -308,6 +308,15 @@ function region_wettbewerbe_des_jahres(int $jahr): array
     foreach ($zeilen as $zeile) {
         $jahrAusDatum = region_jahr_aus_datum((string) $zeile['competition_date']);
         if ($jahrAusDatum === null || $jahrAusDatum !== $jahr) {
+            continue;
+        }
+        // Ein abgesagter Wettbewerb fand nicht statt und zaehlt daher gar
+        // nicht - auch nicht mit den Ergebnissen, die vor der Absage vielleicht
+        // schon da waren. Sonst hinge der Punktestand eines Piloten davon ab, an
+        // welchem Tag der Wettbewerb abgesagt wurde, und nicht davon, ob er
+        // geflogen ist. Fuer den Regiocup zaehlen nur Wettbewerbe, die
+        // stattgefunden haben; das sind offene und beendete.
+        if ($zeile['cancelled_at'] !== null) {
             continue;
         }
         $zeile['jahr'] = $jahrAusDatum;
@@ -390,16 +399,24 @@ function region_jahr_aus_datum(string $datum): ?int
  * Der Schluessel, unter dem derselbe Pilot in verschiedenen Wettbewerben
  * wiedererkannt wird.
  *
- * Piloten sind je Wettbewerb eigene Datensaetze – es gibt keine gemeinsame
- * Pilotennummer über die Wettbewerbe hinweg. Übereinstimmen müssen deshalb
- * Vor- und Nachname. Für die Auswertung reicht das, weil die Regioliste ohnehin
- * nur lesbar ist; zwei Piloten mit demselben Namen fallen in der Liste zusammen.
+ * Seit 2.0.0 ist das die SMV-Nummer: eine Person hat eine, ueber alle
+ * Jahre hinweg. Vorher konnte hier nur der Name verglichen werden, und das
+ * hatte zwei Fehler, die beide still passierten: zwei Verschiedene mit
+ * demselben Namen fielen zu einer Person zusammen, und wer seinen Namen
+ * aendert, tauchte in zwei Jahren als zwei Piloten auf.
+ *
+ * Ohne Nummer bleibt der Name. Das ist schlechter als die Nummer, aber immer
+ * noch so gut wie vorher - und zwei Piloten ohne Nummer sind ueberhaupt nicht
+ * zu unterscheiden, auch nicht mit ihrem Namen, wenn sie gleich heissen.
  */
 function region_pilot_schluessel(array $pilot): string
 {
-    $vorname = trim((string) ($pilot['first_name'] ?? ''));
-    $nachname = trim((string) ($pilot['last_name'] ?? ''));
-    return mb_strtolower($nachname . "\t" . $vorname, 'UTF-8');
+    $nummer = trim((string) ($pilot['smv_number'] ?? ''));
+    if ($nummer !== '') {
+        return 'smv\t' . $nummer;
+    }
+    $schluessel = pilot_name_schluessel((string) ($pilot['first_name'] ?? ''), (string) ($pilot['last_name'] ?? ''));
+    return $schluessel === '' ? '' : 'name\t' . $schluessel;
 }
 
 /**

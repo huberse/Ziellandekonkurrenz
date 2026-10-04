@@ -61,6 +61,11 @@ function user_menu(string $base, bool $mitTrenner = false): void
     // Der Regiocup steht hier und nicht in der Leiste: er betrifft den
     // SuperAdmin und den einen eingestellten Verein, und keinen sonst. Wer ihn
     // sehen darf, soll ihn finden - ohne ihn allen anderen aufzudraengen.
+    // Die Stammdaten der Piloten sind Programmsache, nicht Vereinssache:
+    // ein Verein sieht seine Startliste, die Stammliste aller Piloten nicht.
+    if ((int) ($u['is_superadmin'] ?? 0) === 1) {
+        echo '<a class="user-item" href="' . h($base) . '/admin/stammdaten.php">Stammdaten</a>';
+    }
     if (function_exists('region_club_id') && (is_superadmin() || region_darf_sehen())) {
         echo '<a class="user-item" href="' . h($base) . '/admin/regiocup.php">Regiocup</a>';
     }
@@ -122,7 +127,12 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     echo '<div class="meta">';
     if (!$ohneAbzeichen) {
         echo '<span class="competition-badge">' . h($competitionName) . '</span>';
-        if (!empty($selected['completed_at'])) {
+        // "abgesagt" vor "abgeschlossen": ein abgesagter Wettbewerb ist auch
+        // abgeschlossen, und wer nur "abgeschlossen" laese, wuerde ihn fuer
+        // einen durchgefuehrten Wettbewerb halten.
+        if (!empty($selected['cancelled_at'])) {
+            echo ' <span class="completion-badge">abgesagt</span>';
+        } elseif (!empty($selected['completed_at'])) {
             echo ' <span class="completion-badge">abgeschlossen</span>';
         }
         if ($meta) { echo ' &nbsp;·&nbsp; ' . h(implode(' · ', $meta)); }
@@ -137,6 +147,7 @@ function page_start(string $title, string $area = 'public', string $here = '', b
             'wettbewerbe.php'     => 'Wettbewerbe',
             'durchgaenge.php' => 'Durchgänge',
             'piloten.php'     => 'Piloten',
+            'stammdaten.php'  => 'Stammdaten',
             'vereine.php'     => 'Vereine',
             'modelltypen.php' => 'Modelltypen',
             'anmeldungen.php' => 'Anmeldungen',
@@ -273,9 +284,17 @@ function competition_switch(array $competitions, array $current, string $query):
     $activeId = current_competition_id();
     $counts = competition_pilot_counts();
 
-    $groups = ['Offene Wettbewerbe' => [], 'Abgeschlossene Wettbewerbe' => []];
+    $groups = ['Offene Wettbewerbe' => [], 'Abgeschlossene Wettbewerbe' => [], 'Abgesagte Wettbewerbe' => []];
     foreach ($competitions as $competition) {
-        $groups[empty($competition['completed_at']) ? 'Offene Wettbewerbe' : 'Abgeschlossene Wettbewerbe'][] = $competition;
+        // Drei Gruppen statt zwei. Sonst stuende ein abgesagter Wettbewerb
+        // unter den abgeschlossenen und damit so, als haette er stattgefunden.
+        if (!empty($competition['cancelled_at'])) {
+            $groups['Abgesagte Wettbewerbe'][] = $competition;
+        } elseif (empty($competition['completed_at'])) {
+            $groups['Offene Wettbewerbe'][] = $competition;
+        } else {
+            $groups['Abgeschlossene Wettbewerbe'][] = $competition;
+        }
     }
 
     echo '<form method="get" class="competition-switch no-print" action="' . h($query) . '">';
@@ -298,7 +317,9 @@ function competition_switch(array $competitions, array $current, string $query):
             if ($id === $activeId) {
                 $marks[] = 'aktiv';
             }
-            if (!empty($competition['completed_at'])) {
+            if (!empty($competition['cancelled_at'])) {
+                $marks[] = 'abgesagt';
+            } elseif (!empty($competition['completed_at'])) {
                 $marks[] = 'beendet';
             }
             $total = $counts[$id] ?? 0;
@@ -326,6 +347,33 @@ function competition_switch(array $competitions, array $current, string $query):
  * @param bool  $mitRegion    die Regiorangliste als Kachel in derselben Reihe
  *                            anhängen, wenn sie wer sehen darf
  */
+/**
+ * Der Hinweis, den eine abgesagte Competition oben auf der Seite braucht.
+ *
+ * Ohne ihn laesst sich die Tabelle fuer ein vollstaendiges Ergebnis halten.
+ * Genau das ist der Schaden: jemand zieht aus unvollstaendigen Werten eine
+ * Schlussfolgerung ueber die eigene Leistung.
+ *
+ * Rueckgabe: der Satz als Text, oder '' wenn der Wettbewerb nicht abgesagt ist.
+ * Das Ausgeben bleibt der Seite, weil sie es an der richtigen Stelle tun muss.
+ */
+function wettbewerb_abgesagt_hinweis(array $competition): string
+{
+    if (empty($competition['cancelled_at'])) {
+        return '';
+    }
+    $stand = competition_result_progress((int) $competition['id']);
+    if ($stand['total'] === 0 || $stand['completed'] === 0) {
+        return 'Dieser Wettbewerb fand nicht statt und wurde abgesagt.';
+    }
+    return sprintf(
+        'Dieser Wettbewerb wurde abgebrochen und fand nicht statt. '
+        . 'Die %d von %d Ergebnissen sind unvollständig und zählen nicht für den Regiocup.',
+        (int) $stand['completed'],
+        (int) $stand['total']
+    );
+}
+
 function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
 {
     if (!$wettbewerbe) {
@@ -337,6 +385,9 @@ function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
         $id = (int) $w['id'];
         $oeffentlich = (string) ($w['public_results'] ?? '1') === '1';
         $beendet = !empty($w['completed_at']);
+        // Die Kachel ist bei einem abgesagten Wettbewerb ausgegraut, wie bei
+        // einem beendeten - er ist ja genauso nicht mehr zu aendern.
+        $abgesagt = !empty($w['cancelled_at']);
         $vergangen = competition_ist_vergangen($w);
         $nimmtAn = competition_nimmt_anmeldungen_an($w);
         $piloten = (int) ($w['pilots'] ?? 0);
@@ -373,7 +424,9 @@ function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
         echo '<p class="pick-count">' . h(implode(' · ', $zaehler)) . '</p>';
 
         echo '<p class="pick-tags">';
-        if ($beendet) {
+        if ($abgesagt) {
+            echo '<span class="tag">abgesagt</span>';
+        } elseif ($beendet) {
             echo '<span class="tag">beendet</span>';
         } elseif ($vergangen) {
             echo '<span class="tag">vorbei</span>';
@@ -385,6 +438,11 @@ function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
         }
         if (!$nimmtAn && !$beendet && !$vergangen) {
             echo '<span class="tag">Anmeldung zu</span>';
+        }
+        if ($abgesagt && $piloten > 0) {
+            // Nur wenn wirklich Leute dranstanden: dann lohnt der Hinweis,
+            // dass deren Ergebnisse nicht gewertet werden.
+            echo '<span class="tag">nicht für den Regiocup gewertet</span>';
         }
         echo '</p>';
 
@@ -513,8 +571,12 @@ function region_card(): void
     }
 
     echo '<div class="pick pick-region">';
-    echo '<h3 class="pick-name"><a href="region.php?jahr=' . $jahr . '">Regiorangliste ' . $jahr . '</a></h3>';
-    echo '<p class="pick-when">' . count($wettbewerbe)
+    // Ohne Jahr im Namen. Das Jahr stand vorher im Kachelnamen und machte die
+    // Kachel zu einer von vielen mit Jahreszahlen - dabei sagt die Zahl nichts
+    // ueber den Inhalt, und sie steht jetzt eine Zeile tiefer, wo sie zusammen
+    // mit den Wettbewerben steht, zu denen sie gehoert.
+    echo '<h3 class="pick-name"><a href="region.php">Regiorangliste</a></h3>';
+    echo '<p class="pick-when">' . h((string) $jahr) . ' · ' . count($wettbewerbe)
         . (count($wettbewerbe) === 1 ? ' Wettbewerb' : ' Wettbewerbe')
         . ' · ' . region_anzahl_gewertet() . ' Starts zählen</p>';
     echo '<p class="pick-count">' . count($zeilen)
@@ -524,7 +586,10 @@ function region_card(): void
         echo '<p class="pick-when small">'
             . h('Vorne: ' . implode(' · ', array_slice($besten, 0, 3))) . '</p>';
     }
-    echo '<div class="pick-go"><a class="btn" href="region.php?jahr=' . $jahr . '">Ansehen</a></div>';
+    // Ohne Jahresangabe im Link: region.php nimmt ohne Parameter das neueste
+    // Jahr, und der Kachel zeigt ohnehin das neueste. Das Jahr im Link waere
+    // nur eine zweite Stelle, an der es veralten kann.
+    echo '<div class="pick-go"><a class="btn" href="region.php">Ansehen</a></div>';
     echo '</div>';
 }
 

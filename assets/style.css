@@ -249,6 +249,26 @@ main {
   max-width: 1180px;
   margin: 0 auto;
   padding: 24px 20px 64px;
+
+  /* Die Breite einer Kachel auf der Startseite, einmal hier festgelegt und
+     weiter unten von beiden Bloecken benutzt: den Kacheln und dem Kasten
+     "Anmelden in drei Schritten". Beides muss dieselbe Zahl nehmen, sonst
+     stehen ihre Kanten nicht uebereinander - und genau darum ist es hier ein
+     Wert und nicht zweimal ausgeschriebene Arithmetik.
+
+     Drei Spalten, sobald drei Kacheln mit je mindestens 300px nebeneinander
+     passen (3x300 plus zwei Abstaende = 936px), sonst zwei, sonst eine. */
+  --kachel-spalten: 3;
+  --kachel-abstand: 18px;
+  --kachel-breite: calc((100% - (var(--kachel-spalten) - 1) * var(--kachel-abstand))
+                        / var(--kachel-spalten));
+  /* Der Deckel fuer beide Bloecke zusammen: so breit, wie die Kacheln bei
+     380px waeren. Er greift bei drei Spalten nie (main ist schmaler) und
+     verhindert, dass zwei Kacheln auf einem iPad die ganze Breite auffressen.
+     Er muss auf beiden Bloecken gleich sein, sonst stehen ihre Kanten
+     auseinander. */
+  --kachel-hoechst: calc(var(--kachel-spalten) * 380px
+                         + (var(--kachel-spalten) - 1) * var(--kachel-abstand));
 }
 
 main.wide { max-width: 1500px; }
@@ -468,24 +488,45 @@ table.data th.num, table.data th.mid { font-family: inherit; }
    sein. Deshalb sind die Karten gross und die ganze Flaeche ist ein Ziel -
    nicht erst der kleine Text im Kaestchen. Ohne Formular, ohne JavaScript. */
 
-/* ---------- Startseite ---------- */.picks {
+/* ---------- Startseite ---------- */
+
+/* Wie viele Kacheln nebeneinander passen. Die Zahlen sind die Anzeigebreite
+   plus 40px Seitenpolster: bei 976px bleiben 936px Inhalt, und 3x300 plus
+   2x18 passt genau. Die Grenzen muessen mit --kachel-breite in main
+   zusammenpassen, sonst zaehlt das Grid eine andere Spaltenzahl als das
+   Flex-Layout. */
+@media (max-width: 975px) { main { --kachel-spalten: 2; } }
+@media (max-width: 657px) { main { --kachel-spalten: 1; } }
+
+.picks {
   /* Flex statt Raster: nur so wird auch eine unvollstaendige letzte Zeile
      mittig gestellt. Ein Raster zentriert mit justify-content nur die
-     Spalten - eine einzelne Kachel darunter saess links. */
+     Spalten - eine einzelne Kachel darunter saess links. Genau das wollte der
+     Nutzer so behalten, als er den Kasten oben breiter made. */
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 18px;
+  gap: var(--kachel-abstand);
   margin-top: 22px;
+  /* Mittig, weil beide Bloecke den Deckel aus main bekommen. Ihre linken
+     Kanten liegen dadurch genauso weit vom Seitenrand ab wie ihre rechten. */
+  max-width: var(--kachel-hoechst);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .pick {
-  /* Waechst auf die vorhandene Breite, schrumpft aber nie unter 300px. So
-     stehen auf dem Laptop drei Kacheln nebeneinander, und auf dem iPad im
-     Querformat ebenfalls drei - nur schmaler. Die Hoechstbreite haelt sie
-     bei einem knappen Bestand davon ab, die ganze Seite zu fuellen. */
-  flex: 1 1 300px;
-  max-width: 380px;
+  /* Die Breite kommt aus main (siehe dort). Deshalb kein "flex: 1 1 300px"
+     mehr: das Flex-Layout teilte die Breite unter sich auf, und der Kasten
+     daneben haette sie nicht kennen koennen.
+
+     Auch keine eigene Hoechstbreite mehr: eine Deckelung an der Kachel
+     allein liess die Rechnung des Kastens daneben falsch werden - der
+     Kasten rechnete 421px, die Kachel wurde auf 380px gekuerzt, und die
+     Kanten passten nicht mehr. Der Deckel sitzt jetzt auf dem Block, fuer
+     beide gemeinsam (siehe --kachel-hoechst). */
+  flex: 0 0 var(--kachel-breite);
+  width: var(--kachel-breite);
   min-width: 250px;
   position: relative;
   display: flex;
@@ -545,10 +586,25 @@ table.data th.num, table.data th.mid { font-family: inherit; }
    Mitte der Seite. Wer sich eintragen will, sieht damit sofort, wie es geht;
    wer nur Ergebnisse will, klickt darueber hinweg direkt auf eine Kachel. */
 .start-anmeldung {
-  max-width: 640px;
+  /* Dieser Block bekommt dasselbe Mass und dieselbe Mitte wie .picks. Damit
+     beginnen beide Bloecke an derselben Stelle - darauf beruht die Ausrichtung
+     unten. */
+  max-width: var(--kachel-hoechst);
   margin: 0 auto 34px;
 }
 .start-anmeldung .panel {
+  /* Genau zwei Kacheln nebeneinander, dazwischen derselbe Abstand wie
+     zwischen zwei Kacheln. Der Kasten steht damit buendig ueber den ersten
+     beiden Kacheln. Frueher hatte er 640px und stand fuer sich mittig, was
+     links eine breite Luecke liess.
+
+     Die Breite sitzt am inneren Kasten, nicht am Block: ein Block mit fester
+     Breite und "margin: auto" rueckt in die Mitte, und dann began der Kasten
+     nicht mehr an der Kante des Kachelblocks.
+
+     min() faengt den Fall ab, dass es nur eine Spalte gibt: dann waere
+     2xBreite+Abstand breiter als die Seite. */
+  width: min(calc(var(--kachel-breite) * 2 + var(--kachel-abstand)), 100%);
   text-align: center;
 }
 .start-anmeldung h2 {

@@ -172,10 +172,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ---------- Anzeige ---------- */
-$sql = 'SELECT p.*, t.name AS model_type_name, t.sort_order, c.name AS club_name,
+$sql = 'SELECT p.*, pr.first_name, pr.last_name, pr.smv_number,
+                 t.name AS model_type_name, t.sort_order, c.name AS club_name,
                s.not_started, s.outlanding, s.crash, s.motor,
                s.flight_time_seconds, s.landing_value, s.penalty
         FROM pilots p
+        JOIN pilot_profiles pr ON pr.id = p.profile_id
         LEFT JOIN model_types t ON t.id = p.model_type_id
         LEFT JOIN clubs c ON c.id = p.club_id
         LEFT JOIN scores s ON s.pilot_id = p.id AND s.round_id = ? AND s.competition_id = ?
@@ -185,7 +187,7 @@ if ($typeFilter !== '') {
     $sql .= ' AND p.model_type_id = ?';
     $args[] = (int) $typeFilter;
 }
-$sql .= ' ORDER BY t.sort_order, t.name, p.bib_number + 0, p.bib_number, p.last_name';
+$sql .= ' ORDER BY t.sort_order, t.name, p.bib_number + 0, p.bib_number, pr.last_name';
 $st = db()->prepare($sql);
 $st->execute($args);
 $pilots = $st->fetchAll();

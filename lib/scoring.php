@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/competition.php';
+require_once __DIR__ . '/profiles.php';
 
 /**
  * Die vier Ankreuzfelder eines Resultats. Sie sind unabhängig, genau wie die
@@ -255,8 +256,14 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
     $rounds = included_rounds($competitionId);
     $roundIds = array_column($rounds, 'id');
 
-    $sql = 'SELECT p.*, t.name AS model_type_name, c.name AS club_name, c.short_name AS club_short
+    // Vor- und Nachname stehen seit 2.0.0 in pilot_profiles, nicht mehr am
+    // Startlisteneintrag. Der Join holt sie dazu; schlicht "p.first_name"
+    // waere nach der Umstellung stiller Null und damit ueberall ein leerer
+    // Name.
+    $sql = 'SELECT p.*, pr.first_name, pr.last_name, pr.smv_number,
+                   t.name AS model_type_name, c.name AS club_name, c.short_name AS club_short
             FROM pilots p
+            JOIN pilot_profiles pr ON pr.id = p.profile_id
             LEFT JOIN model_types t ON t.id = p.model_type_id
             LEFT JOIN clubs c ON c.id = p.club_id
             WHERE p.active = 1 AND p.competition_id = ?';
@@ -269,7 +276,7 @@ function build_ranking(?int $typeId = null, ?int $clubId = null, ?int $competiti
         $sql .= ' AND p.club_id = ?';
         $args[] = $clubId;
     }
-    $sql .= ' ORDER BY p.last_name, p.first_name';
+    $sql .= ' ORDER BY pr.last_name, pr.first_name';
     $st = db()->prepare($sql);
     $st->execute($args);
     $pilots = $st->fetchAll();

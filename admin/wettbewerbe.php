@@ -70,11 +70,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             flash($e->getMessage(), 'err');
         }
-    } elseif ($action === 'complete') {
+    } elseif ($action === 'complete' || $action === 'complete_trotzdem') {
+        // "trotzdem" heisst: die Ergebnisse sind unvollstaendig, die Saison soll
+        // trotzdem zu. Ohne diesen Weg gibt es bei einem Wettbewerb, dem ein
+        // Pilot oder ein Durchgang fehlt, keinen Ausweg - und am Saisonende
+        // bliebe genau dann ein Wettbewerb aktiv, den niemand mehr beenden
+        // kann.
+        $trotzdem = $action === 'complete_trotzdem';
         try {
             require_competition_access((int) post('id'));
-            complete_competition((int) post('id'));
-            flash('Wettbewerb abgeschlossen. Die Ergebnisse bleiben gespeichert und sind jetzt gesperrt.', 'ok');
+            $stand = competition_result_progress((int) post('id'));
+            complete_competition((int) post('id'), $trotzdem);
+            $hinweis = $trotzdem && $stand['missing'] > 0
+                ? ' ' . $stand['missing'] . ' Ergebnis(se) fehlen und bleiben für immer unausgewertet.'
+                : '';
+            flash('Wettbewerb abgeschlossen. Die Ergebnisse bleiben gespeichert und sind jetzt gesperrt.' . $hinweis, 'ok');
+        } catch (Throwable $e) {
+            flash($e->getMessage(), 'err');
+        }
+    } elseif ($action === 'cancel') {
+        // Der Wettbewerb fand nicht statt, etwa wegen Wetter. Er wird wie ein
+        // beendeter gesperrt; was geflogen wurde, bleibt und zaehlt weiter.
+        try {
+            require_competition_access((int) post('id'));
+            $stand = cancel_competition((int) post('id'));
+            $hinweis = $stand['missing'] > 0
+                ? ' ' . $stand['missing'] . ' Ergebnis(se) fehlen und bleiben unausgewertet.'
+                : '';
+            // Der Regiocup-Ausschluss ist der Punkt, den man leicht übersieht
+            // und dann später sucht, warum die Punkte fehlen.
+            flash('Wettbewerb als abgesagt markiert. Er zählt nicht zum Regiocup.' . $hinweis
+                . ' Fand er doch statt, lässt sich das mit „Fand doch statt“ zurücknehmen.', 'ok');
+        } catch (Throwable $e) {
+            flash($e->getMessage(), 'err');
+        }
+    } elseif ($action === 'occurred') {
+        try {
+            require_competition_access((int) post('id'));
+            occurred_competition((int) post('id'));
+            flash('Absage zurückgenommen. Der Wettbewerb gilt als stattgefunden.', 'ok');
         } catch (Throwable $e) {
             flash($e->getMessage(), 'err');
         }
@@ -268,6 +302,16 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
         $counts = $countsById[$sid] ?? ['rounds' => 0, 'scores' => 0, 'registrations' => 0];
         $progress = $progressById[$sid];
         $completed = $s['completed_at'] !== null;
+        // "Abgesagt" heisst: fand nicht statt. Das ist etwas anderes als
+        // "beendet" - dort sind alle Resultate da. Beide sind gesperrt, und
+        // die Beschriftung sagt, welcher Fall vorliegt.
+        $abgesagt = !empty($s['cancelled_at']);
+        // Fuer den Knopf zaehlt nicht, ob "alles erfasst" gilt, sondern ob
+        // ueberhaupt etwas fehlt. Eine Startliste ohne aktiven Piloten hat
+        // nichts offen - da aber $progress['complete'] wegen der Bedingung
+        // "pilots > 0" trotzdem falsch ist, wuerde sonst der Knopf
+        // "Trotzdem beenden" dastehen und von 0 fehlenden Ergebnissen reden.
+        $nichtsOffen = (int) $progress['missing'] === 0;
         $facts = [$counts['rounds'] . ($counts['rounds'] === 1 ? ' Durchgang' : ' Durchgänge')];
         if ($counts['registrations'] > 0) {
             $facts[] = $counts['registrations'] . ($counts['registrations'] === 1 ? ' offene Anmeldung' : ' offene Anmeldungen');
@@ -283,7 +327,9 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                           // nicht als aktiv dastehen, auch wenn is_current noch
                           // so dasteht. Genau diese Reihenfolge hat den Eindruck
                           // "beendet, aber trotzdem aktiv" erzeugt. ?>
-                    <?php if ($completed): ?>
+                    <?php if ($abgesagt): ?>
+                        <span class="tag off">abgesagt</span>
+                    <?php elseif ($completed): ?>
                         <span class="tag off">beendet</span>
                     <?php elseif ($s['is_current']): ?>
                         <span class="tag on">aktiv</span>
@@ -308,7 +354,19 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
             </form>
 
             <?php if ($completed): ?>
-                <p class="card-note small muted">Beendet am <?= h(date('d.m.Y H:i', strtotime($s['completed_at']))) ?>.</p>
+                <p class="card-note small muted">
+                    <?php if ($abgesagt): ?>
+                        Abgesagt am <?= h(date('d.m.Y', strtotime((string) $s['cancelled_at']))) ?>.
+                        <?php if ($progress['missing'] > 0): ?>
+                            <?= (int) $progress['missing'] ?> von <?= (int) $progress['total'] ?>
+                            Ergebnissen fehlen. Der Wettbewerb zählt nicht zum Regiocup.
+                        <?php else: ?>
+                            Alle Ergebnisse liegen vor, gezählt wird er trotzdem nicht.
+                        <?php endif; ?>
+                    <?php else: ?>
+                        Beendet am <?= h(date('d.m.Y H:i', strtotime((string) $s['completed_at']))) ?>.
+                    <?php endif; ?>
+                </p>
             <?php elseif ((int) $progress['total'] === 0): ?>
                 <p class="card-note small muted">Noch keine Piloten in der Startliste.</p>
             <?php else: ?>
@@ -329,7 +387,31 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                 <a class="btn ghost small" href="erfassung.php?competition=<?= $sid ?>">✎ Erfassen</a>
                 <a class="btn ghost small" href="durchgaenge.php?competition=<?= $sid ?>">⚙ Durchgänge</a>
                 <a class="btn ghost small" href="../rangliste.php?competition=<?= $sid ?>">↗ Rangliste</a>
-                <?php if ($completed): ?>
+                <?php // Fuenf Faelle, und jeder braucht andere Knoepfe. Die Kette
+                      // wird bewusst in dieser Reihenfolge gebaut: ein
+                      // abgesagter Wettbewerb ist auch abgeschlossen, faellt
+                      // also durch jede andere Bedingung hindurch. ?>
+                <?php if ($abgesagt): ?>
+                    <?php // Zwei Wege zurueck, weil beides vorkommt: entweder fand
+                          // der Wettbewerb doch statt, oder es gibt doch einen
+                          // Ersatztermin. Beide heben die Absage auf. ?>
+                    <form method="post" style="display:inline">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="occurred">
+                        <input type="hidden" name="id" value="<?= $sid ?>">
+                        <input type="hidden" name="competition" value="<?= $sid ?>">
+                        <button class="btn ghost small" type="submit"
+                                data-confirm-click="Absage zurücknehmen? <?= h($s['name']) ?> gilt dann wieder als stattgefunden und lässt sich wie jeder Wettbewerb beenden.">✓ Fand doch statt</button>
+                    </form>
+                    <form method="post" style="display:inline">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="reopen">
+                        <input type="hidden" name="id" value="<?= $sid ?>">
+                        <input type="hidden" name="competition" value="<?= $sid ?>">
+                        <button class="btn ghost small" type="submit"
+                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> wieder öffnen? Wird doch ein Ersatztermin gesucht, sind Startliste und Anmeldungen wieder bearbeitbar.">↺ Wieder öffnen</button>
+                    </form>
+                <?php elseif ($completed): ?>
                     <form method="post" style="display:inline">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="reopen">
@@ -339,6 +421,9 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                                 data-confirm-click="Wettbewerb <?= h($s['name']) ?> wieder öffnen? Danach sind Ergebnisse und Anmeldungen wieder bearbeitbar.">↺ Wieder öffnen</button>
                     </form>
                 <?php elseif ($progress['complete']): ?>
+                    <?php // Alle Ergebnisse liegen vor. Der Wettbewerb hat
+                          // stattgefunden; "Abgesagt" gibt es hier bewusst
+                          // nicht. ?>
                     <form method="post" style="display:inline">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="complete">
@@ -347,14 +432,48 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                         <button class="btn small" type="submit"
                                 data-confirm-click="Wettbewerb <?= h($s['name']) ?> wirklich beenden? Danach sind Ergebnisse und Anmeldungen gesperrt.">✓ Beenden</button>
                     </form>
-                <?php endif; ?>
-                <?php if (!$s['is_current'] && !$completed): ?>
+                <?php elseif ($nichtsOffen): ?>
+                    <?php // Nichts fehlt, es gibt nur nichts zu tun - etwa eine
+                          // Startliste ohne aktiven Piloten. Das ist der
+                          // normale Fall am Saisonende und darf nicht als
+                          // "unvollstaendig" dastehen. ?>
                     <form method="post" style="display:inline">
                         <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="activate">
+                        <input type="hidden" name="action" value="complete">
                         <input type="hidden" name="id" value="<?= $sid ?>">
                         <input type="hidden" name="competition" value="<?= $sid ?>">
-                        <button class="btn small" type="submit">◉ Aktivieren</button>
+                        <button class="btn small" type="submit"
+                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> beenden? Es sind keine Ergebnisse offen, danach ist er gesperrt.">✓ Beenden</button>
+                    </form>
+                <?php else: ?>
+                    <?php // Hier fehlt etwas, also ist "Beenden" ohne
+                          // Einschraenkung nicht an der Reihe. Der Ausweg
+                          // heisst "Trotzdem beenden" - ohne den waere genau
+                          // dieser Wettbewerb am Saisonende nie zu schliessen. ?>
+                    <form method="post" style="display:inline">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="complete_trotzdem">
+                        <input type="hidden" name="id" value="<?= $sid ?>">
+                        <input type="hidden" name="competition" value="<?= $sid ?>">
+                        <button class="btn ghost small" type="submit"
+                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> jetzt schon beenden? Es fehlen <?= (int) $progress['missing'] ?> Ergebnis(se). Die bleiben unausgewertet und lassen sich danach nicht mehr nachtragen. Nur wenn das so gewollt ist.">✓ Trotzdem beenden</button>
+                    </form>
+                <?php endif; ?>
+                <?php // "Abgesagt" steht bei jedem offenen Wettbewerb, bei dem
+                      // nicht alles erfasst ist - und nicht nur bei
+                      // unvollstaendigen. Der haeufigste Fall ist der
+                      // Wetterausfall vor dem ersten Durchgang: da fehlt gar
+                      // nichts, es wurde nur nie geflogen. Ohne diesen Knopf
+                      // waere genau dieser Wettbewerb nie als abgesagt zu
+                      // markieren. ?>
+                <?php if (!$abgesagt && !$completed && !$progress['complete']): ?>
+                    <form method="post" style="display:inline">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="cancel">
+                        <input type="hidden" name="id" value="<?= $sid ?>">
+                        <input type="hidden" name="competition" value="<?= $sid ?>">
+                        <button class="btn ghost small" type="submit"
+                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> als abgesagt markieren? Er wird gesperrt wie ein beendeter und zählt nicht zum Regiocup. <?= (int) $progress['completed'] ?> von <?= (int) $progress['total'] ?> Ergebnissen sind erfasst; sie bleiben sichtbar, werden aber nicht gewertet.">☁ Abgesagt</button>
                     </form>
                 <?php endif; ?>
                 <form method="post" style="display:inline">
