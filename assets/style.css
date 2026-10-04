@@ -652,6 +652,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--blau); }
    Das sah aus, als haenge die Zeile an einem Abzeichen. */
 table.data.dense .tag { padding: 1px 6px; font-size: 0.72rem; }
 
+/* Die Punkteliste der Regiowertung: 30 bis 60 Zeilen mit Rang und Punktwert.
+   Als Raster, nicht als Liste untereinander - 30 Zeilen waeren sonst mehr als
+   ein Bildschirm, und man haette den unteren Teil der Liste nie im Blick. */
+.punkte-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px 10px;
+}
+.punkte-paar { display: flex; align-items: center; gap: 6px; }
+.punkte-paar label { margin: 0; flex: none; min-width: 2.2em; text-align: right; }
+.punkte-paar input { font-family: var(--mono); text-align: right; }
+
 .field { margin-bottom: 14px; }
 .hint { font-size: 0.8rem; color: var(--ink-soft); font-weight: 400; margin-top: 4px; }
 

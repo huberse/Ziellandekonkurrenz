@@ -10,6 +10,35 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 1.9.23
+
+- **Die Punkteliste der Regiowertung ist einstellbar.** Bisher stand sie fest
+  in `lib/region.php`: 1 → 100, 2 → 80, 3 → 60 … bis Platz 30 mit einem Punkt.
+  Der SuperAdmin stellt sie jetzt unter **Regiocup → Punkteliste** ein – welcher
+  Rang wie viele Punkte bekommt.
+  - **Ohne gespeicherte Liste gilt weiter die FIS-Vorgabe.** Wer nichts
+    einstellt, sieht nichts, das sich von vorher unterscheidet.
+  - **Es ist nichts nachzurechnen.** Die Regiorangliste wird bei jedem Aufruf
+    frisch berechnet und steht nirgends gespeichert. Die alte Wertung ist nach
+    dem Speichern einfach die neue Wertung.
+  - **Abgelehnt wird mit Grund.** Steigen die Punkte von unten nach oben, ist
+    ein Feld leer oder steht Text darin, nennt die Meldung den Rang und den
+    Fehler: *„Rang 3 bekommt mehr Punkte als Rang 2. Der beste Platz muss die
+    meisten Punkte bekommen.“* Eine halb gelesene Liste wäre schlimmer als
+    keine – dann wären die Punkte eine Mischung aus Vorgabe und Gespeichertem.
+  - Ein Komma wird als Dezimalzeichen gelesen, nicht als Zahlentrenner.
+  - **3 bis 60 Ränge**, und es werden nie weniger Zeilen gezeigt, als gerade
+    eingestellt sind. Eine Liste, die länger ist als das, was man sieht, wäre
+    ein Versteck.
+
+- **Der ausrichtende Verein stand im Anmeldeformular nirgends.** Die Überschrift
+  lautete *„Anmeldung – Schwarzbubenfliegen 2027“*; wer den Wettbewerb
+  ausrichtet, war nirgends zu lesen. Bei einem Wettbewerb, der nur *Erlencup*
+  heißt, ist damit nicht zu erkennen, wer ihn veranstaltet. Die Überschrift nennt
+  jetzt den Verein: **„Anmeldung – MFV Brislach Schwarzbubenfliegen 2027“**.
+  - Steht der Verein bereits im Namen, wird er **nicht wiederholt**.
+  - Ohne Verein bleibt der Name, wie er ist.
+
 ## 1.9.22
 
 - **In der Benutzerverwaltung war der Knopf „Löschen“ nicht erreichbar.** Die

@@ -21,25 +21,203 @@ require_once __DIR__ . '/scoring.php';
  */
 
 /**
- * Die FIS-Punkte je Rang: 1 -> 100, 2 -> 80, 3 -> 60, 4 -> 50, 5 -> 45,
- * 6 -> 40, 7 -> 36, 8 -> 32, 9 -> 29, 10 -> 26, 11 -> 24, 12 -> 22,
- * 13 -> 20, 14 -> 18, 15 -> 16, 16 -> 15, 17 -> 14, 18 -> 13, 19 -> 12,
- * 20 -> 11, 21 -> 10, 22 -> 9, 23 -> 8, 24 -> 7, 25 -> 6, 26 -> 5,
- * 27 -> 4, 28 -> 3, 29 -> 2, 30 -> 1. Ab 31 gibt es nichts.
+ * Die Punkte fuer einen Rang aus der eingestellten Punkteliste.
+ *
+ * Ohne gespeicherte Liste gilt die FIS-Vorgabe: 1 -> 100, 2 -> 80, 3 -> 60,
+ * 4 -> 50, 5 -> 45, 6 -> 40, 7 -> 36, 8 -> 32, 9 -> 29, 10 -> 26, 11 -> 24,
+ * 12 -> 22, 13 -> 20, 14 -> 18, 15 -> 16, 16 -> 15, 17 -> 14, 18 -> 13,
+ * 19 -> 12, 20 -> 11, 21 -> 10, 22 -> 9, 23 -> 8, 24 -> 7, 25 -> 6,
+ * 26 -> 5, 27 -> 4, 28 -> 3, 29 -> 2, 30 -> 1. Ab 31 gibt es nichts.
  */
 function region_fis_punkte(int $rang): float
 {
-    static $schema = [
+    if ($rang < 1) {
+        return 0.0;
+    }
+    $schema = region_fis_schema();
+    return $schema[$rang] ?? 0.0;
+}
+
+/**
+ * Die eingestellte Punkteliste: Rang => Punkte.
+ *
+ * Seit 1.9.23 stellbar, sonst fest die FIS-Vorgabe. Der SuperAdmin aendert sie
+ * unter admin/regiocup.php. Ohne gespeicherte Liste gilt weiter die FIS-Vorgabe -
+ * wer nichts einstellt, bekommt nichts zu sehen, das sich von vorher unterscheidet.
+ */
+function region_fis_schema(): array
+{
+    // Im Ganzen, nicht als statische Variable: nach dem Speichern muss die
+    // neue Liste in derselben Anfrage gelten, sonst zeigt die Meldung noch
+    // die alten Punkte.
+    if (isset($GLOBALS['region_fis_schema_cache'])) {
+        return $GLOBALS['region_fis_schema_cache'];
+    }
+    $cache = region_fis_vorgabe();
+    try {
+        $st = db()->prepare('SELECT svalue FROM settings WHERE skey = ?');
+        $st->execute(['region_fis_punkte']);
+        $roh = $st->fetchColumn();
+    } catch (PDOException $e) {
+        if (!settings_table_missing($e)) {
+            throw $e;
+        }
+        return $cache;
+    }
+    if (!is_string($roh) || trim($roh) === '') {
+        return $cache;
+    }
+    $daten = json_decode($roh, true);
+    if (!is_array($daten)) {
+        return $cache;
+    }
+    $gelesen = region_fis_pruefen($daten);
+    // Eine halb gelesene Liste waere schlimmer als keine: die Punkte waeren
+    // dann eine Mischung aus der Vorgabe und dem Gespeicherten. Deshalb nur
+    // uebernehmen, was vollstaendig und in sich stimmig ist.
+    if ($gelesen === []) {
+        $gelesen = $cache;
+    }
+    $GLOBALS['region_fis_schema_cache'] = $gelesen;
+    return $gelesen;
+}
+
+/** Die FIS-Vorgabe, wie sie vor der Einstellbarkeit fest verdrahtet war. */
+function region_fis_vorgabe(): array
+{
+    return [
         1 => 100.0, 2 => 80.0, 3 => 60.0, 4 => 50.0, 5 => 45.0, 6 => 40.0,
         7 => 36.0, 8 => 32.0, 9 => 29.0, 10 => 26.0, 11 => 24.0, 12 => 22.0,
         13 => 20.0, 14 => 18.0, 15 => 16.0, 16 => 15.0, 17 => 14.0, 18 => 13.0,
         19 => 12.0, 20 => 11.0, 21 => 10.0, 22 => 9.0, 23 => 8.0, 24 => 7.0,
         25 => 6.0, 26 => 5.0, 27 => 4.0, 28 => 3.0, 29 => 2.0, 30 => 1.0,
     ];
-    if ($rang < 1) {
-        return 0.0;
+}
+
+/**
+ * Die uebermittelte Liste in Zahlen uebersetzen.
+ *
+ * Ein Punktwert kann als "40.5", als "40,5" oder als " 40 " kommen. Die
+ * Schreibweise dieser Listen stammt aus dem Sport, also wird das Komma nicht
+ * abgelehnt, sondern gelesen. Was kein Number ist, bleibt Text und faellt
+ * beim Pruefen auf.
+ */
+function region_fis_normalisieren(array $roh): array
+{
+    $liste = [];
+    foreach ($roh as $rang => $punkte) {
+        $wert = trim(str_replace(',', '.', (string) $punkte));
+        $liste[(int) $rang] = $wert === '' ? null : $wert;
     }
-    return $schema[$rang] ?? 0.0;
+    ksort($liste);
+    return $liste;
+}
+
+/**
+ * Die uebermittelte Liste lesen und pruefen: Rang => Punkte.
+ *
+ * Zurueckgegeben wird nur eine Liste, die in sich stimmt - aufsteigende Raenge
+ * ab 1, absteigende Punkte, keine Luecken dazwischen. Sonst [], und der
+ * Aufrufer nimmt die Vorgabe.
+ */
+function region_fis_pruefen(array $roh): array
+{
+    $liste = [];
+    foreach (region_fis_normalisieren($roh) as $rang => $punkte) {
+        if ($rang < 1 || $punkte === null || !is_numeric($punkte)) {
+            return [];
+        }
+        $liste[$rang] = (float) $punkte;
+    }
+    if (!$liste) {
+        return [];
+    }
+    $erwartet = 1;
+    $vorher = null;
+    foreach ($liste as $rang => $punkte) {
+        if ($rang !== $erwartet || $punkte < 0) {
+            return [];
+        }
+        // Gleichstand ist erlaubt - 5. und 6. Platz koennen gleich viele Punkte
+        // bekommen. Erst wenn es wieder mehr werden, stimmt die Liste nicht.
+        if ($vorher !== null && $punkte > $vorher) {
+            return [];
+        }
+        $vorher = $punkte;
+        $erwartet++;
+    }
+    return $liste;
+}
+
+/**
+ * Warum eine uebermittelte Liste nicht brauchbar ist - in Worten, oder null,
+ * wenn nichts dagegen einzuwenden ist.
+ *
+ * region_fis_pruefen() sagt nur "brauchbar oder nicht". Fuer die Meldung im
+ * Formular reicht das nicht: wer drei Zeilen lang sucht, ohne zu finden,
+ * laesst es liegen. Deshalb wird der erste konkrete Mangel genannt.
+ */
+function region_fis_mangel(array $roh): ?string
+{
+    $liste = region_fis_normalisieren($roh);
+    if (!$liste) {
+        return 'Es wurde kein Punktwert eingetragen.';
+    }
+    $vorher = null;
+    $vorherRang = 0;
+    foreach ($liste as $rang => $punkte) {
+        if ($rang < 1) {
+            return 'Rang ' . $rang . ' gibt es nicht.';
+        }
+        // Keine Luecke: das Formular schickt alle Raenge, aber diese Funktion
+        // soll auch ausserhalb davon das Richtige sagen und nicht "alles gut".
+        if ($rang !== $vorherRang + 1) {
+            return 'Rang ' . ($vorherRang + 1) . ' fehlt.';
+        }
+        $vorherRang = $rang;
+        if ($punkte === null) {
+            return 'Für Rang ' . $rang . ' ist kein Punktwert eingetragen.';
+        }
+        if (!is_numeric($punkte)) {
+            return 'Bei Rang ' . $rang . ' steht „' . $punkte . '“ statt einer Zahl.';
+        }
+        $wert = (float) $punkte;
+        if ($wert < 0) {
+            return 'Rang ' . $rang . ' hat negative Punkte.';
+        }
+        if ($vorher !== null && $wert > $vorher) {
+            return 'Rang ' . $rang . ' bekommt mehr Punkte als Rang ' . ($rang - 1)
+                . '. Der beste Platz muss die meisten Punkte bekommen.';
+        }
+        $vorher = $wert;
+    }
+    return null;
+}
+
+/** Die Liste als JSON, wie sie in den Einstellungen liegt. */function region_fis_speichern(array $liste): void
+{
+    unset($GLOBALS['region_fis_schema_cache']);
+    global_setting_set('region_fis_punkte', json_encode($liste, JSON_UNESCAPED_UNICODE));
+}
+
+/** Die Liste wieder auf die Vorgabe zuruecksetzen. */
+function region_fis_zuruecksetzen(): void
+{
+    unset($GLOBALS['region_fis_schema_cache']);
+    db()->exec("DELETE FROM settings WHERE skey = 'region_fis_punkte'");
+}
+
+/** Ist ueberhaupt eine eigene Liste gespeichert? */
+function region_fis_ist_eingestellt(): bool
+{
+    try {
+        $st = db()->prepare('SELECT svalue FROM settings WHERE skey = ?');
+        $st->execute(['region_fis_punkte']);
+        $roh = $st->fetchColumn();
+    } catch (PDOException $e) {
+        return false;
+    }
+    return is_string($roh) && trim($roh) !== '';
 }
 
 /** Wieviel Starts zaehlen? Vier - mehr nicht, auch wenn es fuenf Wettbewerbe gibt. */

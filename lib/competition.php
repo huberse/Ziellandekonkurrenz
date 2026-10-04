@@ -413,6 +413,56 @@ function seed_competition_settings(int $competitionId, ?int $sourceCompetitionId
 }
 
 /**
+ * Wie der Wettbewerb heisst, wenn der ausrichtende Verein davorsteht:
+ * „MFV Brislach Schwarzbubenfliegen 2027“.
+ *
+ * Der ausrichtende Verein ist das, was einen Wettbewerb von einem anderen
+ * unterscheidet, und er stand auf den oeffentlichen Seiten nirgends - nur der
+ * eigene Name des Wettbewerbs. Bei einem Namen wie „Erlencup“ ist nicht zu
+ * erkennen, wer ihn veranstaltet.
+ *
+ * Steht der Verein bereits im Namen, wird er nicht wiederholt. Sonst hiesse es
+ * bei einem nach seinem Verein benannten Wettbewerb zweimal derselbe Verein.
+ * Ohne Verein bleibt der Name, wie er ist.
+ *
+ * @param array      $competition  aus find_competition() oder competitions_uebersicht()
+ * @param string|null $name         eigener Name, sonst der aus dem Datensatz
+ */
+function competition_anzeigename(array $competition, ?string $name = null): string
+{
+    $name = trim((string) ($name ?? $competition['name'] ?? ''));
+    if ($name === '') {
+        return '';
+    }
+    $clubId = isset($competition['club_id']) && $competition['club_id'] !== null
+        ? (int) $competition['club_id']
+        : 0;
+    if ($clubId <= 0) {
+        return $name;
+    }
+    // competitions_uebersicht() holt club_name per LEFT JOIN mit,
+    // find_competition() nicht. Beides wird hier benutzt.
+    $verein = trim((string) ($competition['club_name'] ?? ''));
+    if ($verein === '' && function_exists('club_name')) {
+        $verein = trim((string) (club_name($clubId) ?? ''));
+    }
+    if ($verein === '') {
+        return $name;
+    }
+    // Ohne Beachtung von Gross- und Kleinschreibung und von Leerzeichen:
+    // "RMV Nordwest" steckt in "RMV Nordwest Erlencup", aber nicht in "Erlencup".
+    $falten = static function (string $s): string {
+        return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $s)), 'UTF-8');
+    };
+    $n = $falten($name);
+    $v = $falten($verein);
+    if ($n !== '' && $v !== '' && mb_strpos($n, $v, 0, 'UTF-8') !== false) {
+        return $name;
+    }
+    return $verein . ' ' . $name;
+}
+
+/**
  * Neuen Wettbewerb mit eigenen Durchgängen und Einstellungen anlegen.
  *
  * Der Wettbewerb gehört dem Verein des aufrufenden Kontos. Nur ein

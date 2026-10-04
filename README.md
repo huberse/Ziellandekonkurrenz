@@ -843,6 +843,8 @@ nimmt teil. Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen.
 | `region_wettbewerbe($jahr)` | davon nur die mit dem Regiocup-Kennzeichen |
 | `region_rangliste($ids)` | die eigentliche Regiorangliste über mehrere Wettbewerbe |
 | `region_fis_punkte()`, `region_piloten_punkte()` | Punkte nach FIS-System |
+| `region_fis_schema()`, `region_fis_vorgabe()` | die eingestellte bzw. die mitgelieferte Punkteliste |
+| `region_fis_pruefen()`, `region_fis_mangel()` | eine Liste annehmen oder sagen, warum nicht |
 | `region_club_id()` | welcher Verein die Liste sehen darf |
 | `region_darf_sehen()`, `region_darf_bearbeiten()` | wer sie sehen und wer sie ändern darf |
 
@@ -863,6 +865,25 @@ Die Seite ist erreichbar für:
 - den **SuperAdmin** – mit dem Formular, mit dem er den Verein einstellt,
 - die **Mitglieder des eingestellten Vereins** – mit der Liste, ohne Formular,
 - alle anderen **nicht** – sie sehen dieselbe Sperre wie `region.php`.
+
+### Die Punkteliste ist einstellbar
+
+Seit 1.9.23 unter **Regiocup → Punkteliste**, nur für den SuperAdmin: welcher Rang
+wie viele Punkte bekommt. Ohne gespeicherte Liste gilt die FIS-Vorgabe
+(100, 80, 60, 50, 45 … bis Platz 30 mit einem Punkt).
+
+- **3 bis 60 Ränge.** Angezeigt werden nie weniger Zeilen, als eingestellt sind –
+  eine Liste, die länger ist als das, was man sieht, wäre ein Versteck.
+- **Der beste Platz muss die meisten Punkte bekommen.** Steigen die Punkte von
+  unten nach oben, wird die Liste nicht gespeichert, und die Meldung nennt den
+  Rang: *„Rang 3 bekommt mehr Punkte als Rang 2.“* Gleichstand ist erlaubt.
+- **Ein Komma ist ein Dezimalzeichen**, kein Zahlentrenner – die Schreibweise
+  dieser Listen kommt aus dem Sport.
+- **Es ist nichts nachzurechnen.** `region_rangliste()` rechnet bei jedem Aufruf
+  frisch; die Regiorangliste steht nirgends gespeichert. Nach dem Speichern ist
+  die alte Wertung einfach die neue.
+- Eine unbrauchbare Liste in den Einstellungen (Text, Lücke, steigend) fällt
+  lautlos auf die Vorgabe zurück, statt eine halbe Liste zu verwenden.
 
 Der eingestellte Verein muss dafür **nicht** für die Anmeldung freigeschaltet
 sein. `clubs.active` steuert nur das Anmeldeformular; ein Verein, der lediglich

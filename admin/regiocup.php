@@ -63,6 +63,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('regiocup.php?jahr=' . (int) post('jahr', '0'));
     }
+
+    if ($action === 'punkte') {
+        if (!is_superadmin()) {
+            flash('Das darf nur der SuperAdmin.', 'err');
+        } else {
+            $anzahl = (int) post('rang_anzahl', '0');
+            if ($anzahl < 3 || $anzahl > 60) {
+                flash('Die Zahl der Ränge muss zwischen 3 und 60 liegen.', 'err');
+                redirect('regiocup.php?jahr=' . (int) post('jahr', '0'));
+            }
+            $roh = [];
+            for ($rang = 1; $rang <= $anzahl; $rang++) {
+                $roh[$rang] = post("punkte_$rang", '');
+            }
+            $liste = region_fis_pruefen(array_map('trim', $roh));
+            if ($liste === []) {
+                // region_fis_pruefen() sagt nur "brauchbar oder nicht". Welcher
+                // Rang es war, muss die Meldung selbst nennen, sonst steht
+                // da "abgelehnt" und der weiss nicht, wo er suchen soll.
+                $grund = region_fis_mangel($roh);
+                flash('Die Punkteliste wurde nicht gespeichert. ' . $grund, 'err');
+            } else {
+                region_fis_speichern($liste);
+                flash('Punkteliste gespeichert. Die Regiorangliste rechnet sofort damit.',
+                    'ok');
+            }
+        }
+        redirect('regiocup.php?jahr=' . (int) post('jahr', '0'));
+    }
+
+    if ($action === 'punkte_zurueck') {
+        if (!is_superadmin()) {
+            flash('Das darf nur der SuperAdmin.', 'err');
+        } else {
+            region_fis_zuruecksetzen();
+            flash('Punkteliste auf die FIS-Vorgabe zurückgesetzt.', 'ok');
+        }
+        redirect('regiocup.php?jahr=' . (int) post('jahr', '0'));
+    }
 }
 
 // Die Vorschau zeigt die Liste auch dann, wenn sie sonst nirgends
@@ -79,6 +118,14 @@ $daten = $wettbewerbe
         return (int) $w['id'];
     }, $wettbewerbe))
     : ['zeilen' => []];
+
+// Die Punkteliste zum Bearbeiten. Angezeigt werden mindestens 30 Zeilen, damit
+// die Vorgabe ohne Scrollen passt, und mindestens so viele, wie gerade gesetzt
+// sind - eine Liste, die laenger ist als das, was man sieht, waere ein
+// Versteck.
+$punkteListe = region_fis_schema();
+$rangAnzahl = max(3, count($punkteListe));
+$zeilen = max(30, $rangAnzahl);
 
 $vereinName = 'niemand';
 foreach (all_clubs() as $c) {
@@ -129,6 +176,55 @@ page_start('Regiocup', 'admin', 'regiocup.php', true);
             nicht für die Anmeldung freigeschaltet sein – „nur in der Anmeldung“ ist eine eigene Sache.</p>
     <?php endif; ?>
 </div>
+
+<?php if (is_superadmin()): ?>
+<div class="panel">
+    <h3 style="margin-top:0">Punkteliste</h3>
+    <p class="small muted">
+        Welcher Rang wie viele Punkte bekommt. <?= region_fis_ist_eingestellt()
+            ? 'Gerade eingestellt.' : 'Zurzeit die FIS-Vorgabe.' ?>
+        <strong>Der beste Platz muss die meisten Punkte bekommen</strong>, sonst wird die
+        Liste nicht gespeichert. Gleichstand ist erlaubt.
+    </p>
+    <form method="post">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="punkte">
+        <input type="hidden" name="jahr" value="<?= $jahr ?>">
+        <div class="field" style="max-width:220px">
+            <label for="ra">Ränge, für die es Punkte gibt</label>
+            <input type="number" id="ra" name="rang_anzahl" min="3" max="60" value="<?= $rangAnzahl ?>">
+            <p class="hint">Ab Rang <?= $rangAnzahl + 1 ?> gibt es keine Punkte mehr.</p>
+        </div>
+        <div class="punkte-raster">
+            <?php for ($rang = 1; $rang <= $zeilen; $rang++): ?>
+                <div class="punkte-paar">
+                    <label for="p<?= $rang ?>"><?= $rang ?>.</label>
+                    <input type="text" inputmode="decimal" id="p<?= $rang ?>" name="punkte_<?= $rang ?>"
+                           maxlength="7" value="<?= h((string) ($punkteListe[$rang] ?? '')) ?>">
+                </div>
+            <?php endfor; ?>
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+            <button class="btn" type="submit">Punkteliste speichern</button>
+        </div>
+        <p class="hint">
+            Es wird sofort neu gerechnet: die Regiorangliste wird bei jedem Aufruf frisch berechnet
+            und steht nirgends gespeichert. Es ist also nichts nachzurechnen – die alte Wertung ist
+            danach einfach die neue Wertung.
+        </p>
+    </form>
+    <form method="post" class="btn-row" style="margin-top:10px">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="punkte_zurueck">
+        <input type="hidden" name="jahr" value="<?= $jahr ?>">
+        <button class="btn ghost" type="submit" formnovalidate
+            <?= region_fis_ist_eingestellt() ? '' : 'disabled title="Es ist schon die Vorgabe"' ?>>Auf die FIS-Vorgabe zurück</button>
+        <?php if (region_fis_ist_eingestellt()): ?>
+            <span class="small muted">Damit gelten wieder 100, 80, 60, 50, 45 … bis Platz 30.</span>
+        <?php endif; ?>
+    </form>
+</div>
+<?php endif; ?>
 
 <div class="panel">
     <div class="row-between no-print">
