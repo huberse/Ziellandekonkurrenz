@@ -10,6 +10,34 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.3
+
+Zwei Dinge am Anmeldeformular, beides aus der Benutzung heraus.
+
+**Die Nummer muss nicht mehr in einen Link.** Bisher kam der Name nur dann von
+selbst, wenn die SMV-Nummer als Adresse übergeben wurde. Wer die Nummer von
+Hand eingetippt hat, tippte auch den Namen. Jetzt kommt der Name, sobald man
+das Feld verlässt oder mit der Tabulatortaste weiterspringt.
+
+- **Ein eingetragener Name wird nie überschrieben.** Was der Besucher selbst
+  getippt hat, gehört ihm.
+- **Leert man die Nummer wieder, verschwindet auch der Name** – aber nur, wenn
+  er von der Nummer kam. Ein selbst getippter Name bleibt stehen.
+- Eine unbekannte Nummer lässt die Felder leer und gibt **keine** Fehlermeldung.
+  Eine Meldung würde verraten, welche Nummern es gibt.
+- Das Formular geht **auch ohne JavaScript**: dann eben wie bisher über den Link
+  oder durch Abtippen des Namens.
+
+**Die Zahl 999999 ist vom Anmeldeformular verschwunden.** Sie stand dort als
+Satz: *„Dann bist du in der Regiowertung unter der Nummer 999999 geführt.“* Das
+ist eine Anzeigeregel des Programms und sagt einem Besucher nichts. Schlimmer:
+wer sie wörtlich nimmt, tippt 999999 ein – und als gespeicherter Wert wäre das
+ein Unicum, das den zweiten Piloten ohne Nummer zurückweist.
+
+- **Wer 999999 eintippt, meint „keine Nummer“**, und so wird es auch gespeichert.
+  Damit ist es gleichgültig, ob sich jemand die Zahl abschreibt.
+- Der Hinweis nennt jetzt, **wo die Nummer steht**: auf der Mitgliederkarte.
+
 ## 2.0.2
 
 **Am Ende der Saison lässt sich die Regiorangliste öffentlich machen** –

@@ -1007,7 +1007,12 @@ Bemerkung ab – ein Telefonfeld gibt es nicht. Die SMV-Nummer steht als erstes 
 
 Die Nummer kommt aus dem Link: der Verein verschickt je Mitglied
 `anmeldung.php?smv=123456`. Steht die Nummer in den **Stammdaten**, kommt der Name gleich mit
-ausgefüllt.
+ausgefüllt. Wer die Nummer stattdessen von Hand eintippt, bekommt den Namen beim Verlassen des
+Feldes oder mit der Tabulatortaste – ohne die Seite neu zu laden.
+
+Das ist eine **Ergänzung, kein Ersatz**: ohne JavaScript läuft es wie bisher über den Link, und
+wer den Namen selbst tippt, überschreibt nichts. Ein selbst eingetragener Name wird nie
+überschrieben; leert man die Nummer wieder, verschwindet nur der Name, der von der Nummer kam.
 
 **Das ist eine bewusste Entscheidung und kein Versehen.** Die Nummer ist öffentlich – sie steht in
 jedem Link, den derverein verschickt, und jeder, der sie kennt, sieht damit auch den Namen. Nach
@@ -1022,11 +1027,18 @@ Anmeldung kann abgelehnt werden, und dann gehört ihr Name nicht in die Stammdat
 
 ### Ohne Nummer
 
-Das Feld ist freiwillig. Ohne Nummer bleibt die Spalte **leer** und wird als **999999**
-angezeigt. Gespeichert wird sie nicht als 999999: MySQL lässt in einem eindeutigen Index
-mehrere NULL zu, aber keinen zweiten Wert 999999 – der zweite Pilot ohne Nummer wäre sonst
-zurückgewiesen worden. Zwei Piloten ohne Nummer sind also nur über ihren Namen
-auseinanderzuhalten, und das steht so auch auf der Seite.
+Das Feld ist freiwillig, und der Hinweis auf dem Formular sagt jetzt, **wo die Nummer steht**:
+auf der Mitgliederkarte. Ohne Nummer bleibt die Spalte **leer** und wird als **999999**
+angezeigt.
+
+**Auf dem Anmeldeformular steht diese Zahl nicht mehr.** Sie ist eine Anzeigeregel des Programms
+und sagt einem Besucher nichts – und wer sie wörtlich übernommen hätte, hätte sie auch eingetippt.
+Als gespeicherter Wert wäre 999999 ein Unicum: MySQL lässt in einem/eindeutigen Index mehrere NULL
+zu, aber keinen zweiten Wert 999999, und der zweite Pilot ohne Nummer wäre zurückgewiesen worden.
+Deshalb gilt **wer 999999 eintippt, meint „keine Nummer“** – und so wird es gespeichert.
+
+In den **Stammdaten** steht die Zahl weiterhin, denn dort ist sie die Anzeige und jemand
+arbeitet mit ihr. Zwei Piloten ohne Nummer sind nur über ihren Namen auseinanderzuhalten.
 
 ### Stammdaten und Startliste
 

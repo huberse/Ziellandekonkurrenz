@@ -52,6 +52,17 @@ function pilot_smv_normalisieren(string $roh): ?string
     if (!preg_match('/^\d{1,6}$/', $roh)) {
         return null;
     }
+// Wer "999999" eintippt, meint "keine Nummer" - das ist die Anzeige, die
+// er woertlich uebernommen hat. Als gespeicherter Wert waere 999999 ein
+// Unicum und wuerde den zweiten Piloten ohne Nummer zurueckweisen: MySQL
+// laesst mehrere NULL in einem eindeutigen Index zu, keinen zweiten
+// 999999. Deshalb wird die Zahl hier zu "keine Nummer". Damit ist es
+// gleichgueltig, ob sie jemand abschreibt oder nicht - und der Hinweis auf
+// dem Formular musste dafuer nichts ueber die interne Regel sagen.
+if ($roh === '999999') {
+    return null;
+}
+
     // Eine kuerzere Nummer wird NICHT auf sechs Stellen aufgefuellt. Damit
     // wuerde eine Ziffer erfunden, und zwar genau die, die eine echte Nummer
     // vom selben Piloten unterscheidet. "12345" bleibt "12345".

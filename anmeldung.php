@@ -53,6 +53,34 @@ $vorVorname = post('first_name') !== '' ? post('first_name') : (string) ($smvBek
 $vorNachname = post('last_name') !== '' ? post('last_name') : (string) ($smvBekannt['last_name'] ?? '');
 $smvIstBekannt = $smvBekannt !== null;
 
+// Fuer das Nachschlagen beim Tippen: dieselbe Auskunft wie der Link, nur als
+// Antwort auf eine Frage und ohne eine Seite zu bauen.
+//
+// Es gibt damit nichts Neues preis: ueber "?smv=" erfaehrt seit 2.0.0 jeder
+// den Namen, der eine Nummer kennt. Das war eine bewusste Entscheidung des
+// Nutzers - die Nummer ist oeffentlich, und wer sie kennt, sieht damit den
+// Namen. Hier wird derselbe Weg nur ein zweites Mal angeboten, damit man die
+// Nummer nicht in einen Link schreiben muss.
+//
+// Es legt nichts an und aendert nichts. Eine unbekannte Nummer ist eine leere
+// Antwort und keine Fehlermeldung: eine Fehlermeldung wuerde verraten, welche
+// Nummern es gibt.
+if (get('json') !== '' && $smvAusLink !== null) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    $antwort = ['vorhanden' => false, 'vorname' => '', 'name' => ''];
+    if ($smvBekannt !== null) {
+        $antwort = [
+            'vorhanden' => true,
+            'vorname' => (string) $smvBekannt['first_name'],
+            'name' => (string) $smvBekannt['last_name'],
+        ];
+    }
+    echo json_encode($antwort, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $open) {
     csrf_check();
 
@@ -246,16 +274,17 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
             <label for="sm">SMV-Nummer</label>
             <input type="text" id="sm" name="smv_number" inputmode="numeric" maxlength="6"
                    value="<?= h(post('smv_number') !== '' ? post('smv_number') : (string) ($smvAusLink ?? '')) ?>">
-            <p class="hint">Deine Nummer beim Schweizerischen Modellflugverband, bis zu sechs Ziffern.
-                <?php if ($smvIstBekannt): ?>
-                    <strong>Wir kennen dich schon: <?= h(profile_name($smvBekannt)) ?>.</strong>
-                    Der Name ist ausgefüllt. Ändere ihn, falls er nicht mehr stimmt - die Änderung
-                    gilt dann für alle künftigen Wettbewerbe.
-                <?php else: ?>
-                    Kennst du deine Nummer nicht, lass das Feld leer. Dann bist du in der Regiowertung
-                    unter der Nummer 999999 geführt.
-                <?php endif; ?>
-            </p>
+<p class="hint" id="sm-hinweis">
+      Deine Nummer beim Schweizerischen Modellflugverband. Du findest sie auf
+      deiner Mitgliederkarte; sie hat bis zu sechs Ziffern.
+      <span id="sm-bekannt"><?php if ($smvIstBekannt): ?>
+          <strong>Wir kennen dich schon: <?= h(profile_name($smvBekannt)) ?>.</strong>
+          Der Name ist ausgefüllt. Ändere ihn, falls er nicht mehr stimmt - die Änderung
+          gilt dann für alle künftigen Wettbewerbe.
+      <?php else: ?>
+          Kennst du sie nicht, lass das Feld einfach leer.
+      <?php endif; ?></span>
+  </p>
             <?php if (isset($errors['smv_number'])): ?><p class="hint" style="color:var(--rot)"><?= h($errors['smv_number']) ?></p><?php endif; ?>
         </div>
 
@@ -330,4 +359,98 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
     </form>
 <?php endif; ?>
 </div>
+<?php // Der Name kommt auch dann, wenn die Nummer von Hand eingetippt wurde und
+      // nicht in einem Link stand. Ohne JavaScript bleibt es beim Link - das
+      // Formular ist ohne diese Bequemlichkeit vollstaendig bedienbar.
+      //
+      // Nachgeschlagen wird nur, wenn die Namensfelder leer sind. Ein
+      // eingetragener Name gehoert dem Besucher, und ein Ueberschreiben wuerde
+      // er nicht einmal bemerken.
+      //
+      // Es wird nichts angelegt und nichts gespeichert: die Antwort ist ein
+      // Blick in die Stammliste, sonst nichts. ?>
+<script>
+(function () {
+    var nummer = document.getElementById('sm');
+    var vorname = document.getElementById('fn');
+    var nachname = document.getElementById('ln');
+    var traeger = document.getElementById('sm-bekannt');
+    if (!nummer || !vorname || !nachname || !traeger) return;
+
+    var standard = 'Kennst du sie nicht, lass das Feld einfach leer.';
+    var zuletztGefragt = '';
+    var vonUnsVorname = '';
+    var vonUnsNachname = '';
+
+    function hinweisKnoechen() {
+        // Kein innerHTML mit fremdem Text. Der Name kommt aus der Datenbank,
+        // aber er ist trotzdem Text, den man nicht ohne Pruefung einhaengt.
+        while (traeger.firstChild) traeger.removeChild(traeger.firstChild);
+    }
+
+    function gehoerenUns() {
+        // Nur rueckwaerts ausraeumen, was wir selbst eingetragen haben. Hat der
+        // Besucher am Namen gefeilt, bleibt sein Name stehen - und dann auch
+        // der Hinweis dazu.
+        if (vonUnsVorname === '' && vonUnsNachname === '') return;
+        if (vorname.value === vonUnsVorname) vorname.value = '';
+        if (nachname.value === vonUnsNachname) nachname.value = '';
+        vonUnsVorname = '';
+        vonUnsNachname = '';
+    }
+
+    function nachschlagen() {
+        var wert = nummer.value.replace(/[\s-]/g, '');
+        if (wert === zuletztGefragt) {
+            // Dieselbe Zahl noch einmal fragen ist meistens Rauschen - z.B. wenn
+            // der Besucher mit dem Tab zurueck in das Feld springt. Es lohnt
+            // sich aber, wenn er den von uns ausgetragenen Namen wieder
+            // geloescht hat: dann steht dort nichts, und genau dann soll der
+            // Name wiederkommen.
+            var felderLeer = vorname.value.trim() === '' && nachname.value.trim() === '';
+            if (!felderLeer) return;
+        }
+        gehoerenUns();
+        zuletztGefragt = wert;
+        if (wert === '') {
+            hinweisKnoechen();
+            traeger.appendChild(document.createTextNode(standard));
+            return;
+        }
+        if (vorname.value.trim() !== '' || nachname.value.trim() !== '') return;
+        fetch('anmeldung.php?competition=<?= (int) $competition['id'] ?>&smv='
+              + encodeURIComponent(wert) + '&json=1')
+            .then(function (antwort) { return antwort.ok ? antwort.json() : null; })
+            .then(function (daten) {
+                // In der Zwischenzeit kann der Besucher weitergearbeitet haben.
+                if (!daten || wert !== nummer.value.replace(/[\s-]/g, '')) return;
+                hinweisKnoechen();
+                if (!daten.vorhanden) {
+                    traeger.appendChild(document.createTextNode(standard));
+                    return;
+                }
+                vorname.value = daten.vorname;
+                nachname.value = daten.name;
+                vonUnsVorname = daten.vorname;
+                vonUnsNachname = daten.name;
+                var fett = document.createElement('strong');
+                fett.textContent = 'Wir kennen dich schon: ' + daten.vorname + ' ' + daten.name + '.';
+                traeger.appendChild(fett);
+                traeger.appendChild(document.createTextNode(
+                    ' Der Name ist ausgefüllt. Ändere ihn, falls er nicht mehr stimmt - die Änderung'
+                    + ' gilt dann für alle künftigen Wettbewerbe.'));
+            })
+            .catch(function () {
+                // Kein Netz, kein JavaScript, ein Tippfehler: nichts tun. Der
+                // Besucher tippt seinen Namen eben selbst - so wie bisher.
+            });
+    }
+
+      // "change" deckt beides ab: das Verlassen des Feldes und die
+      // Tabulatortaste. Beide zuzuhoeren ist billig und deckt den Fall ab, in
+      // dem nur eines davon feuert - etwa wenn ein Programm das Feld leert.
+      nummer.addEventListener('change', nachschlagen);
+      nummer.addEventListener('blur', nachschlagen);
+})();
+</script>
 <?php page_end();
