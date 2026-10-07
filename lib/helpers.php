@@ -46,6 +46,30 @@ function redirect(string $url): void
     exit;
 }
 
+/**
+ * Der Weg zur Aktualisierungsseite, von der aufrufenden Seite aus.
+ *
+ * Die Seite liegt in admin/ und ist nur fuer den angemeldeten SuperAdmin
+ * erreichbar. Vorher lag sie im Hauptverzeichnis und war oeffentlich - jeder
+ * konnte sie aufrufen und die Migrationen anstossen. Das ist keine
+ * Datenverwaltung, sondern ein Ablauf, der gehoert.
+ *
+ * Aus dem Hauptverzeichnis und aus admin/ heraus wird unterschiedlich
+ * gerechnet, und nicht ueberall richtig: require_login() wird aus beiden
+ * aufgerufen. Deshalb wird der Weg hier einmal bestimmt und nicht an jeder
+ * Stelle von Hand geschrieben.
+ */
+function upgrade_url(): string
+{
+    // Nur unterscheiden, ob die aufrufende Seite in admin/ liegt. Mehr braucht
+    // es nicht: ein relativer Pfad loest sich gegen das aktuelle Verzeichnis
+    // auf, nicht gegen die Wurzels des Servers. Ein Praefix aus dem
+    // SCRIPT_NAME wuerde bei einer Installation in einem Unterordner ein
+    // doppeltes Verzeichnis ergeben.
+    $verzeichnis = basename(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'))));
+    return $verzeichnis === 'admin' ? 'upgrade.php' : 'admin/upgrade.php';
+}
+
 function post(string $key, $default = ''): string
 {
     return isset($_POST[$key]) && is_scalar($_POST[$key]) ? trim((string) $_POST[$key]) : (string) $default;

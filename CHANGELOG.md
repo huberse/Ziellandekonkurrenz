@@ -10,6 +10,31 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.5
+
+**Die Datenbankaktualisierung steht jetzt unter `admin/upgrade.php` und läuft nur für den
+SuperAdmin.** Vorher lag die Seite im Hauptverzeichnis und war für jeden erreichbar, der die
+Adresse kannte – und wer sie aufrief, hat an der Datenbank Migrationen ausgelöst. Das war kein
+Werkzeug, sondern ein offener Ablauf. Jetzt:
+
+- **Ohne Konto** geht es wie überall zur Anmeldung und danach an diese Seite zurück.
+- **Ein Vereinskonto** bekommt *„Die Datenbankaktualisierung ist dem SuperAdmin vorbehalten“*
+  und landet im Wettkampfbüro.
+- **Der SuperAdmin** kann wie bisher.
+- Sie darf liegen bleiben. Die Meldung nach dem Lauf sagt das auch – vorher stand dort
+  „lösche danach upgrade.php vom Server“, was nur deshalb nötig war, weil die Seite offen war.
+
+**Zwei Texte kürzer.**
+
+- Auf der **Regiorangliste-Kachel** stand „4 Starts zählen“ und darunter „0 Piloten in der
+  Wertung“ – zwei Zahlen, die sich widersprachen. Die 4 sind keine Zahl von Starts, sondern die
+  Regel: je Wettbewerb zählen die besten vier, der schlechteste nicht. Auf der Kachel steht
+  jetzt **„beste 4 Starts zählen“**.
+- Der **Hinweis am Anmeldeformular** endet an der Mitgliederkarte. Nach „Mitgliederkarte“ stand
+  noch „sie hat bis zu sechs Ziffern“ und „Kennst du sie nicht, lass das Feld einfach leer.“ Das
+  ist Zusatz, den das Feld nicht braucht. **„Wir kennen dich schon“** steht jetzt auf einer
+  eigenen Zeile statt mitten im Satz.
+
 ## 2.0.4
 
 **Ein roter Punkt in der Diagnose ist weg.** Gefunden auf der Live-Seite: die

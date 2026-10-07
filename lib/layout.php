@@ -572,9 +572,13 @@ function region_card(): void
     // ueber den Inhalt, und sie steht jetzt eine Zeile tiefer, wo sie zusammen
     // mit den Wettbewerben steht, zu denen sie gehoert.
     echo '<h3 class="pick-name"><a href="region.php">Regiorangliste</a></h3>';
+    // "4 Starts zählen" las sich auf der Kachel wie eine Zahl von Starts -
+    // daneben stand "0 Piloten in der Wertung", und die beiden widersprachen
+    // sich. Es ist aber eine REGEL: je Wettbewerb zählen die besten vier
+    // Starts, der schlechteste nicht. Die Formulierung sagt das jetzt.
     echo '<p class="pick-when">' . h((string) $jahr) . ' · ' . count($wettbewerbe)
         . (count($wettbewerbe) === 1 ? ' Wettbewerb' : ' Wettbewerbe')
-        . ' · ' . region_anzahl_gewertet() . ' Starts zählen</p>';
+        . ' · beste ' . region_anzahl_gewertet() . ' Starts zählen</p>';
     echo '<p class="pick-count">' . count($zeilen)
         . (count($zeilen) === 1 ? ' Pilot' : ' Piloten') . ' in der Wertung</p>';
     echo '<p class="pick-tags"><span class="tag trophy">Regiocup</span></p>';

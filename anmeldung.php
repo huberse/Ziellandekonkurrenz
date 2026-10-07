@@ -7,7 +7,7 @@ require_once __DIR__ . '/lib/mail.php';
 require_once __DIR__ . '/lib/profiles.php';
 
 if (!schema_has_competitions()) {
-    redirect('upgrade.php');
+    redirect(upgrade_url());
 }
 
 $competition = resolve_competition_param(competition_request_param());
@@ -275,14 +275,20 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
             <input type="text" id="sm" name="smv_number" inputmode="numeric" maxlength="6"
                    value="<?= h(post('smv_number') !== '' ? post('smv_number') : (string) ($smvAusLink ?? '')) ?>">
 <p class="hint" id="sm-hinweis">
-      Deine Nummer beim Schweizerischen Modellflugverband. Du findest sie auf
-      deiner Mitgliederkarte; sie hat bis zu sechs Ziffern.
-      <span id="sm-bekannt"><?php if ($smvIstBekannt): ?>
+      Deine Nummer beim Schweizerischen Modellflugverband. Du findest sie auf deiner Mitgliederkarte.
+      <?php // Die Wiedererkennung kommt auf ihre EIGENE Zeile und nicht in
+            // denselben Satz. Der Nutzer hat beides gewuenscht: nach
+            // "Mitgliederkarte" ist Schluss, und "Wir kennen dich schon" soll
+            // nicht mitten im Hinweis stehen.
+            //
+            // Vorher stand hier noch "sie hat bis zu sechs Ziffern" und
+            // "Kennst du sie nicht, lass das Feld einfach leer." Beides ist
+            // Zusatz, den das Feld nicht braucht: es ist nicht als Pflichtfeld
+            // markiert, und wer keine Nummer hat, laesst es leer. ?>
+      <span id="sm-bekannt"<?= $smvIstBekannt ? ' style="display:block;margin-top:6px"' : '' ?>><?php if ($smvIstBekannt): ?>
           <strong>Wir kennen dich schon: <?= h(profile_name($smvBekannt)) ?>.</strong>
           Der Name ist ausgefüllt. Ändere ihn, falls er nicht mehr stimmt - die Änderung
           gilt dann für alle künftigen Wettbewerbe.
-      <?php else: ?>
-          Kennst du sie nicht, lass das Feld einfach leer.
       <?php endif; ?></span>
   </p>
             <?php if (isset($errors['smv_number'])): ?><p class="hint" style="color:var(--rot)"><?= h($errors['smv_number']) ?></p><?php endif; ?>
@@ -377,7 +383,10 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
     var traeger = document.getElementById('sm-bekannt');
     if (!nummer || !vorname || !nachname || !traeger) return;
 
-    var standard = 'Kennst du sie nicht, lass das Feld einfach leer.';
+    // Leer. Es gibt keinen Ersatzsatz mehr: der Hinweis endet an der
+    // Mitgliederkarte, und eine unbekannte Nummer braucht keine Erklaerung -
+    // das Feld ist nicht als Pflichtfeld markiert.
+    var standard = '';
     var zuletztGefragt = '';
     var vonUnsVorname = '';
     var vonUnsNachname = '';
@@ -414,7 +423,7 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
         zuletztGefragt = wert;
         if (wert === '') {
             hinweisKnoechen();
-            traeger.appendChild(document.createTextNode(standard));
+            traeger.style.display = 'none';
             return;
         }
         if (vorname.value.trim() !== '' || nachname.value.trim() !== '') return;
@@ -426,13 +435,14 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
                 if (!daten || wert !== nummer.value.replace(/[\s-]/g, '')) return;
                 hinweisKnoechen();
                 if (!daten.vorhanden) {
-                    traeger.appendChild(document.createTextNode(standard));
+                    traeger.style.display = 'none';
                     return;
                 }
                 vorname.value = daten.vorname;
                 nachname.value = daten.name;
                 vonUnsVorname = daten.vorname;
                 vonUnsNachname = daten.name;
+                traeger.style.display = 'block';
                 var fett = document.createElement('strong');
                 fett.textContent = 'Wir kennen dich schon: ' + daten.vorname + ' ' + daten.name + '.';
                 traeger.appendChild(fett);

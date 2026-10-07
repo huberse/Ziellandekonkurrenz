@@ -114,8 +114,13 @@ schreibt nur, was hier unverändert ist – siehe [Aktualisierung von GitHub](#a
 ### Durch Hochladen der Dateien
 
 Neue Dateien hochladen und bestehende überschreiben. **`config.php` nicht anfassen.** Vorher ein
-Datenbank-Backup erstellen. Danach einmal `upgrade.php` aufrufen und **Jetzt aktualisieren**
-klicken, anschliessend `upgrade.php` löschen.
+Datenbank-Backup erstellen. Danach einmal **`admin/upgrade.php`** aufrufen (Wettkampfbüro →
+Aktualisierung, oder direkt die Adresse) und **Jetzt aktualisieren** klicken.
+
+Seit 2.0.5 liegt die Seite in `admin/` und läuft **nur für den angemeldeten SuperAdmin**.
+Vorher lag sie im Hauptverzeichnis und war für jeden erreichbar, der die Adresse kannte – und
+jeder, der sie aufrief, hätte an der Datenbank Migrationen ausgelöst. Sie darf ruhig liegen
+bleiben; wer sie nicht mehr braucht, kann sie löschen.
 
 Die Migrationen laufen versioniert und werden erst nach erfolgreicher Ausführung in
 `schema_migrations` protokolliert. Ein abgebrochener Lauf kann nach Beheben der gemeldeten
@@ -131,7 +136,7 @@ Datenprobleme erneut gestartet werden.
 | 6 | Benutzerrechte: SuperAdmin für die Benutzerverwaltung, Konten sperren |
 
 Danach sollte `MAX(version)` in `schema_migrations` mindestens `6` sein. Ruft man eine Seite auf,
-bevor `upgrade.php` gelaufen ist, leitet die App automatisch dorthin um, statt einen
+bevor `admin/upgrade.php` gelaufen ist, leitet die App automatisch dorthin um, statt einen
 Datenbankfehler zu zeigen.
 
 **Nach Migration 5 die Strafpunkte kurz prüfen.** Die bisher getrennten Sätze für „zu lang" und
@@ -288,7 +293,7 @@ behebbar.
 ### Die Datenbank bleibt unberührt
 
 Der Knopf schreibt nur Programmdateien. Ändert eine neue Fassung auch das Datenbankschema, meldet
-er das nach dem Einspielen und verweist auf `upgrade.php`. Das ist Absicht: Migrationen können
+er das nach dem Einspielen und verweist auf `admin/upgrade.php`. Das ist Absicht: Migrationen können
 Daten umschreiben und gehören nicht in einen Knopf, den man im Ernstfall anklickt.
 
 ### Voraussetzungen auf dem Server
@@ -339,7 +344,7 @@ ablesbar, ob beim Aktualisieren etwas zu beachten ist.
 | Datenbank ändert sich (neue Spalte, neuer Vorgabewert, neue Tabelle) | **steigt** | fällt auf 0 | 2.0.2 → 2.1.0 |
 
 Der Grund für den Sprung: der Aktualisierungs-Knopf schreibt nur Programmdateien. Ändert sich
-das Schema, bleibt `upgrade.php` zu tun. Steht das nicht schon in der Versionsnummer, sieht man
+das Schema, bleibt `admin/upgrade.php` zu tun. Steht das nicht schon in der Versionsnummer, sieht man
 es erst, wenn eine Seite einen Datenbankfehler zeigt. **Vorher `Aktualisierungsseite`, dann
 `upgrade.php`.**
 
@@ -511,7 +516,7 @@ Ein neu angelegtes Konto ist **sofort anmeldebereit** – Passwort eingeben, fer
 wird ein Konto erst, wenn das Kästchen *aktiv* in der Kontenliste abgehakt wird. Vor 1.9.12
 galt das Gegenteil: frisch angelegte Konten waren gesperrt und liessen sich mit keinem
 Passwort anmelden, bis der SuperAdmin sie in der Liste ein zweites Mal bearbeitet hat. Die
-Ursache stand in der Datenbank, nicht im Passwort; `upgrade.php` stellt den Vorgabewert der
+Ursache stand in der Datenbank, nicht im Passwort; `admin/upgrade.php` stellt den Vorgabewert der
 Spalte `users.active` wieder auf 1.
 
 Die Kontenliste zeigt **Konto, Anzeigename, Verein, SuperAdmin, aktiv, neues Passwort** und die
@@ -1106,7 +1111,7 @@ admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 
 install.php            Einrichtung – danach löschen
-upgrade.php            Aktualisierung – danach löschen
+admin/upgrade.php      Aktualisierung – nur SuperAdmin, darf liegen bleiben
 diagnose.php           Fehlersuche – danach löschen
 
 lib/competition.php    Wettbewerbe, Kontext der Einstellungen, Abschlussstatus
@@ -1199,7 +1204,9 @@ wie dem Laufzettel, gilt die Klasse nicht als Ausrichtungsangabe.
 - `config.php`, `lib/` und `sql/` gehören nicht in ein öffentlich erreichbares Verzeichnis. Die
   mitgelieferte `.htaccess` sperrt `config.php` und `lib/` sowie `sql/` für Apache. Für nginx
   entsprechend selbst konfigurieren.
-- `install.php`, `upgrade.php` und `diagnose.php` nach der Einrichtung vom Server löschen.
+- `install.php` und `diagnose.php` nach der Einrichtung vom Server löschen. `admin/upgrade.php`
+  ist seit 2.0.5 dem SuperAdmin vorbehalten und schadet deshalb auch dann nicht, wenn sie
+  liegen bleibt.
 - Zerstörende Änderungen an Vereinen und Modelltypen werden blockiert, sobald sie in
   abgeschlossenen Wettbewerben verwendet wurden. Ein Verein wird zusätzlich nicht gelöscht,
   solange Piloten, Anmeldungen, Wettbewerbe oder Konten an ihm hängen.
@@ -1243,7 +1250,7 @@ hilft meist nur das PHP-Fehlerprotokoll des Hosters. Danach `diagnose.php` lösc
 GET https://example.org/diagnose.php
 ```
 
-Ein gemeldeter Hinweis `scores.motor fehlt` bedeutet: `upgrade.php` wurde noch nicht gelaufen.
+Ein gemeldeter Hinweis `scores.motor fehlt` bedeutet: `admin/upgrade.php` wurde noch nicht gelaufen.
 Ein Hinweis `Strafpunktregeln je Wettbewerb` bedeutet dasselbe für eine Installation, die
 teilweise migriert wurde.
 

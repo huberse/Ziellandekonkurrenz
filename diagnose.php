@@ -116,25 +116,26 @@ if (is_file(__DIR__ . '/config.php')) {
                 $pdo->query("SELECT 1 FROM `$t` LIMIT 1");
                 check("Tabelle $t", true);
             } catch (PDOException $e) {
-                check("Tabelle $t", false, 'install.php noch nicht ausgeführt, oder alte Tabellen (upgrade.php nötig).');
+                check("Tabelle $t", false, 'install.php noch nicht ausgeführt, oder alte Tabellen (admin/upgrade.php nötig).');
             }
         }
         try {
             $version = (int) $pdo->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations')->fetchColumn();
             // Ab 12 gehoert die Stammliste der Piloten dazu. Wer auf 2.0.0 geht,
-            // ohne upgrade.php zu rufen, bekommt das hier gesagt.
-            check('Versionierte Migrationen', $version >= 4, 'upgrade.php ausführen.');
+            // ohne admin/upgrade.php zu rufen, bekommt das hier gesagt - und wer
+            // nicht SuperAdmin ist, kann das nicht.
+            check('Versionierte Migrationen', $version >= 4, 'admin/upgrade.php aufrufen (SuperAdmin).');
             $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'completed_at'");
             $st->execute();
-            check('Spalte competitions.completed_at', (int) $st->fetchColumn() > 0, 'upgrade.php ausführen.');
+            check('Spalte competitions.completed_at', (int) $st->fetchColumn() > 0, 'admin/upgrade.php aufrufen (SuperAdmin).');
             $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE()
                                    AND ((TABLE_NAME = 'pilots' AND COLUMN_NAME = 'active')
                                      OR (TABLE_NAME = 'rounds' AND COLUMN_NAME = 'is_included')
                                      OR (TABLE_NAME = 'scores' AND COLUMN_NAME = 'not_started'))");
             $st->execute();
-            check('Resultatfelder für Abschlussprüfung', (int) $st->fetchColumn() === 3, 'upgrade.php ausführen.');
+            check('Resultatfelder für Abschlussprüfung', (int) $st->fetchColumn() === 3, 'admin/upgrade.php aufrufen (SuperAdmin).');
             $st = $pdo->prepare("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores'
                                    AND COLUMN_NAME IN ('not_started', 'outlanding', 'crash', 'motor')");
@@ -150,29 +151,29 @@ if (is_file(__DIR__ . '/config.php')) {
             }
             $kaestchenOk = $kaestchenOk && count($kaestchen) === 4;
             check('scores mit den vier Kästchenspalten', $kaestchenOk,
-                'upgrade.php ausführen. Bis 1.9.6 stand dort ein einzelnes Statusfeld.');
+                'admin/upgrade.php aufrufen (SuperAdmin). Bis 1.9.6 stand dort ein einzelnes Statusfeld.');
             $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores' AND COLUMN_NAME = 'status'");
             $st->execute();
-            check('scores.status ist entfernt', (int) $st->fetchColumn() === 0, 'upgrade.php ausführen.');
+            check('scores.status ist entfernt', (int) $st->fetchColumn() === 0, 'admin/upgrade.php aufrufen (SuperAdmin).');
             $st = $pdo->prepare("SELECT skey FROM competition_settings
                                  WHERE skey IN ('penalty_per_second', 'penalty_outlanding', 'penalty_not_started', 'penalty_motor')
                                  GROUP BY competition_id HAVING COUNT(DISTINCT skey) < 4 LIMIT 1");
             $st->execute();
             check('Strafpunktregeln je Wettbewerb', $st->fetchColumn() === false,
-                'Mindestens einem Wettbewerb fehlen die neuen Strafpunktregeln; upgrade.php ausführen.');
+                'Mindestens einem Wettbewerb fehlen die neuen Strafpunktregeln; admin/upgrade.php aufrufen.');
             $st = $pdo->prepare("SELECT skey FROM competition_settings
                                  WHERE skey IN ('penalty_per_second_over', 'penalty_per_second_under', 'penalty_not_flown',
                                                 'max_time_penalty', 'max_landing_penalty') LIMIT 1");
             $st->execute();
             check('Keine abgelösten Strafpunktschlüssel mehr', $st->fetchColumn() === false,
-                'upgrade.php ausführen, das räumt die alten Schlüssel auf.');
+                'admin/upgrade.php aufrufen; das räumt die alten Schlüssel auf.');
             $st = $pdo->prepare("SELECT COLUMN_NAME FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
                                    AND COLUMN_NAME IN ('is_superadmin','active')");
             $st->execute();
             check('Benutzerrechte (SuperAdmin, Sperre)', count($st->fetchAll(PDO::FETCH_COLUMN)) === 2,
-                'upgrade.php ausführen.');
+                'admin/upgrade.php aufrufen (SuperAdmin).');
             // Stand hier bis 1.9.11 eine 0, obwohl schema.sql eine 1 vorsieht. Dann
             // war jedes neu angelegte Konto sofort gesperrt, ohne dass am Passwort
             // etwas kaputt war - der Grund dafür, dass sich ein Konto erst nach
@@ -181,7 +182,7 @@ if (is_file(__DIR__ . '/config.php')) {
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'active'");
             $st->execute();
             check('users.active ist standardmäßig aktiv', (string) $st->fetchColumn() === '1',
-                'upgrade.php ausführen. Neue Konten wären sonst sofort gesperrt.');
+                'admin/upgrade.php aufrufen. Neue Konten wären sonst sofort gesperrt.');
             $st = $pdo->prepare('SELECT COUNT(*) FROM users WHERE is_superadmin = 1 AND active = 1');
             $st->execute();
             $admins = (int) $st->fetchColumn();
@@ -202,7 +203,7 @@ if (is_file(__DIR__ . '/config.php')) {
                                      OR (TABLE_NAME = 'registrations' AND CONSTRAINT_NAME = 'fk_registration_pilot'))");
             $st->execute();
             $fkCount = (int) $st->fetchColumn();
-            check('Wettbewerb-Constraints', $indexCount >= 9 && $fkCount >= 3, 'upgrade.php ausführen.');
+            check('Wettbewerb-Constraints', $indexCount >= 9 && $fkCount >= 3, 'admin/upgrade.php aufrufen (SuperAdmin).');
 
             // Seit 2.0.0 stehen die Stammdaten der Piloten in pilot_profiles.
             // Ohne diese Tabelle liefert jede Seite mit einer Pilotenliste einen
@@ -218,7 +219,7 @@ if (is_file(__DIR__ . '/config.php')) {
                                      OR (TABLE_NAME = 'registrations' AND COLUMN_NAME = 'smv_number'))");
             $st->execute();
             $spalten = (int) $st->fetchColumn();
-            check('Stammdaten der Piloten (2.0.0)', $hatProfile && $spalten === 2, 'upgrade.php ausführen.');
+            check('Stammdaten der Piloten (2.0.0)', $hatProfile && $spalten === 2, 'admin/upgrade.php aufrufen (SuperAdmin).');
 
             // Ab 2.0.0 kann ein Wettbewerb als abgesagt markiert werden. Ohne die
             // Spalte meldet die Karte zwar "abgesagt", gespeichert wird es nicht -
@@ -228,9 +229,9 @@ if (is_file(__DIR__ . '/config.php')) {
                                  WHERE TABLE_SCHEMA = DATABASE()
                                    AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'cancelled_at'");
             $st->execute();
-            check('Absage von Wettbewerben (2.0.0)', (int) $st->fetchColumn() > 0, 'upgrade.php ausführen.');
+            check('Absage von Wettbewerben (2.0.0)', (int) $st->fetchColumn() > 0, 'admin/upgrade.php aufrufen (SuperAdmin).');
         } catch (PDOException $e) {
-            check('Versionierte Migrationen', false, 'upgrade.php ausführen.');
+            check('Versionierte Migrationen', false, 'admin/upgrade.php aufrufen (SuperAdmin).');
         }
     } catch (PDOException $e) {
         check('Verbindung zur Datenbank', false, $e->getMessage());

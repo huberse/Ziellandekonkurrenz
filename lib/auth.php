@@ -51,7 +51,7 @@ function require_login(): array
     }
     require_once __DIR__ . '/competition.php';
     if (!schema_has_competitions()) {
-        redirect('../upgrade.php');
+        redirect(upgrade_url());
     }
     $requestedCompetition = competition_request_param();
     if ($requestedCompetition !== '') {

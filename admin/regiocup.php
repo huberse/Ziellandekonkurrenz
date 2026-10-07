@@ -25,7 +25,7 @@ if (!is_file(__DIR__ . '/../config.php')) {
     exit('config.php fehlt. Kopiere config.sample.php nach config.php.');
 }
 if (!schema_has_competitions()) {
-    redirect('../upgrade.php');
+    redirect(upgrade_url());
 }
 
 $me = require_login();

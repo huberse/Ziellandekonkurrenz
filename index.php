@@ -25,7 +25,7 @@ try {
     redirect('install.php');
 }
 if (!schema_has_competitions()) {
-    redirect('upgrade.php');
+    redirect(upgrade_url());
 }
 
 $wettbewerbe = competitions_uebersicht();

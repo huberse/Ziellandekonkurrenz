@@ -45,8 +45,8 @@ if ($gemerkt !== null) {
     $link = [];
     if (!empty($gemerkt['migration'])) {
         // Kein blosses "bitte aufrufen": der Weg ist einen Klick entfernt.
-        // upgrade.php liegt im Hauptverzeichnis, diese Seite in admin/.
-        $link = ['text' => 'Jetzt upgrade.php aufrufen', 'href' => '../upgrade.php'];
+        // upgrade.php liegt seit 2.0.5 in admin/, diese Seite auch.
+        $link = ['text' => 'Jetzt upgrade.php aufrufen', 'href' => 'upgrade.php'];
     }
     flash($text, (int) $gemerkt['stehen'] > 0 ? 'err' : 'ok', $link);
 }
