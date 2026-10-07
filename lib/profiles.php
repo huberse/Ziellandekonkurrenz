@@ -187,6 +187,9 @@ function profiles_uebersicht(string $suche = '', ?PDO $pdo = null): array
     // also liefert das genau ein Datum.
     $st = $pdo->prepare(
         'SELECT pr.*, (SELECT COUNT(*) FROM pilots p WHERE p.profile_id = pr.id AND p.active = 1) AS starts,
+                  (SELECT COUNT(*) FROM scores s
+                     JOIN pilots p ON p.id = s.pilot_id
+                    WHERE p.profile_id = pr.id) AS ergebnisse,
                 (SELECT MAX(c.svalue) FROM pilots p
                    JOIN competition_settings c ON c.competition_id = p.competition_id AND c.skey = "competition_date"
                   WHERE p.profile_id = pr.id) AS zuletzt
@@ -194,4 +197,114 @@ function profiles_uebersicht(string $suche = '', ?PDO $pdo = null): array
          ORDER BY pr.last_name, pr.first_name');
     $st->execute($werte);
     return $st->fetchAll();
+}
+
+/**
+ * Einen Stammsatz loeschen – mit allem, was an ihm haengt.
+ *
+ * Wofuer das da ist: wer sich zweimal angemeldet hat, einmal mit der echten
+ * Nummer und einmal mit einer erfundenen, steht zweimal in dieser Liste. Der
+ * zweite Satz ist Muell und muss weg.
+ *
+ * Der Vorgang ist mehr als ein Satz aus einer Tabelle, weil an einem Stammsatz
+ * Startlisteneintraege haengen und an denen Resultate:
+ *
+ *   pilot_profiles   der Stammsatz selbst
+ *     -> pilots      ein Eintrag je Wettbewerb, ON DELETE RESTRICT
+ *          -> scores je Resultat, ON DELETE CASCADE
+ *
+ * Wegen RESTRICT lehnt die Datenbank das Loeschen von selbst ab, sobald ein
+ * Eintrag dranhaengt – und zwar mit einer Meldung, die niemandem etwas sagt.
+ * Deshalb wird vorher gezaehlt und der Grund genannt.
+ *
+ * **Geloescht wird nur, was nie geflogen ist.** Sobald ein Resultat dranhaengt,
+ * wird abgelehnt und die Zahl genannt. Wer einen beendeten Wettbewerb von Grund
+ * auf loeschen will, macht das an dem Wettbewerb - dort ist es eine einzige
+ * Handlung mit einer klaren Bestandsangabe, hier waere es eine ueber mehrere
+ * Jahre verteilte.
+ *
+ * Warum die zugehoerige Anmeldung wieder offen wird und nicht mit verschwindet:
+ * `registrations` haelt Name, Nummer und Verein in eigenen Spalten, der Eintrag
+ * ueberlebt das Loeschen also. Er gaenge nur stumm auf "angenommen" stehen
+ * bleiben und niemand koennte ihn mehr zurueckweisen. Genau das macht
+ * `piloten.php` beim Loeschen eines Startlisteneintrags auch so.
+ *
+ * @return array{eintraege:int,anmeldungen:int} Was wirklich entfernt wurde
+ * @throws DomainException  mit dem Grund, wenn nicht geloescht wurde
+ */
+function profile_loeschen(int $id): array
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $st = $pdo->prepare('SELECT * FROM pilot_profiles WHERE id = ? FOR UPDATE');
+        $st->execute([$id]);
+        $profil = $st->fetch();
+        if (!$profil) {
+            throw new RuntimeException('Diesen Piloten gibt es nicht.');
+        }
+
+        $eintraege = $pdo->prepare('SELECT id FROM pilots WHERE profile_id = ?');
+        $eintraege->execute([$id]);
+        $ids = array_map('intval', $eintraege->fetchAll(PDO::FETCH_COLUMN));
+
+        $ergebnisse = 0;
+        $anmeldungen = 0;
+        if ($ids) {
+            // Zwei Abfragen statt einer. In einer Abfrage mit zwei
+            // "IN (?,?...)" stuenden die Platzhalter zweimal drin, und es
+            // muessten auch zweimal so viele Parameter gebunden werden.
+            // Das ist genau die Sorte Fehler, die erst beim Aufruf auffaellt -
+            // und dann als SQL-Fehler, nicht als Programmierfehler.
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $z1 = $pdo->prepare("SELECT COUNT(*) FROM scores WHERE pilot_id IN ($in)");
+            $z1->execute($ids);
+            $ergebnisse = (int) $z1->fetchColumn();
+
+            $z2 = $pdo->prepare("SELECT COUNT(*) FROM registrations WHERE pilot_id IN ($in)");
+            $z2->execute($ids);
+            $anmeldungen = (int) $z2->fetchColumn();
+        }
+
+        if ($ergebnisse > 0) {
+            $wettbewerbe = count($ids);
+            throw new DomainException(sprintf(
+                '%s hat %s in %d Wettbewerb%s. %s nicht mehr zu löschen – sonst '
+                . 'verschwinden Ergebnisse ohne Spur. Soll der Wettbewerb weg, '
+                . 'geschieht das an ihm.',
+                profile_name($profil),
+                $ergebnisse === 1 ? '1 Resultat' : $ergebnisse . ' Ergebnisse',
+                $wettbewerbe,
+                $wettbewerbe === 1 ? '' : 'en',
+                $ergebnisse === 1 ? 'Dieses' : 'Diese'
+            ));
+        }
+
+        if ($ids) {
+            // Wie in piloten.php: eine freigegebene Anmeldung, deren Pilot
+            // verschwindet, geht wieder auf offen. Sonst bliebe sie auf
+            // "angenommen" stehen, ohne dass es den Piloten noch gaebe.
+            $zurueck = $pdo->prepare("UPDATE registrations
+                                       SET pilot_id = NULL, status = 'pending', decided_at = NULL
+                                     WHERE pilot_id IN ($in)");
+            $zurueck->execute($ids);
+
+            $weg = $pdo->prepare('DELETE FROM pilots WHERE id IN (' . $in . ')');
+            $weg->execute($ids);
+        }
+
+        $raus = $pdo->prepare('DELETE FROM pilot_profiles WHERE id = ?');
+        $raus->execute([$id]);
+        if ($raus->rowCount() !== 1) {
+            throw new RuntimeException('Stammsatz wurde nicht gelöscht.');
+        }
+
+        $pdo->commit();
+        return ['eintraege' => count($ids), 'anmeldungen' => $anmeldungen];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
 }

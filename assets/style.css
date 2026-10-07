@@ -585,25 +585,49 @@ table.data th.num, table.data th.mid { font-family: inherit; }
 /* Der Anmeldeweg steht als Kasten ueber den Wettbewerben, schmal und in der
    Mitte der Seite. Wer sich eintragen will, sieht damit sofort, wie es geht;
    wer nur Ergebnisse will, klickt darueber hinweg direkt auf eine Kachel. */
-.start-anmeldung {
-  /* Dieser Block bekommt dasselbe Mass und dieselbe Mitte wie .picks. Damit
-     beginnen beide Bloecke an derselben Stelle - darauf beruht die Ausrichtung
-     unten. */
+/* Die obere Reihe. Der Anmeldeweg nimmt zwei Kachelbreiten ein, die
+   Regiorangliste die dritte - bei drei Spalten ist die Reihe damit genau voll.
+   Flex wie der Kachelblock darunter, damit eine Kachel, die auf eine eigene
+   Zeile rutscht, mittig steht.
+
+   justify-content bleibt "flex-start": der Anmeldekasten soll buendig links an
+   der Kante der Wettbewerbskacheln stehen und nicht in der Mitte. Die
+   Randgleichheit regelt .pick unten. */
+.start-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--kachel-abstand);
   max-width: var(--kachel-hoechst);
   margin: 0 auto 34px;
 }
-.start-anmeldung .panel {
-  /* Genau zwei Kacheln nebeneinander, dazwischen derselbe Abstand wie
-     zwischen zwei Kacheln. Der Kasten steht damit buendig ueber den ersten
-     beiden Kacheln. Frueher hatte er 640px und stand fuer sich mittig, was
-     links eine breite Luecke liess.
 
-     Die Breite sitzt am inneren Kasten, nicht am Block: ein Block mit fester
-     Breite und "margin: auto" rueckt in die Mitte, und dann began der Kasten
-     nicht mehr an der Kante des Kachelblocks.
+/* Steht die Regiokachel allein auf ihrer Zeile - bei zwei Spalten, weil der
+   Kasten dann die ganze Breite nimmt - soll sie mittig stehen. Bei drei
+   Spalten ist kein Platz frei, und die automatischen Raender aendern nichts. */
+.start-kopf .pick {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.start-kopf .start-anmeldung {
+  /* .panel bringt 20px unteren Rand mit. In einer Flex-Reihe waechst aber der
+     Randrahmen auf die Zeilenhoehe, nicht die Box selbst - der Kasten bliebe
+     genau 20px kuerzer als die Kachel daneben und waere sichtbar kuerzer. Der
+     Abstand nach unten steht am Zeilenblock. */
+  margin-bottom: 0;
+}
+.start-anmeldung {
+  /* Genau zwei Kacheln nebeneinander, dazwischen derselbe Abstand wie
+     zwischen zwei Kacheln. Vorher hatte der Kasten fest 640px und stand fuer
+     sich mittig; links blieb eine breite Luecke, auf die der Nutzer im Bild
+     mit einem Pfeil gezeigt hat.
 
      min() faengt den Fall ab, dass es nur eine Spalte gibt: dann waere
-     2xBreite+Abstand breiter als die Seite. */
+     2xBreite+Abstand breiter als die Seite.
+
+     flex: 0 0 auto, damit der Kasten nicht schrumpft. Ohne das stuende der
+     Text links buendig und die Kachel daneben ragte hinaus. */
+  flex: 0 0 auto;
   width: min(calc(var(--kachel-breite) * 2 + var(--kachel-abstand)), 100%);
   text-align: center;
 }

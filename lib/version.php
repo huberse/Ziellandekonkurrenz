@@ -22,7 +22,7 @@ declare(strict_types=1);
 // dass der Versionsvergleich es merkt - der Knopf scheitert dann an einer
 // scheinbar unbeteiligten Datei. Nach dem Hochladen deshalb keine weitere
 // Aenderung mit derselben Nummer; notfalls auf 1.9.12 hochzaehlen.
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.0.1';
 
 // Quelle der Aktualisierungen. Feste Angaben, keine Eingabe aus dem Formular:
 // sonst wuerde die Seite zur Bruecke fuer beliebige Ziele.

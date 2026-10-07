@@ -220,7 +220,7 @@ if (is_file(__DIR__ . '/config.php')) {
             $spalten = (int) $st->fetchColumn();
             check('Stammdaten der Piloten (2.0.0)', $hatProfile && $spalten === 2, 'upgrade.php ausführen.');
 
-            // Ab 2.0.1 kann ein Wettbewerb als abgesagt markiert werden. Ohne die
+            // Ab 2.0.0 kann ein Wettbewerb als abgesagt markiert werden. Ohne die
             // Spalte meldet die Karte zwar "abgesagt", gespeichert wird es nicht -
             // und niemand merkt es, bis jemand einen Wettbewerb sucht, der
             // eigentlich ausgefallen ist.
@@ -228,7 +228,7 @@ if (is_file(__DIR__ . '/config.php')) {
                                  WHERE TABLE_SCHEMA = DATABASE()
                                    AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'cancelled_at'");
             $st->execute();
-            check('Absage von Wettbewerben (2.0.1)', (int) $st->fetchColumn() > 0, 'upgrade.php ausführen.');
+            check('Absage von Wettbewerben (2.0.0)', (int) $st->fetchColumn() > 0, 'upgrade.php ausführen.');
         } catch (PDOException $e) {
             check('Versionierte Migrationen', false, 'upgrade.php ausführen.');
         }

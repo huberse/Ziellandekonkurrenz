@@ -954,8 +954,22 @@ function complete_competition(int $competitionId, bool $erzwingen = false): arra
         // unvollstaendig ist. Ohne diesen Weg waere ein Wettbewerb, dem ein
         // Pilot oder ein Durchgang fehlt, nie zu schliessen - und am
         // Saisonende bliebe er aktiv.
-        if (!$alreadyCompleted && !$progress['complete'] && !$erzwingen) {
-            throw new DomainException('Noch nicht alle Resultate sind erfasst.');
+        // Entscheidend ist, ob etwas FEHLT - nicht, ob "alles erfasst" gilt.
+        // Beides ist nicht dasselbe: bei einem Wettbewerb ohne aktiven Piloten
+        // ist total = 0, es fehlt also nichts, und complete bleibt trotzdem
+        // falsch, weil es "pilots > 0" verlangt. Nach der Umstellung auf
+        // missing === 0 in der Karte stand bei genau solchen Wettbewerben der
+        // Knopf "Beenden" da und tat dann nichts: der Knopf schickt "complete"
+        // ohne erzwingen, und diese Abfrage lehnte ihn ab. Der Nutzer meldete
+        // das am Erlencup, einem Wettbewerb mit 0 Piloten und 6 Durchgaengen.
+        if (!$alreadyCompleted && (int) $progress['missing'] > 0 && !$erzwingen) {
+            throw new DomainException(sprintf(
+                'Es fehlen noch %d Ergebnis%s. Entweder werden sie noch erfasst, '
+                . 'oder der Wettbewerb wird mit „Trotzdem beenden“ geschlossen – '
+                . 'die Lücken bleiben dann fuer immer unausgewertet.',
+                (int) $progress['missing'],
+                (int) $progress['missing'] === 1 ? '' : 'se'
+            ));
         }
         if (!$alreadyCompleted) {
             $update = $pdo->prepare('UPDATE competitions SET completed_at = NOW() WHERE id = ? AND completed_at IS NULL');

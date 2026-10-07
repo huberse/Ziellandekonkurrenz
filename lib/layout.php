@@ -4,7 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/competition.php';
-// region_card() rechnet die Regiorangliste. region.php holt sich selbst,
+// region_card() rechnet die Regiorangliste und steht in der oberen Reihe
+// neben dem Anmeldekasten, nicht unter den Wettbewerben. region.php holt sich selbst,
 // was es braucht (Scoring, Wettbewerb, Rechte), deshalb genuegt das hier.
 require_once __DIR__ . '/region.php';
 
@@ -344,8 +345,6 @@ function competition_switch(array $competitions, array $current, string $query):
  * Name trägt den Sprung, seine Fläche wird über die Karte gezogen.
  *
  * @param array $wettbewerbe  aus competitions_uebersicht(), neueste zuerst
- * @param bool  $mitRegion    die Regiorangliste als Kachel in derselben Reihe
- *                            anhängen, wenn sie wer sehen darf
  */
 /**
  * Der Hinweis, den eine abgesagte Competition oben auf der Seite braucht.
@@ -374,7 +373,7 @@ function wettbewerb_abgesagt_hinweis(array $competition): string
     );
 }
 
-function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
+function competition_cards(array $wettbewerbe): void
 {
     if (!$wettbewerbe) {
         echo '<p class="lead">Es ist noch kein Wettbewerb angelegt.</p>';
@@ -463,9 +462,6 @@ function competition_cards(array $wettbewerbe, bool $mitRegion = false): void
             echo '<div class="pick-go">' . $knoepfe . '</div>';
         }
         echo '</div>';
-    }
-    if ($mitRegion) {
-        region_card();
     }
     echo '</div>';
 }

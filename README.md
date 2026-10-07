@@ -413,6 +413,12 @@ Breite aus **einer** Angabe: `--kachel-breite` steht in `main`, und die Kacheln 
 nehmen daraus. Der Deckel von 380 Pixel je Kachel sitzt auf dem Block, für beide gemeinsam – an
 der Kachel allein ließ er die Rechnung daneben falsch werden.
 
+**Rechts daneben steht die Regiorangliste**, immer, und nicht etwa unter den Wettbewerben. Sie
+ist keine Wettbewerbskachel: sie fasst sie zusammen und ändert sich nicht mit dem Datum. Der
+Kasten nimmt zwei Kachelbreiten ein, die Regiorangliste die dritte – bei drei Spalten ist die
+Reihe damit genau voll. Bei zwei Spalten nimmt der Kasten die ganze Breite, die Regiokachel rutscht
+darunter und steht dort mittig.
+
 Darunter stehen die Wettbewerbe als **geschlossener Block**: Kacheln mit höchstens 380 Pixel
 Breite, die auf die vorhandene Breite wachsen und nie unter 300 Pixel schrumpfen. Auf dem Laptop
 stehen drei nebeneinander, auf dem iPad im Querformat ebenfalls drei, nur schmaler. Das Raster ist
@@ -740,6 +746,16 @@ Abgelehnt wird die Absage, wenn alle Ergebnisse vorliegen; dann hat der Wettbewe
 Zurück geht es auf zwei Wegen, weil beides vorkommt: **✓ Fand doch statt** und **↺ Wieder öffnen**.
 Erstere hebt die Absage auf und lässt den Wettbewerb als durchgeführt gelten, zweite öffnet ihn
 wieder zur Bearbeitung, falls doch ein Ersatztermin gesucht wird.
+
+**Stammsätze lassen sich löschen**, in der Stammliste, nur für den SuperAdmin. Wer sich zweimal
+angemeldet hat, einmal mit der echten Nummer und einmal mit einer erfundenen, steht zweimal dort;
+der zweite Satz ist Müll.
+
+Gelöscht wird nur, was **nie geflogen** ist. Sobald ein Resultat dranhängt, lehnt die Seite ab und
+nennt die Zahl – solche Zeilen stehen als **geschützt** da und bekommen gar keinen Knopf. Der
+Grund: `pilots.profile_id` steht auf `ON DELETE RESTRICT`, die Datenbank verweigert das Löschen
+von einem Stammsatz mit Startlisteneinträgen also ohnehin. Die Seite zählt vorher, damit die
+Ablehnung einen Grund nennt statt einer Datenbankmeldung.
 
 **Am Saisonende muss jeder Wettbewerb zu.** Dafür sorgen zwei Knöpfe: **✓ Beenden**, wenn nichts
 fehlt, und **✓ Trotzdem beenden**, wenn doch etwas fehlt – mit der Zahl der Lücken in der Rückfrage.

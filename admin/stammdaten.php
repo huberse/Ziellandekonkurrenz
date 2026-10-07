@@ -17,10 +17,37 @@ require_once __DIR__ . '/../lib/layout.php';
 require_once __DIR__ . '/../lib/profiles.php';
 $me = require_superadmin();
 
+$suche = text_limit(get('q'), 120);
 $action = post('action');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $id = (int) post('id');
+
+    if ($action === 'delete') {
+        // Muss vor der Bearbeitung stehen. Das Formular des Loeschknopfes
+        // schickt nur die Nummer des Stammsatzes, keine Namen - und die
+        // Pruefung weiter unten wuerde ihn mit "Vor- und Nachname gehoeren
+        // dazu" zurueckweisen, ohne dass man den Grund fuer das Scheitern
+        // irgendwo sieht.
+        try {
+            $weg = profile_loeschen($id);
+            $zusatz = $weg['eintraege'] > 0
+                ? ' Dabei wurden ' . $weg['eintraege']
+                    . ($weg['eintraege'] === 1 ? ' Startlisteneintrag' : ' Startlisteneintraege')
+                    . ' mitgenommen.'
+                : '';
+            flash('Stammsatz gelöscht.' . $zusatz
+                . ($weg['anmeldungen'] > 0
+                    ? ' Eine zugehörige Anmeldung ist wieder offen und kann abgelehnt werden.'
+                    : ''), 'ok');
+        } catch (DomainException $e) {
+            flash($e->getMessage(), 'err');
+        } catch (Throwable $e) {
+            flash($e->getMessage(), 'err');
+        }
+        redirect('stammdaten.php' . ($suche !== '' ? '?q=' . urlencode($suche) : ''));
+    }
+
     $st = db()->prepare('SELECT * FROM pilot_profiles WHERE id = ?');
     $st->execute([$id]);
     $profil = $st->fetch();
@@ -77,7 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('stammdaten.php');
 }
 
-$suche = text_limit(get('q'), 120);
 $profile = profiles_uebersicht($suche);
 
 $editId = (int) get('bearbeiten', '0');
@@ -178,6 +204,26 @@ page_start('Stammdaten', 'admin', 'stammdaten.php', true);
                 </td>
                 <td class="nowrap no-print">
                     <a class="btn ghost small" href="stammdaten.php?bearbeiten=<?= (int) $p['id'] ?>">Ändern</a>
+                    <?php if ((int) $p['ergebnisse'] === 0): ?>
+                        <?php // Der Knopf fehlt, wo das Loeschen nicht moeglich ist.
+                              // Er waere sonst da und wuerde beim Klick mit einem
+                              // Satz zurueckkommen, den man nicht erwartet hat -
+                              // und genau das hat der Nutzer hier zu tun. ?>
+                        <form method="post" style="display:inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+                            <button class="btn danger small" type="submit"
+                                    data-confirm-click="Stammsatz <?= h(profile_name($p)) ?> löschen?<?= (int) $p['starts'] > 0
+                                        ? ' Dabei werden ' . (int) $p['starts']
+                                          . ((int) $p['starts'] === 1 ? ' Startlisteneintrag' : ' Startlisteneinträge')
+                                          . ' mitgenommen. Ergebnisse hat dieser Pilot keine, die behalten sich also keine.'
+                                        : ' Dieser Pilot steht in keiner Startliste.' ?>">✕ Löschen</button>
+                        </form>
+                    <?php else: ?>
+                        <span class="small muted nowrap"
+                              title="<?= (int) $p['ergebnisse'] ?> Ergebnisse in <?= (int) $p['starts'] ?> Wettbewerb<?= (int) $p['starts'] === 1 ? '' : 'en' ?> – die kann man nicht wegwerfen">geschützt</span>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>

@@ -33,8 +33,14 @@ $wettbewerbe = competitions_uebersicht();
 // hier ja erst wählen, deshalb bleibt es auf dieser Seite weg.
 page_start('Start', 'public', 'index.php', false, false, true);
 ?>
-<div class="start-anmeldung">
-    <section class="panel">
+<?php // Die obere Reihe: der Anmeldeweg nimmt zwei Kachelbreiten ein, die
+      // Regiorangliste die dritte. Bei drei Spalten ist die Reihe damit genau
+      // voll, und der Kasten steht auf derselben Kante wie die Wettbewerbe
+      // darunter. Die Regiorangliste steht hier und nicht unter den
+      // Wettbewerben, weil sie keine ist: sie fasst sie zusammen und aendert
+      // sich nicht mit dem Datum. ?>
+<div class="start-kopf">
+    <section class="panel start-anmeldung">
         <h2>Anmelden in drei Schritten</h2>
         <ol class="erklaerung">
             <li>Wettbewerb anklicken und das Formular ausfüllen: Name, Verein, Modelltyp, Modell und
@@ -45,7 +51,10 @@ page_start('Start', 'public', 'index.php', false, false, true);
         <p class="small muted">Deine E-Mail-Adresse wird nur für die Bestätigung gebraucht und danach nicht
             gespeichert. Die Bestätigung kommt vom Verein, nicht von dieser Seite.</p>
     </section>
+    <?php region_card(); ?>
 </div>
 
-<?php competition_cards($wettbewerbe, true); ?>
+<?php // Die Wettbewerbe darunter, nach Datum, hoechstens drei nebeneinander.
+      // region_card() gehoert nicht dazu: sie steht oben. ?>
+<?php competition_cards($wettbewerbe); ?>
 <?php page_end();

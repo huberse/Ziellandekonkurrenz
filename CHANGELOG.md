@@ -10,6 +10,70 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.1
+
+Nur Dateien, keine Datenbank. Drei Korrekturen und eine Ergänzung, alle aus dem
+Prüfen im Betrieb.
+
+**Ein Wettbewerb ließ sich nicht beenden – der Knopf war da und tat nichts.**
+Das ist der Fehler, den der Nutzer am Erlencup gefunden hat: 0 Piloten, 6 Durchgänge.
+Die Karte zeigte „✓ Beenden“, aber der Knopf schickt `complete` **ohne** Erzwingen,
+und die Absicherung fragte nicht „fehlt etwas“, sondern „ist alles erfasst“. Bei
+einer leeren Startliste ist `total = 0`, es fehlt also nichts – und `complete`
+bleibt trotzdem falsch, weil es `pilots > 0` verlangt. Die Karte war auf `missing === 0`
+umgestellt worden, die Absicherung nicht. Jetzt fragt sie dasselbe wie die Karte.
+Der Test sah das nicht, weil er nur die **Beschriftung** geprüft hat. Er prüft jetzt
+den Klick.
+
+**Stammsätze lassen sich löschen** (`admin/stammdaten.php`, nur für den SuperAdmin).
+
+Wer sich zweimal anmeldet, einmal mit der echten Nummer und einmal mit einer
+erfundenen, stand zweimal in der Stammliste. Der zweite Satz ist Müll und muss
+wegkönnen.
+
+- **Gelöscht wird nur, was nie geflogen ist.** Sobald ein Resultat dranhängt, wird
+  abgelehnt und die Zahl genannt: *„Anna Muster hat 12 Resultate in 3 Wettbewerben.
+  Diese nicht mehr zu löschen – sonst verschwinden Ergebnisse ohne Spur. Soll der
+  Wettbewerb weg, geschieht das an ihm.“* Solche Zeilen stehen in der Liste als
+  **geschützt** statt mit einem Knopf, der beim Klick nur zurechtweist.
+- **Was an einem Stammsatz hängt, hängt am ganzen Satz:** die Startlisteneinträge
+  und durch sie die Ergebnisse. `pilots.profile_id` steht auf `ON DELETE RESTRICT` –
+  die Datenbank verweigert das Löschen von selbst, und zwar mit einer Meldung, die
+  niemandem etwas sagt. Deshalb wird vorher gezählt und der Grund genannt.
+- **Eine zugehörige Anmeldung geht wieder auf offen**, statt auf „angenommen“
+  stehen zu bleiben, ohne dass es den Piloten noch gäbe. `registrations` führt Name,
+  Nummer und Verein in eigenen Spalten, der Eintrag überlebt das Löschen also.
+- Die Aktion steht **vor** der Bearbeitungsprüfung: das Formular schickt keine
+  Namen mit, und die Namensprüfung hätte den Löschknopf mit *„Vor- und Nachname
+  gehören dazu“* abgewiesen.
+
+**Die Regiorangliste steht oben neben dem Anmeldekasten**, nicht mehr unter den
+Wettbewerben. Sie ist keine Wettbewerbskachel: sie fasst sie zusammen und ändert
+sich nicht mit dem Datum. Der Kasten nimmt zwei Kachelbreiten ein, die Regioliste
+die dritte – bei drei Spalten ist die Reihe damit genau voll.
+
+Zwei eigene Fehler unterwegs, beide gefunden und behoben:
+
+- **`.panel` bringt 20px unteren Rand mit.** In einer Flex-Reihe wächst aber der
+  *Randrahmen* auf die Zeilenhöhe, nicht die Box selbst — der Anmeldekasten wäre
+  genau 20px kürzer geblieben als die Kachel daneben.
+- **Ich hatte beim Umbau den Aufruf von `competition_cards()` mit weggerissen.**
+  Die Startseite zeigte danach nur noch die obere Reihe und keine einzige
+  Wettbewerbskachel. Der Rastertest fiel sofort auf und sagte es.
+
+Geprueft:
+
+- `bash ~/segelflug-test/scripts/stammsatz_loeschen.sh` – 17 Pruefungen: der
+  Scherzfall, der Fall mit Startlisteneintrag ohne Ergebnis, der Fall mit Ergebnis,
+  zwei Nummern, eine unbekannte Nummer.
+- `bash ~/segelflug-test/scripts/saisonende.sh` – jetzt auch der Klick auf
+  „✓ Beenden“ bei leerer Startliste, nicht nur die Beschriftung.
+- `python3 ~/segelflug-test/browsertest/startraster.py` – die neue Anordnung auf
+  acht Breiten von 1920 bis 600: Kasten bündig links über zwei Kacheln, Regiokachel
+  daneben und gleich hoch, letzte Reihe mittig.
+- Die übrigen Tests (`anmeldung_smv`, `absage*`, `regi_*`, `migration12`,
+  `kaestchen`, `breiten`, `diagnose`) unverändert grün.
+
 ## 2.0.0
 
 Der Umbau der Piloten. Vorher stand der Name an jedem Startlisteneintrag – wer in drei Jahren
