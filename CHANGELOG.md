@@ -10,6 +10,29 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.4
+
+**Ein roter Punkt in der Diagnose ist weg.** Gefunden auf der Live-Seite: die
+Diagnose meldete *„Keine abgelösten Strafpunktschlüssel mehr – upgrade.php
+ausführen“*. Ein Aufruf von `upgrade.php` hat nichts gebracht, und genau das war
+der eigentliche Fund.
+
+**Warum der Aufruf nichts gebracht hat.** Der Aufraeumteil der Migration zu den
+Strafpunktregeln ist erst später dazugekommen, die Migrationsnummer aber war zu
+diesem Zeitpunkt schon vergeben. Auf einer Anlage, deren Wettbewerbsstruktur
+längst die kanonische ist – also genau auf deiner –, trägt `upgrade.php` alle
+nummerierten Migrationen als erledigt ein, **ohne sie zu starten**. Eine neue
+Nummer hätte dort also nie gelaufen.
+
+Der Aufraeumer ist deshalb kein nummerierter Schritt, sondern ein **bedingter**:
+Er läuft, solange die alten Schlüssel wirklich noch dastehen, und meldet sich
+sonst nicht mehr.
+
+Die Schlüssel heißen `penalty_per_second_over`, `penalty_per_second_under`,
+`penalty_not_flown`, `max_time_penalty` und `max_landing_penalty`. Sie werden
+seit der Umstellung der Strafpunktregeln nicht mehr gelesen und stehen nur noch
+herum. Die geltenden Regeln werden **nicht** angefasst.
+
 ## 2.0.3
 
 Zwei Dinge am Anmeldeformular, beides aus der Benutzung heraus.

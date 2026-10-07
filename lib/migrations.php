@@ -766,6 +766,84 @@ function migration_completion_status(PDO $pdo): array
 }
 
 /**
+ * Die Schlüssel der abgelösten Strafpunktregeln.
+ *
+ * Vor 1.9.x gab es getrennte Sätze für zu lang und zu kurz sowie Obergrenzen
+ * für Zeit- und Landestrafe. Seit der Zusammenfassung werden sie nicht mehr
+ * gelesen.
+ */
+function migration_legacy_penalty_schluessel(): array
+{
+    return [
+        'penalty_per_second_over', 'penalty_per_second_under', 'penalty_not_flown',
+        'max_time_penalty', 'max_landing_penalty',
+    ];
+}
+
+/**
+ * Liegen die abgelösten Strafpunktschlüssel noch irgendwo?
+ *
+ * Eigene Funktion, weil `migration_pending_column_steps()` vor jedem Reparaturschritt
+ * entscheidet - und das darf keine schwere Abfrage sein.
+ */
+function migration_legacy_penalty_vorhanden(PDO $pdo): bool
+{
+    $in = implode(', ', array_fill(0, count(migration_legacy_penalty_schluessel()), '?'));
+    foreach (['settings', 'competition_settings'] as $tabelle) {
+        if (!migration_table_exists($pdo, $tabelle)) {
+            continue;
+        }
+        $st = $pdo->prepare("SELECT 1 FROM $tabelle WHERE skey IN ($in) LIMIT 1");
+        $st->execute(migration_legacy_penalty_schluessel());
+        if ($st->fetchColumn() !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Die abgelösten Strafpunktschlüssel wegräumen.
+ *
+ * Warum das ein eigener Reparaturschritt ist und keine nummerierte Migration:
+ * `migration_mark_current()` trägt **alle** nummerierten Migrationen als
+ * erledigt ein, ohne sie zu starten. Eine Migration mit eigener Nummer liefe
+ * auf einer Anlage also nie, deren Wettbewerbsstruktur längst die kanonische
+ * ist - und genau das ist der Fall, in dem die Reste liegen. Sie landen dort,
+ * weil eine frühere Fassung des Programms geschrieben wurde, als es noch
+ * funktionierte, und weil der Aufraeumteil dieser Migration damals noch nicht
+ * drin war. Die Nummer war zu diesem Zeitpunkt schon vergeben.
+ *
+ * Die Reste sind harmlos - sie werden nicht gelesen. Sie stehen nur im Weg:
+ * `diagnose.php` meldet sie, und ein Fehler, den man nicht wegbekommt, ist
+ * irgendwann einer, den man nicht mehr ernst nimmt.
+ *
+ * @return string[] Logzeilen
+ */
+function migration_legacy_penalty_keys(PDO $pdo): array
+{
+    $keys = migration_legacy_penalty_schluessel();
+    $in = implode(', ', array_fill(0, count($keys), '?'));
+    $weg = [];
+    foreach (['settings', 'competition_settings'] as $tabelle) {
+        if (!migration_table_exists($pdo, $tabelle)) {
+            continue;
+        }
+        $zaehlen = $pdo->prepare("SELECT COUNT(*) FROM $tabelle WHERE skey IN ($in)");
+        $zaehlen->execute($keys);
+        $anzahl = (int) $zaehlen->fetchColumn();
+        if ($anzahl === 0) {
+            continue;
+        }
+        $st = $pdo->prepare("DELETE FROM $tabelle WHERE skey IN ($in)");
+        $st->execute($keys);
+        $weg[] = $anzahl . ($anzahl === 1 ? ' abgelösten Strafpunktschlüssel' : ' abgelöste Strafpunktschlüssel')
+            . ' aus ' . $tabelle . ' entfernt.';
+    }
+    return $weg ?: ['Die abgelösten Strafpunktschlüssel sind schon weg.'];
+}
+
+/**
  * Führt die Strafpunktregeln je Wettbewerb auf das neue Format zurück:
  * ein Satz je Sekunde Abweichung statt getrennter Sätze für zu lang und zu kurz,
  * und je eine Feststrafe für Aussenlandung, Nichtantritt und Motorstart. Die
@@ -1036,6 +1114,12 @@ function migration_club_ownership(PDO $pdo): array
 function migration_pending_column_steps(PDO $pdo): array
 {
     $steps = [];
+    // Bedingt, nicht nummeriert. Siehe migration_legacy_penalty_keys(): eine
+    // eigene Nummer liefe auf einer Anlage mit kanonischer Struktur nie, weil
+    // migration_mark_current() sie als erledigt eintragen wuerde.
+    if (migration_legacy_penalty_vorhanden($pdo)) {
+        $steps[] = static function (PDO $pdo): array { return migration_legacy_penalty_keys($pdo); };
+    }
     if (!migration_column_exists($pdo, 'scores', 'motor')) {
         $steps[] = static function (PDO $pdo): array { return migration_penalty_rules($pdo); };
     }
