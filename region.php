@@ -38,9 +38,18 @@ if (!$jahre) {
     exit;
 }
 
-$jahr = (int) get('jahr', (string) $jahre[0]);
-if (!in_array($jahr, array_map('intval', $jahre), true)) {
-    $jahr = (int) $jahre[0];
+// Nach der oeffentlichen Freigabe sieht ein Besucher nur dieses eine Jahr.
+// Deshalb wird die Jahreswahl hier eingeschraenkt und nicht nur beim Anzeigen
+// der Knöpfe - sonst kaeme er ueber "?jahr=" an jedes andere.
+//
+// Leer ist die Liste, wenn der Betrachter gar nichts sehen darf. Dann greift
+// weiter unten die Sperre, und die Jahreswahl hier ist beliebig: sie wird
+// weder angezeigt noch exportiert, weil beides vorher endet.
+$sichtbar = region_sichtbare_jahre();
+$wahl = $sichtbar ?: array_map('intval', $jahre);
+$jahr = (int) get('jahr', (string) $wahl[0]);
+if (!in_array($jahr, $wahl, true)) {
+    $jahr = (int) $wahl[0];
 }
 $wettbewerbe = region_wettbewerbe($jahr);
 $daten = region_rangliste(array_map(static function (array $w): int {
@@ -49,6 +58,11 @@ $daten = region_rangliste(array_map(static function (array $w): int {
 
 // ------------------------------------------------------------------ Export
 if (get('csv') !== '') {
+    // Hier noch einmal, obwohl oben schon geprueft. Der Unterschied ist die
+    // Antwort: beim Export wird zurueckgeschickt statt die Sperrseite zu
+    // zeigen - ein Browser wuerde sonst eine Datei herunterladen, in der ein
+    // HTML-Satz steht. Diese Pruefung ist nicht ueberfluessig, sie beantwortet
+    // nur eine andere Frage.
     if (!region_darf_sehen()) {
         flash('Die Regiorangliste ist hier nicht freigegeben.', 'err');
         redirect('region.php?jahr=' . $jahr);
@@ -75,6 +89,10 @@ if (get('csv') !== '') {
 }
 
 // ------------------------------------------------------------------ Anzeige
+// Die Sperre steht HIER und nicht weiter oben: der Exportzweig davor
+// beantwortet einen unbefugten Abruf mit einem Zurueckredirect statt mit
+// dieser Seite. Ein Browser wuerde sonst eine Datei herunterladen, in der ein
+// HTML-Satz steht.
 if (!region_darf_sehen()) {
     page_start('Regiorangliste', 'public', 'region.php', false, false);
     echo '<div class="panel"><h2>Regiorangliste</h2><p class="lead">Die Resultate dieses Jahres '
@@ -95,7 +113,11 @@ page_start('Regiorangliste', 'public', 'region.php', true, false);
             <strong>Wenig Punkte sind gut.</strong></p>
     </div>
     <div class="btn-row dense">
-        <?php foreach ($jahre as $j): ?>
+        <?php // Nur die Jahre, die dieser Betrachter sehen darf. Nach einer
+              // oeffentlichen Freigabe ist das genau eines, und dann gibt es
+              // hier gar keine Knöpfe mehr - statt einer Leiste, auf der
+              // dreimal dasselbe Jahr stuende. ?>
+        <?php foreach ($sichtbar as $j): ?>
             <a class="btn <?= (int) $j === $jahr ? '' : 'ghost' ?>" href="region.php?jahr=<?= (int) $j ?>"><?= (int) $j ?></a>
         <?php endforeach; ?>
         <a class="btn ghost" href="region.php?jahr=<?= $jahr ?>&amp;csv=1">CSV</a>

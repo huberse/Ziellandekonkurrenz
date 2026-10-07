@@ -294,8 +294,8 @@ function region_wettbewerbe_des_jahres(int $jahr): array
         return [];
     }
     $zeilen = db()->query(
-        'SELECT c.id, c.name, c.club_id, c.region, c.cancelled_at, cl.name AS club_name,
-                cs.svalue AS competition_date
+        'SELECT c.id, c.name, c.club_id, c.region, c.completed_at, c.cancelled_at,
+                cl.name AS club_name, cs.svalue AS competition_date
          FROM competitions c
          LEFT JOIN clubs cl ON cl.id = c.club_id
          LEFT JOIN competition_settings cs
@@ -592,10 +592,143 @@ function region_club_id(): ?int
     return isset($alt[$aktiv]) ? $alt[$aktiv] : (int) reset($alt);
 }
 
+/**
+ * Das Jahr, dessen Regiorangliste oeffentlich steht, oder 0.
+ *
+ * Es ist bewusst **ein** Jahr und nicht eines je Jahr. Der Nutzer wollte:
+ * am Ende der Saison freigeben, und danach soll nur das laufende Jahr zu sehen
+ * sein. Ein Zustand je Jahr wuerde bedeuten, dass nach der naechsten Freigabe
+ * zwei Jahre nebeneinander oeffentlich stehen - und die Jahresknopf-Leiste
+ * waere genau die Auswahl, die er nicht wollte.
+ *
+ * Gespeichert wird er als programmeigene Einstellung wie der Regionsverein
+ * (`region_club_id`), nicht je Wettbewerb: der Cup laeuft ueber ein ganzes
+ * Jahr und darf nicht davon abhaengen, welcher Wettbewerb gerade aktiv ist.
+ */
+function region_jahr_oeffentlich(): int
+{
+    $jahr = (int) (float) (global_settings()['region_public_jahr'] ?? 0);
+    // Nur ein Jahr, das es im Bestand ueberhaupt gibt. Sonst wuerde ein
+    // eingetragener Wert aus einem Wegloeschen der Wettbewerbe stehen bleiben
+    // und eine leere Seite oeffentlich machen.
+    if ($jahr <= 0) {
+        return 0;
+    }
+    return in_array($jahr, array_map('intval', region_jahre()), true) ? $jahr : 0;
+}
+
+/**
+ * Darf dieses Jahr oeffentlich freigegeben werden?
+ *
+ * Nur wenn kein Wettbewerb dieses Jahres mehr offen ist. Der Grund ist nicht
+ * die Sorgfalt, sondern der Ablauf: eine Regiorangliste, in der zur Haelfte der
+ * Wettbewerbe noch Starts fehlen, ist ein Zwischenstand. Wer sie im Oktober
+ * veroeffentlicht und im November drei Wettbewerbe nachzaehlt, hat im Oktober
+ * etwas falsch versprochen.
+ *
+ * @return array{offen:int, jahre:array} Zaehler und Namen der offenen Wettbewerbe
+ */
+function region_freigabe_bereit(int $jahr): array
+{
+    $wettbewerbe = region_wettbewerbe_des_jahres($jahr);
+    $offen = [];
+    foreach ($wettbewerbe as $w) {
+        if (empty($w['completed_at']) && empty($w['cancelled_at'])) {
+            $offen[] = (string) $w['name'];
+        }
+    }
+    return ['offen' => count($offen), 'jahre' => $offen];
+}
+
+/**
+ * Ein Jahr oeffentlich machen - oder die Freigabe wieder zuruecknehmen.
+ *
+ * @param int $jahr  das Jahr, oder 0 fuer "zuruecknehmen"
+ * @return string[]  Logzeilen fuer die Meldung
+ */
+function region_jahr_freigeben(int $jahr): array
+{
+    if ($jahr <= 0) {
+        global_setting_set('region_public_jahr', 0);
+        global_setting_set('region_public_am', '');
+        return ['Die oeffentliche Freigabe ist zurueckgenommen.'];
+    }
+    $jahre = array_map('intval', region_jahre());
+    if (!in_array($jahr, $jahre, true)) {
+        throw new DomainException(sprintf(
+            'Fuer %d gibt es keine Regiorangliste. Vorhanden sind: %s.',
+            $jahr,
+            $jahre ? implode(', ', $jahre) : 'keine'
+        ));
+    }
+    $stand = region_freigabe_bereit($jahr);
+    if ($stand['offen'] > 0) {
+        // Hier wird nicht hart abgewiesen, sondern der Weg gewiesen. Der
+        // SuperAdmin kann einen Wettbewerb auch absagen; dann ist er nicht
+        // mehr offen und die Freigabe wird moeglich. Einfach zu verweigern
+        // wuerde ihn raten lassen.
+        throw new DomainException(sprintf(
+            'In diesem Jahr %s noch offen: %s. Beende %s, oder markiere %s als abgesagt.',
+            $stand['offen'] === 1 ? 'ist ein Wettbewerb' : 'sind ' . $stand['offen'] . ' Wettbewerbe',
+            implode(', ', $stand['jahre']),
+            $stand['offen'] === 1 ? 'ihn' : 'sie',
+            $stand['offen'] === 1 ? 'ihn' : 'sie'
+        ));
+    }
+    $vorher = region_jahr_oeffentlich();
+    global_setting_set('region_public_jahr', $jahr);
+    global_setting_set('region_public_am', date('Y-m-d H:i:s'));
+    if ($vorher > 0 && $vorher !== $jahr) {
+        return [sprintf('Die Regiorangliste %d steht oeffentlich. %d ist es nicht mehr - '
+            . 'wie gewuenscht ist nur das laufende Jahr sichtbar.', $jahr, $vorher)];
+    }
+    return [sprintf('Die Regiorangliste %d steht jetzt oeffentlich.', $jahr)];
+}
+
+/**
+ * Darf der Betrachter dieses Jahr sehen?
+ *
+ * Die Sichtbarkeit der Seite und die Sichtbarkeit eines Jahres sind zwei
+ * Fragen. Nach einer oeffentlichen Freigabe darf ein Besucher die Seite
+ * ueberhaupt betreten - aber nur das freigegebene Jahr. Ohne diese zweite
+ * Pruefung kaeme er ueber `?jahr=2025` an jedes Vorjahr, und die Freigabe waere
+ * eine halbe Massnahme.
+ *
+ * Die Sonderfaelle bleiben wie vorher: sind die Ergebnisse weltweit oeffentlich,
+ * sieht jeder alles, und der SuperAdmin sowieso.
+ */
+function region_darf_jahr_sehen(int $jahr): bool
+{
+    if (setting_bool('public_results', true) || is_superadmin()) {
+        return true;
+    }
+    $clubId = region_club_id();
+    if ($clubId !== null && user_club_id() === $clubId) {
+        return true;
+    }
+    return region_jahr_oeffentlich() === $jahr;
+}
+
+/** Die Jahre, die dieser Betrachter sehen darf - absteigend. */
+function region_sichtbare_jahre(): array
+{
+    $frei = region_jahr_oeffentlich();
+    return array_values(array_filter(array_map('intval', region_jahre()),
+        static function (int $j) use ($frei): bool {
+            return region_darf_jahr_sehen($j);
+        }));
+}
+
 /** Darf der angemeldete Benutzer die Regiorangliste sehen, auch ohne oeffentliche Ergebnisse? */
 function region_darf_sehen(): bool
 {
     if (setting_bool('public_results', true)) {
+        return true;
+    }
+    // Eine oeffentliche Freigabe des laufenden Jahres macht genau die
+    // Regiorangliste oeffentlich - sonst nichts. Die Ranglisten der einzelnen
+    // Wettbewerbe bleiben bei ihrem eigenen Schalter.
+    if (region_jahr_oeffentlich() > 0) {
         return true;
     }
     if (is_superadmin()) {

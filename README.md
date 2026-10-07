@@ -703,6 +703,24 @@ Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel
 Einstellungen. Der aktive Wettbewerb ist der Vorgabe für Erfassung, Anmeldung, Export und die
 öffentlichen Seiten.
 
+### Regiorangliste öffentlich machen
+
+Unter **Regiocup** im Wettkampfbüro kann der SuperAdmin die Regiorangliste des
+laufenden Jahres öffentlich machen – am Ende einer Saison.
+
+- Der Knopf **erscheint erst, wenn kein Wettbewerb des Jahres mehr offen ist**.
+  Sonst steht dort die Zahl der offenen Wettbewerbe mit ihren Namen, damit man
+  weiß, was zuerst zu tun ist. Ein abgesagter Wettbewerb gilt dabei als
+  abgeschlossen.
+- **Es ist immer nur ein Jahr öffentlich.** Nach der Freigabe sieht ein Besucher
+  ausschließlich dieses Jahr; die Jahresknöpfe verschwinden für ihn. Vorjahre
+  bleiben im Wettbewerbsbüro sichtbar. Wird ein weiteres Jahr freigegeben,
+  verliert das vorherige den Status.
+- Die Ranglisten der **einzelnen Wettbewerbe** rührt das nicht an – die
+  Freigabe dafür ist je Wettbewerb eine eigene.
+- Gespeichert wird der Zustand als programmeigene Einstellung `region_public_jahr`
+  und liegt damit nicht in einem Wettbewerb: der Cup läuft über ein ganzes Jahr.
+
 ### Vier Zustände, und sie schliessen einander aus
 
 | Zustand | bedeutet |

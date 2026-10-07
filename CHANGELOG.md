@@ -10,243 +10,136 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.2
+
+**Am Ende der Saison lässt sich die Regiorangliste öffentlich machen** –
+unter **Regiocup** im Wettkampfbüro.
+
+- Der Knopf **erscheint erst, wenn kein Wettbewerb des Jahres mehr offen ist**.
+  Steht noch einer offen, steht statt des Knopfes die Zahl und der Name. Wer zu
+  früh freigeben will, weiß damit auch, was er zuerst tun muss – beenden oder
+  als abgesagt markieren. Ein abgesagter Wettbewerb gilt als abgeschlossen.
+- **Danach sieht ein Besucher nur dieses eine Jahr.** Die Jahresknöpfe
+  verschwinden für ihn. Vorjahre bleiben hier im Wettbewerbsbüro stehen, sind
+  aber nicht öffentlich. Ein zweites Jahr freizugeben nimmt dem ersten die
+  Freigabe – wie gewünscht ist nur das laufende Jahr sichtbar.
+- **Die Ranglisten der einzelnen Wettbewerbe sind nicht betroffen.** Die gibst
+  du je Wettbewerb frei, wie bisher.
+- Mit **„Freigabe zurücknehmen"** ist alles wieder so wie vorher. Der
+  eingestellte Verein und der SuperAdmin sehen die Liste weiterhin.
+
 ## 2.0.1
 
-Nur Dateien, keine Datenbank. Drei Korrekturen und eine Ergänzung, alle aus dem
-Prüfen im Betrieb.
+Kleinigkeiten und ein Fehler, der im Betrieb aufgefallen ist.
 
-**Ein Wettbewerb ließ sich nicht beenden – der Knopf war da und tat nichts.**
-Das ist der Fehler, den der Nutzer am Erlencup gefunden hat: 0 Piloten, 6 Durchgänge.
-Die Karte zeigte „✓ Beenden“, aber der Knopf schickt `complete` **ohne** Erzwingen,
-und die Absicherung fragte nicht „fehlt etwas“, sondern „ist alles erfasst“. Bei
-einer leeren Startliste ist `total = 0`, es fehlt also nichts – und `complete`
-bleibt trotzdem falsch, weil es `pilots > 0` verlangt. Die Karte war auf `missing === 0`
-umgestellt worden, die Absicherung nicht. Jetzt fragt sie dasselbe wie die Karte.
-Der Test sah das nicht, weil er nur die **Beschriftung** geprüft hat. Er prüft jetzt
-den Klick.
+**Ein Wettbewerb ließ sich nicht beenden.** Der Knopf „Beenden" war da – und hat
+nichts getan. Betroffen waren Wettbewerbe ohne einen einzigen Piloten in der
+Startliste, unter anderem der Erlencup. Das ist behoben.
 
-**Stammsätze lassen sich löschen** (`admin/stammdaten.php`, nur für den SuperAdmin).
+**Stammsätze lassen sich jetzt löschen** (Stammdaten, nur für den SuperAdmin).
+Das hilft, wenn sich jemand zweimal angemeldet hat: einmal mit der richtigen
+SMV-Nummer und einmal mit einer ausgedachten. Bisher standen dann zwei Sätze in
+der Stammliste und einer davon war nicht mehr wegzubekommen.
 
-Wer sich zweimal anmeldet, einmal mit der echten Nummer und einmal mit einer
-erfundenen, stand zweimal in der Stammliste. Der zweite Satz ist Müll und muss
-wegkönnen.
+- Gelöscht werden können nur Piloten, die **noch nie geflogen** sind. Wer
+  Ergebnisse hat, bleibt stehen und ist als „geschützt" gekennzeichnet – mit
+  der Angabe, wie viele Ergebnisse es sind. Sonst würde beim Löschen eine
+  Wertung verschwinden, ohne dass man es merkt.
+- Eine Anmeldung, die zu einem gelöschten Piloten gehörte, geht wieder **auf
+  offen** und kann abgelehnt werden. Sonst stünde sie auf „angenommen", obwohl
+  es den Piloten nicht mehr gibt.
 
-- **Gelöscht wird nur, was nie geflogen ist.** Sobald ein Resultat dranhängt, wird
-  abgelehnt und die Zahl genannt: *„Anna Muster hat 12 Resultate in 3 Wettbewerben.
-  Diese nicht mehr zu löschen – sonst verschwinden Ergebnisse ohne Spur. Soll der
-  Wettbewerb weg, geschieht das an ihm.“* Solche Zeilen stehen in der Liste als
-  **geschützt** statt mit einem Knopf, der beim Klick nur zurechtweist.
-- **Was an einem Stammsatz hängt, hängt am ganzen Satz:** die Startlisteneinträge
-  und durch sie die Ergebnisse. `pilots.profile_id` steht auf `ON DELETE RESTRICT` –
-  die Datenbank verweigert das Löschen von selbst, und zwar mit einer Meldung, die
-  niemandem etwas sagt. Deshalb wird vorher gezählt und der Grund genannt.
-- **Eine zugehörige Anmeldung geht wieder auf offen**, statt auf „angenommen“
-  stehen zu bleiben, ohne dass es den Piloten noch gäbe. `registrations` führt Name,
-  Nummer und Verein in eigenen Spalten, der Eintrag überlebt das Löschen also.
-- Die Aktion steht **vor** der Bearbeitungsprüfung: das Formular schickt keine
-  Namen mit, und die Namensprüfung hätte den Löschknopf mit *„Vor- und Nachname
-  gehören dazu“* abgewiesen.
-
-**Die Regiorangliste steht oben neben dem Anmeldekasten**, nicht mehr unter den
-Wettbewerben. Sie ist keine Wettbewerbskachel: sie fasst sie zusammen und ändert
-sich nicht mit dem Datum. Der Kasten nimmt zwei Kachelbreiten ein, die Regioliste
-die dritte – bei drei Spalten ist die Reihe damit genau voll.
-
-Zwei eigene Fehler unterwegs, beide gefunden und behoben:
-
-- **`.panel` bringt 20px unteren Rand mit.** In einer Flex-Reihe wächst aber der
-  *Randrahmen* auf die Zeilenhöhe, nicht die Box selbst — der Anmeldekasten wäre
-  genau 20px kürzer geblieben als die Kachel daneben.
-- **Ich hatte beim Umbau den Aufruf von `competition_cards()` mit weggerissen.**
-  Die Startseite zeigte danach nur noch die obere Reihe und keine einzige
-  Wettbewerbskachel. Der Rastertest fiel sofort auf und sagte es.
-
-Geprueft:
-
-- `bash ~/segelflug-test/scripts/stammsatz_loeschen.sh` – 17 Pruefungen: der
-  Scherzfall, der Fall mit Startlisteneintrag ohne Ergebnis, der Fall mit Ergebnis,
-  zwei Nummern, eine unbekannte Nummer.
-- `bash ~/segelflug-test/scripts/saisonende.sh` – jetzt auch der Klick auf
-  „✓ Beenden“ bei leerer Startliste, nicht nur die Beschriftung.
-- `python3 ~/segelflug-test/browsertest/startraster.py` – die neue Anordnung auf
-  acht Breiten von 1920 bis 600: Kasten bündig links über zwei Kacheln, Regiokachel
-  daneben und gleich hoch, letzte Reihe mittig.
-- Die übrigen Tests (`anmeldung_smv`, `absage*`, `regi_*`, `migration12`,
-  `kaestchen`, `breiten`, `diagnose`) unverändert grün.
+**Die Regiorangliste steht oben auf der Startseite**, rechts neben dem Kasten
+„Anmelden in drei Schritten". Vorher stand sie unter den Wettbewerben und
+wechselte mit jedem neuen Wettbewerb ihren Platz. Jetzt hat sie dort immer
+dieselbe.
 
 ## 2.0.0
 
-Der Umbau der Piloten. Vorher stand der Name an jedem Startlisteneintrag – wer in drei Jahren
-dreimal flog, hatte dreimal denselben Namen im System und nichts darueber, dass es dieselbe
-Person ist.
+Der Umbau der Piloten. Vorher stand der Name an jedem Startlisteneintrag für
+sich. Wer in drei Jahren dreimal flog, hatte dreimal denselben Namen im System
+und nichts darüber, dass es dieselbe Person ist. Genau daran scheiterte die
+Regiowertung.
 
-- **Zwei Tabellen statt einer.** `pilot_profiles` weiss, **wer** das ist: SMV-Nummer und Name,
-  genau ein Satz je Person, ueber alle Jahre. `pilots` weiss, **wer in welchem Wettbewerb**
-  fliegt: Startnummer, Verein, Modell, Modelltyp. `scores.pilot_id` zeigt weiter auf `pilots`
-  – an Resultaten, Auswertungen, Exporten und am Papierlaufzettel aendert sich also nichts.
+**Was der Pilot jetzt einmal für alle Jahre hat:** SMV-Nummer und Name, an
+einer Stelle. Alles, was je Wettbewerb verschieden sein kann – Startnummer,
+Verein, Modell, Modelltyp –, steht weiter am einzelnen Startlisteneintrag.
+Wer den Verein wechselt, behält seine Historie beim alten.
 
-- **Der Verein steht am Eintrag, nicht am Stamm.** Wer den Verein wechselt, behaelt die Historie
-  beim alten. Das ist der Grund fuer die Trennung und war eine bewusste Entscheidung.
+- **Die SMV-Nummer ist das erste Feld im Anmeldeformular** und kann über den
+  Link vorausgefüllt werden: `anmeldung.php?smv=123456`. Steht die Nummer schon
+  in den Stammlisten, kommt der Name gleich mit. Das ist beabsichtigt: die
+  Nummer ist öffentlich, und wer sie kennt, sieht damit auch den Namen. Ohne
+  das müsste jeder Pilot seinen Namen bei jedem Wettbewerb neu eintippen.
+- **Wer keine Nummer hat, steht in der Regiowertung unter 999999.** Das ist nur
+  eine Anzeige, keine echte Nummer – zwei Piloten ohne Nummer sind also nicht
+  über ihre Nummer zu unterscheiden. Das steht auch so auf der Seite.
+- **Wer sich unter einer falschen Nummer anmeldet**, bekommt keine zweite
+  Startlistenzeile mehr, sondern eine Meldung, die sagt, mit welcher
+  Startnummer er schon dasteht.
 
-- **Die SMV-Nummer ist das erste Feld im Anmeldeformular** und kommt aus dem Link:
-  `anmeldung.php?smv=123456`. Steht die Nummer in den Stammdaten, kommt der **Name gleich mit** –
-  das ist beabsichtigt und nicht Versehen: die Nummer ist oeffentlich, und wer sie kennt, sieht
-  damit den Namen. Ohne diese Vor Fuellung muesste jeder Pilot seinen Namen bei jedem
-  Wettbewerb neu eintippen. Wer im Formular einen anderen Namen eintippt, gewinnt – der
-  Stammsatz wird nur beim **Freigeben** geaendert, nicht beim Abschicken.
+**Neue Seite „Stammdaten"** in der Leiste, nur für den SuperAdmin: die
+Stammliste mit SMV-Nummer, Vor- und Nachname, Zahl der Starts und dem letzten
+Jahr. Eine Wettkampfleitung sieht ihre eigene Startliste, aber nicht die
+Stammliste aller Piloten.
 
-- **Die Stammliste baut sich selbst, aber erst nach dem Freigeben.** Eine offene Anmeldung kann
-  abgelehnt werden, und dann gehoert ihr Name nicht in die Stammdaten. Nach dem Freigeben wird
-  der Stammsatz bei Bedarf angelegt.
+**Die Regiowertung erkennt Piloten jetzt an der Nummer** statt am Namen. Vorher
+wurden zwei verschiedene Menschen mit gleichem Namen zu einer Person
+gezählt, und wer seinen Namen änderte, tauchte in zwei Jahren als zwei
+verschiedene Piloten auf.
 
-- **Ohne Nummer geht es weiter.** Die Spalte bleibt dann **NULL**, angezeigt wird **999999**.
-  Als gespeicherter Wert waere 999999 ein Unicum und wuerde den zweiten Piloten ohne Nummer
-  zurueckweisen; MySQL laesst dagegen mehrere NULL in einem eindeutigen Index zu. Zwei Piloten
-  ohne Nummer sind also ueber ihre Nummer nicht zu unterscheiden – das steht auch so auf der Seite.
+**Die Startliste, der Startlisten-Export und der Einzelergebnis-Export zeigen
+die SMV-Nummer** als eigene Spalte.
 
-- **Der Weg aus dem Bestand war eine Namenssuche**, weil noch niemand eine Nummer eingetragen
-  hatte. Zwei verschiedene Menschen mit demselben Namen landen dadurch in einem Stammsatz. Die
-  Zahl der Zusammenfassungen wird bei der Migration **gemeldet**, damit man sie pruefen kann.
-  Nachgemessen an einem Beispielbestand: 54 Eintraege wurden zu 24 Stammsaetzen, 18 davon in
-  mehreren Wettbewerben. 270 Resultate und die Anmeldungen sind unveraendert geblieben.
+### Wettbewerbe können ausfallen
 
-- **Die Regiowertung erkennt Piloten jetzt an der Nummer.** `region_pilot_schluessel()`
-  verglich nur den Namen, und das hatte zwei Fehler, die beide still passierten: zwei
-  Verschiedene mit gleichem Namen wurden zu einer Person, und wer seinen Namen aendert, tauchte
-  in zwei Jahren als zwei Piloten auf.
+Ein Wettbewerb kann ausfallen, etwa wegen Wetter, und es findet sich kein
+Ersatztermin. Bisher gab es dafür keinen Zustand: „beendet" hieß immer, dass
+**alle** Ergebnisse da sind. Ein solcher Wettbewerb war damit nie zu schließen
+– und am Saisonende blieb er einfach aktiv stehen.
 
-- **Neue Seite `admin/stammdaten.php`** in der Leiste und im Benutzermenü, nur für den SuperAdmin:
-  die Stammliste mit SMV-Nummer, Vor- und Nachname, Zahl der Starts und dem letzten Jahr. Eine
-  Wettkampfleitung sieht ihre Startliste, aber nicht die Stammliste aller Piloten.
+- **Neuer Knopf „Abgesagt"** auf der Wettbewerbskarte. Er bedeutet: *fand nicht
+  statt*.
+- **Er ist danach gesperrt**, genau wie ein beendeter Wettbewerb. Ergebnisse,
+  Startliste und Anmeldungen lassen sich nicht mehr ändern.
+- **Für den Regiocup zählt er gar nicht**, auch nicht teilweise. Wäre er an zwei
+  von fünf Durchgängen ausgefallen, bringen diese zwei Starts nichts in die
+  Regioliste. Sonst hinge der Punktestand eines Piloten davon ab, an welchem
+  Tag abgesagt wurde, statt davon, ob er geflogen ist. Was schon erfasst wurde,
+  bleibt sichtbar – nur wird es nicht gewertet.
+- **Wird er doch nicht abgelehnt**, wenn schon alle Ergebnisse vorliegen: dann
+  hat der Wettbewerb stattgefunden.
+- **Zurück geht es auf zwei Wegen**: „Fand doch statt", falls er doch geflogen
+  wurde, und „Wieder öffnen", falls doch ein Ersatztermin gesucht wird.
+- **Rangliste und Teilnehmerliste sagen oben deutlich, dass der Wettbewerb
+  abgebrochen wurde**, und wie viele von wie vielen Ergebnissen vorliegen. Ohne
+  diesen Hinweis hielte man die Tabelle für ein vollständiges Ergebnis.
+- Er steht überall als „abgesagt" statt „beendet": auf der Startseite, in der
+  Wettbewerbsauswahl, im Seitenkopf, im Wettkampfbüro und am Laufzettel.
 
-- **Die Startliste zeigt die SMV-Nummer** als eigene Spalte, ebenso der Startlisten-CSV und der
-  Einzelergebnis-Export. Beim Bearbeiten ist der Name als Stamm gekennzeichnet – eine Korrektur
-  gilt damit sofort für alle Jahre.
+### Am Ende der Saison
 
-Geprueft:
+Der Knopf „Beenden" verschwand ersatzlos, sobald für einen Piloten ein Ergebnis
+fehlte. Damit war ein Wettbewerb, dem ein Pilot oder ein Durchgang fehlte, nie
+zu schließen – und genau dann steht man am Saisonende da.
 
-- `php ~/segelflug-test/scripts/frisch.php` richtet eine **leere Datenbank** ein und lässt auch
-  die Migrationen laufen: 13 Anweisungen, 12 Tabellen, 12 Fremdschluessel, Schemapruefung in
-  Ordnung.
-- `bash ~/segelflug-test/scripts/migration12.sh` migriert eine **Kopie des alten Stands** und
-  vergleicht vorher und nachher.
-- `bash ~/segelflug-test/scripts/anmeldung_smv.sh` spielt den ganzen Anmeldeweg durch: bekannte
-  Nummer fuellt den Namen, unbekannte kommt nach dem Freigeben in die Stammliste, ohne Nummer
-  geht durch und laesst die Spalte leer, die zweite Anmeldung mit derselben Nummer wird
-  abgelehnt – einmal ueber den Namen, einmal ueber die Nummer, weil der Name allein ihn nicht
-  erkennt.
-- `python3 ~/segelflug-test/browsertest/breiten.py` auf elf Seiten und acht Breiten von 1920 bis
-  600: kein waagerechtes Ueberlaufen.
+- **Neuer Knopf „Trotzdem beenden"** als zweiter Weg. Er sagt vorher, wie viele
+  Ergebnisse fehlen, und schließt den Wettbewerb trotzdem. Die Lücken bleiben
+  unausgewertet und lassen sich danach nicht mehr nachtragen.
+- **Ein Wettbewerb ohne einen einzigen Piloten** zeigt wieder „Beenden": da
+  fehlt nichts.
 
-Drei eigene Fehler unterwegs, alle gefunden und behoben:
+### Die Startseite
 
-- **Die Freigabe legte einen zweiten Startlisteneintrag an**, wenn der Pilot schon in der
-  Startliste stand. Vorher war das ueber den Namen geregelt; der Name steht jetzt am Stamm, also
-  waere die Pruefung durchgegangen. Jetzt wird ueber `profile_id` gefragt, und die Meldung sagt
-  es: *„steht mit Startnummer 3 bereits in der Startliste dieses Wettbewerbs“*.
-- **Zwei Schreibweisen desselben Funktionsnamens** (`pilot_smv_ist_guelt` und
-  `_gueltig`). Die Anmeldung rief die falsche auf und gab 500 statt einer Meldung.
-- **`ORDER BY p.last_name`** stand noch in `build_ranking()`. Nach der Umstellung gibt es diese
-  Spalte nicht mehr, und die oeffentliche Rangliste fiel mit einem SQL-Fehler aus.
+- **Der Kasten „Anmelden in drei Schritten" ist genau so breit wie zwei
+  Wettbewerbskacheln** und steht bündig über den ersten beiden. Vorher war er
+  schmaler und stand für sich mittig; links blieb eine breite Lücke.
+- **Die Kachel der Regiorangliste heißt nur noch „Regiorangliste".** Das Jahr
+  stand vorher im Namen und sagte nichts über den Inhalt. Es steht jetzt eine
+  Zeile tiefer, zusammen mit den Wettbewerben, zu denen es gehört:
+  „2027 · 3 Wettbewerbe · 4 Starts zählen".
+- Eine unvollständige letzte Kachelreihe steht mittig. Das bleibt so.
 
-Und eine, die keiner im Programm war: mein Test las beide CSRF-Felder – das Abmeldeformular im
-Kopf und das Anmeldeformular –, schickte den Wert zweimal mit Zeilenumbruch und meldete
-400. Das sah nach einem Fehler im Programm aus und war einer im Test.
-
-### Dazu gekommen: Wettbewerbe, die ausfallen
-
-Ein Wettbewerb kann ausfallen, etwa wegen Wetter, und es findet sich kein Ersatztermin. Bisher
-gab es dafuer keinen Zustand: „beendet" meinte, **alle Resultate** seien da. Ein solcher Wettbewerb
-war damit nie zu schliessen – und am Saisonende blieb er aktiv.
-
-- **Neue Spalte `competitions.cancelled_at`** (Migration 13). Gesetzt heisst: **fand nicht statt**.
-
-- **Der Knopf `☁ Abgesagt`** bei jedem offenen Wettbewerb, bei dem nicht alles erfasst ist – und
-  ausdruecklich **auch dann, wenn nichts fehlt**. Der haeufigste Fall ist der Wetterausfall vor dem
-  ersten Durchgang: da fehlt gar nichts, es wurde nur nie geflogen. Ohne den Knopf waere genau
-  dieser Wettbewerb nie als abgesagt zu markieren gewesen.
-
-- **Ein abgesagter Wettbewerb ist gesperrt wie ein beendeter.** `cancelled_at` ist gesetzt *und*
-  `completed_at` auch. Das ist Absicht und spart Fehler: rund dreissig Stellen im Programm schliessen
-  ueber `completed_at` ab, und eine eigene „geschlossen"-Regel daneben waere an der ersten, die man
-  vergisst, wieder zu oeffnen. Neu ist nur die **Beschriftung**: „abgesagt" statt „beendet",
-  ueberall – Startseite, Wettbewerbsumschalter, Seitenkopf, Wettkampfbuero, Laufzettel.
-
-- **Fuer den Regiocup zaehlt er gar nicht.** Auch nicht anteilig. Ein Wettbewerb, der an zwei von
-  fuenf Durchgaengen ausfiel, bringt diese zwei Starts nicht in die Regioliste. Sonst hinge der
-  Punktestand eines Piloten davon ab, **an welchem Tag** abgesagt wurde, und nicht davon, ob er
-  geflogen ist. Was schon erfasst ist, bleibt sichtbar – nur wird es nicht gewertet.
-
-- **Zwei Wege zurueck, weil beides vorkommt:** `✓ Fand doch statt` (es wurde doch geflogen) und
-  `↺ Wieder öffnen` (es wird doch ein Ersatztermin gesucht). Beides hebt die Absage auf; danach
-  gilt wieder die normale Regel.
-
-- **Rangliste und Teilnehmerliste warnen oben.** Ohne den Hinweis laesst sich die Tabelle fuer ein
-  vollstaendiges Ergebnis halten, und daraus zieht jemand eine Schlussfolgerung ueber die eigene
-  Leistung. Steht nichts drin, genuegt der kurze Satz; stehen Ergebnisse drin, nennt der Hinweis
-  die Zahl: *„Die 28 von 70 Ergebnissen sind unvollständig und zählen nicht für den Regiocup."*
-
-- **Abgelehnt wird, wenn alle Ergebnisse vorliegen.** Dann hat der Wettbewerb stattgefunden, und
-  „abgesagt" und „beendet" zugleich waere eine widerspruechliche Aussage. Geprueft wird der
-  **Fortschritt**, nicht die Spalte: ein Wettbewerb kann vollstaendig geflogen sein, ohne dass ihn
-  jemand abgeschlossen hat.
-
-### Dazu gekommen: das Ende der Saison war eine Sackgasse
-
-- **`✓ Beenden` verschwand ersatzlos**, wenn fuer einen Piloten ein Ergebnis fehlte, und
-  `complete_competition()` warf dann `DomainException`. Ein Wettbewerb, dem ein Pilot oder ein
-  Durchgang fehlt, war damit nie zu schliessen – und genau dann steht man am Saisonende da.
-  - **`✓ Trotzdem beenden`** als zweiter Weg. Er sagt vorher, **wie viele** Ergebnisse fehlen.
-  - **Ein Wettbewerb ohne jeden aktiven Piloten** zeigt wieder `✓ Beenden`: da fehlt nichts. Die
-    Karte fragt inzwischen `missing === 0` und nicht mehr `complete` – die zweite Groesse bleibt
-    falsch, wenn niemand in der Startliste steht.
-
-### Dazu gekommen: die Startseite
-
-- **Der Kasten „Anmelden in drei Schritten" ist genau zwei Kacheln breit** und steht buendig ueber
-  den ersten beiden Kacheln. Vorher hatte er fest 640px und stand fuer sich mittig; links blieb
-  eine breite Luecke, auf die der Nutzer im Bild mit einem Pfeil gezeigt hat.
-  - Die **Kachelbreite steht jetzt einmal in `main`** als `--kachel-breite`, und beide Bloecke
-    rechnen daraus. Zweimal ausgeschriebene Arithmetik waere bei der naechsten Aenderung
-    auseinandergelaufen – und genau das ist beim ersten Versuch passiert.
-  - Der Deckel von 380px je Kachel sitzt jetzt auf dem **Block**, fuer beide Bloecke gemeinsam. An
-    der Kachel allein liess er die Rechnung des Kastens falsch werden: der Kasten rechnete 421px,
-    die Kachel wurde auf 380px gekuerzt, und die Kanten passten nicht mehr.
-  - **Die unvollstaendige letzte Reihe bleibt mittig.** Dafuer gibt es Flex und nicht Raster, und
-    das bleibt so – ein Raster stellt mit `justify-content` nur die Spalten mittig, eine einzelne
-    Kachel darunter saeesse links.
-
-- **Die Kachel der Regiorangliste heisst nur noch „Regiorangliste".** Das Jahr stand vorher im
-  Namen und machte die Kachel zu einer von vielen mit Jahreszahlen, obwohl die Zahl nichts ueber
-  den Inhalt sagt. Es steht jetzt eine Zeile tiefer, zusammen mit den Wettbewerben, zu denen es
-  gehoert: „2027 · 3 Wettbewerbe · 4 Starts zählen". Der Sprungziel traegt das Jahr nicht mehr –
-  `region.php` nimmt ohne Parameter ohnehin das neueste.
-
-Geprueft:
-
-- `php ~/segelflug-test/scripts/absage.php` – die Regeln: gesperrt, nicht mehr aktiv, kein
-  Wettbewerb bleibt aktiv, kein Zaehlen fuer den Regiocup, zwei Wege zurueck, kein Aktivieren.
-- `bash ~/segelflug-test/scripts/absage_knoepfe.sh` – die Bedienung ueber 25 Pruefungen: welche
-  Knoepfe in welchem Zustand erscheinen, was die Meldung sagt, was Startseite, Rangliste und
-  Teilnehmerliste daraus machen.
-- `bash ~/segelflug-test/scripts/saisonende.sh` – die drei Zustaende am Saisonende.
-- `python3 ~/segelflug-test/browsertest/startraster.py` – das Raster auf acht Breiten von 1920 bis
-  600: Kasten buendig links, genau zwei Kacheln breit, gleiche Hoehe je Reihe, letzte Reihe mittig.
-
-Vier eigene Fehler unterwegs, alle gefunden und behoben:
-
-- **`set_current_competition()` pruefte nur `completed_at`.** Faellt die Spalte einmal aus einem
-  anderen Grund weg, waere ein abgesagter Wettbewerb auf einmal wieder aktivierbar. Jetzt werden
-  beide Spalten geprueft.
-- **Der Knopf „Abgesagt" fehlte, sobald nichts offen war** – also genau beim haeufigsten Fall, dem
-  Wetterausfall vor dem ersten Durchgang. Er stand zuerst nur im Zweig „es fehlt etwas".
-- **Zwei Erwartungen in meinen eigenen Tests waren falsch** und meldeten einen Fehler im Programm,
-  den es nicht gab: nach „Fand doch statt" zaehlt ein Wettbewerb wieder fuer den Regiocup (er hat
-  ja stattgefunden), und eine Startliste ohne Piloten hat 70 Ergebnisse offen, nicht 0. Dazu kam ein
-  Test, der die ersten drei Durchgaenge loeschte, nachdem schon alle fuenf geloescht waren, und
-  deshalb den falschen Zustand pruefte.
-- **Die Hoechstbreite an der Kachel brach die Ausrichtung** (siehe oben) – sichtbar zuerst nur
-  zwischen 820 und 975 Pixeln, also genau im Bereich des iPad im Querformat.
 
 ## 1.9.23
 
@@ -331,25 +224,6 @@ Vier eigene Fehler unterwegs, alle gefunden und behoben:
   Anmeldeformular, und ein Verein, der lediglich zusieht, soll dafür nicht dort
   auftauchen müssen. Beide Listen sind unabhängig; in der Auswahl steht so ein
   Verein als *„(nicht in der Anmeldung)“*, damit man die beiden nicht verwechselt.
-
-Geprüft:
-
-- `bash ~/segelflug-test/scripts/regi_seite.sh` vergleicht drei Fälle
-  gegeneinander – SuperAdmin, eingestellter Verein, anderer Verein – und prüft
-  Seite, Menüeintrag, Tabelle und Formular einzeln. Der Verein wird dabei
-  absichtlich zugleich aus der Anmeldung herausgenommen.
-- `python3 ~/segelflug-test/browsertest/kaestchen.py` geht alle dichten
-  Tabellen mit Ankreuzfeldern durch und meldet jede ungleich große.
-- `python3 ~/segelflug-test/browsertest/breiten.py` misst neun Seiten auf acht
-  Breiten von 1920 bis 600.
-
-Drei eigene Fehler unterwegs, alle gefunden und behoben:
-
-- `query()` mit einem Platzhalter, den nur `execute()` kennt
-- ein `+` statt `.` in einer Verkettung – hätte in der Fehlermeldung gepasst
-- meine eigene Breitenprüfung meldete 72 Fehlalarme, weil sie Inhalte in einem
-  waagerecht scrollbaren Kasten gegen den Seitenrand gemessen hat. Sie war damit
-  unbrauchbar; sie prüft jetzt die Seite und lässt den Kasten gelten.
 
 ## 1.9.21
 

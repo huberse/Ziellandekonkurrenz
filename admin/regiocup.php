@@ -64,6 +64,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('regiocup.php?jahr=' . (int) post('jahr', '0'));
     }
 
+    if ($action === 'oeffentlich') {
+        if (!is_superadmin()) {
+            flash('Das darf nur der SuperAdmin.', 'err');
+        } else {
+            try {
+                foreach (region_jahr_freigeben((int) post('jahr', '0')) as $zeile) {
+                    flash($zeile, 'ok');
+                }
+            } catch (Throwable $e) {
+                flash($e->getMessage(), 'err');
+            }
+        }
+        redirect('regiocup.php?jahr=' . (int) post('jahr_zeile', post('jahr', '0')));
+    }
+
     if ($action === 'punkte') {
         if (!is_superadmin()) {
             flash('Das darf nur der SuperAdmin.', 'err');
@@ -176,6 +191,57 @@ page_start('Regiocup', 'admin', 'regiocup.php', true);
             nicht für die Anmeldung freigeschaltet sein – „nur in der Anmeldung“ ist eine eigene Sache.</p>
     <?php endif; ?>
 </div>
+
+<?php if (is_superadmin()):
+    // Der Block steht vor der Punkteliste, weil er das grosse Ereignis am Ende
+    // einer Saison ist - und man danach sucht, wenn man mit der Saison fertig ist.
+    $oeffentlichesJahr = region_jahr_oeffentlich();
+    $bereit = region_freigabe_bereit((int) $jahr);
+    $istFreigegeben = $oeffentlichesJahr === (int) $jahr;
+?>
+<div class="panel">
+    <h3 style="margin-top:0">Öffentliche Freigabe</h3>
+    <?php if ($oeffentlichesJahr > 0): ?>
+        <p class="small">Die Regiorangliste <strong><?= (int) $oeffentlichesJahr ?></strong> steht
+            öffentlich. Jeder kann sie ohne Konto ansehen.</p>
+    <?php else: ?>
+        <p class="small">Noch steht keine Regiorangliste öffentlich.</p>
+    <?php endif; ?>
+    <p class="small muted">Nach der Freigabe sieht ein Besucher <strong>nur dieses eine Jahr</strong>.
+        Andere Jahre bleiben hier im Wettbewerbsbüro stehen, sind aber nicht öffentlich. Die Ranglisten
+        der einzelnen Wettbewerbe sind davon nicht berührt – die gibst du je Wettbewerb frei.</p>
+
+    <?php if ($istFreigegeben): ?>
+        <form method="post" class="btn-row">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="oeffentlich">
+            <input type="hidden" name="jahr" value="0">
+            <input type="hidden" name="jahr_zeile" value="<?= (int) $jahr ?>">
+            <button class="btn ghost" type="submit"
+                    data-confirm-click="Freigabe für <?= (int) $jahr ?> zurücknehmen? Danach sieht sie wieder nur der eingestellte Verein und der SuperAdmin.">Freigabe zurücknehmen</button>
+        </form>
+    <?php elseif ($bereit['offen'] > 0): ?>
+        <?php // Der Knopf fehlt, statt ihn zu zeigen und dann zu verweigern. Wer
+              // danach sucht, liest stattdessen die Zahl und weiss damit auch,
+              // WESSER er zu tun hat. ?>
+        <p class="small muted" style="margin-bottom:0">Noch nicht möglich: In <?= (int) $jahr ?> sind
+            <?= (int) $bereit['offen'] ?> Wettbewerb<?= (int) $bereit['offen'] === 1 ? '' : 'e' ?> noch
+            offen: <?= h(implode(', ', $bereit['jahre'])) ?>.
+            Beende <?= (int) $bereit['offen'] === 1 ? 'ihn' : 'sie' ?>, oder markiere
+            <?= (int) $bereit['offen'] === 1 ? 'ihn' : 'sie' ?> als abgesagt – ein abgesagter
+            Wettbewerb gilt als abgeschlossen und zählt nicht zum Regiocup.</p>
+    <?php else: ?>
+        <form method="post" class="btn-row">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="oeffentlich">
+            <input type="hidden" name="jahr" value="<?= (int) $jahr ?>">
+            <input type="hidden" name="jahr_zeile" value="<?= (int) $jahr ?>">
+            <button class="btn" type="submit"
+                    data-confirm-click="Regiorangliste <?= (int) $jahr ?> öffentlich machen? Jeder kann sie dann ohne Konto ansehen. Ein anderes Jahr ist danach nicht mehr öffentlich.">Für <?= (int) $jahr ?> öffentlich freigeben</button>
+        </form>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <?php if (is_superadmin()): ?>
 <div class="panel">
