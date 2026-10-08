@@ -402,6 +402,31 @@ weisen sie sich mit 403 ab.
 10. **Wettbewerb beenden** – sobald alle Resultate erfasst sind. Der Wettbewerb bleibt als
     Archiv erhalten und lässt sich mit *Wieder öffnen* zurückholen.
 
+### Wettbewerbe löschen
+
+Ein Wettbewerb **ohne Resultate und nicht beendet** lässt sich ganz normal löschen – dafür ist
+der Knopf da. Für die beiden anderen Fälle gibt es seit 2.0.6 je einen **zweiten, ausdrücklichen**
+Knopf, beide nur für den SuperAdmin:
+
+- **„Löschen samt Ergebnissen“** bei einem einzelnen Wettbewerb, mit Ergebnissen oder im
+  abgeschlossenen Zustand. Die Rückfrage nennt vorher die Zahlen: Resultate, Durchgänge,
+  Startlisteneinträge, Anmeldungen. Die **Stammsätze der Piloten bleiben** stehen – sie gehören
+  nicht diesem einen Wettbewerb.
+- **„Alles aus dem Wettbewerbsbetrieb löschen“** am Ende der Wettbewerbsseite, für den Fall,
+  dass ihr erst später offiziell anfangt und alles davor Testmüll ist. Das nimmt Wettbewerbe,
+  Durchgänge, Startlisten, Resultate, die ganzen Stammsätze und alle Anmeldungen weg. **Konten,
+  Vereine und Modelltypen bleiben.**
+
+Warum dafür ein eigener Knopf und nicht einfach keiner: Das Aufräumen in Schritten sieht
+brauchbar aus und ist dann doch blockiert. Ein Stammsatz lässt sich nicht löschen, solange der
+Pilot in einer Startliste steht, und die Startliste gehört zu einem Wettbewerb, der seinerseits
+nicht ohne seine Ergebnisse wegzuführen ist. `wettbewerbsbetrieb_leeren()` macht deshalb alles
+in einer Transaktion, in der Reihenfolge Anmeldungen → Wettbewerbe → Stammsätze.
+
+Nach dem Leeren **einen Wettbewerb anlegen** – er wird gleich der aktive, weil kein anderer da
+ist. Ab dann läuft die Stammliste wieder von selbst auf: wer sich anmeldet und freigegeben wird,
+erhält einen Stammsatz. Ohne den Schritt passiert gar nichts.
+
 ## Die Startseite
 
 `index.php` ist die Startseite. Sie beantwortet zwei Fragen: **wie melde ich mich an** und
@@ -1032,18 +1057,21 @@ Anmeldung kann abgelehnt werden, und dann gehört ihr Name nicht in die Stammdat
 
 ### Ohne Nummer
 
-Das Feld ist freiwillig, und der Hinweis auf dem Formular sagt jetzt, **wo die Nummer steht**:
-auf der Mitgliederkarte. Ohne Nummer bleibt die Spalte **leer** und wird als **999999**
-angezeigt.
+**Seit 2.0.6 ist die Nummer Pflicht.** Das Formular lehnt eine Anmeldung ohne Nummer ab, und
+sagt dabei, wo sie steht. Das ist keine Strenge um der Strenge willen: mit einer freiwilligen
+Nummer entstehen zwei Stammsätze für dieselbe Person, sobald sie sich einmal ohne und einmal
+mit ihrer echten Nummer anmeldet – und die Regiowertung zählt das als zwei Piloten. Genau das
+ist auf der Live-Seite passiert.
 
-**Auf dem Anmeldeformular steht diese Zahl nicht mehr.** Sie ist eine Anzeigeregel des Programms
+Wer aus einem alten Grund keine Nummer hat, kann sie nicht nachreichen. **999999** bleibt
+darum als Anzeige stehen: In den **Stammdaten** bedeutet die Zahl „keine Nummer“, und wer sie
+eintippt, meint dasselbe.
+
+**Auf dem Anmeldeformular steht diese Zahl nicht.** Sie ist eine Anzeigeregel des Programms
 und sagt einem Besucher nichts – und wer sie wörtlich übernommen hätte, hätte sie auch eingetippt.
-Als gespeicherter Wert wäre 999999 ein Unicum: MySQL lässt in einem/eindeutigen Index mehrere NULL
+Als gespeicherter Wert wäre 999999 ein Unicum: MySQL lässt in einem eindeutigen Index mehrere NULL
 zu, aber keinen zweiten Wert 999999, und der zweite Pilot ohne Nummer wäre zurückgewiesen worden.
 Deshalb gilt **wer 999999 eintippt, meint „keine Nummer“** – und so wird es gespeichert.
-
-In den **Stammdaten** steht die Zahl weiterhin, denn dort ist sie die Anzeige und jemand
-arbeitet mit ihr. Zwei Piloten ohne Nummer sind nur über ihren Namen auseinanderzuhalten.
 
 ### Stammdaten und Startliste
 

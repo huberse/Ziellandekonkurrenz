@@ -118,8 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $open) {
         }
     }
 
-    if (!pilot_smv_ist_gueltig((string) $data['smv_number'])) {
-        $errors['smv_number'] = 'Die SMV-Nummer besteht aus bis zu sechs Ziffern. Leer lassen, wenn es keine gibt.';
+    if (trim((string) $data['smv_number']) === '') {
+        // Pflicht seit 2.0.6, auf Wunsch des Nutzers. Ohne Nummer entsteht
+        // genau die Dublettenlage, die er auf der Live-Seite vorgefunden hat:
+        // die Migration hat die alten Eintraege einmal nach Namen
+        // zusammengefuehrt, und wer sich spaeter mit seiner echten Nummer
+        // anmeldet, legt einen ZWEITEN Stammsatz an. In der Regiowertung
+        // sind das zwei Piloten.
+        $errors['smv_number'] = 'Die SMV-Nummer gehört dazu. Du findest sie auf deiner Mitgliederkarte.';
+    } elseif (!pilot_smv_ist_gueltig((string) $data['smv_number'])) {
+        $errors['smv_number'] = 'Die SMV-Nummer besteht aus bis zu sechs Ziffern.';
     }
     $data['smv_number'] = pilot_smv_normalisieren((string) $data['smv_number']) ?? '';
     if ($data['first_name'] === '') { $errors['first_name'] = 'Bitte Vornamen eintragen.'; }
@@ -272,7 +280,8 @@ page_start('Anmeldung', 'public', 'anmeldung.php', false, false);
         <input type="hidden" name="competition" value="<?= (int) $competition['id'] ?>">
         <div class="field">
             <label for="sm">SMV-Nummer</label>
-            <input type="text" id="sm" name="smv_number" inputmode="numeric" maxlength="6"
+            <input type="text" id="sm" name="smv_number" inputmode="numeric" maxlength="6" required
+                   autocomplete="off"
                    value="<?= h(post('smv_number') !== '' ? post('smv_number') : (string) ($smvAusLink ?? '')) ?>">
 <p class="hint" id="sm-hinweis">
       Deine Nummer beim Schweizerischen Modellflugverband. Du findest sie auf deiner Mitgliederkarte.

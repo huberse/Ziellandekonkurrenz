@@ -10,6 +10,29 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.6
+
+**Die SMV-Nummer ist jetzt Pflicht beim Anmelden.** Wer sich ohne Nummer anmeldet, wird
+abgelehnt, mit einem Satz, wo sie steht. Vorher war die Nummer freiwillig, und daraus
+entstanden Doppeleinträge: ein Stammsatz aus dem alten Bestand ohne Nummer und ein zweiter,
+als dieselbe Person sich später mit ihrer echten Nummer angemeldet hat. In der Regiowertung
+zählt das als zwei Piloten.
+
+**Zwei Löschwege für den SuperAdmin, die vorher fehlten.**
+
+- **„Löschen samt Ergebnissen“** bei einem einzelnen Wettbewerb. Bisher war ein Wettbewerb
+  mit Ergebnissen oder im abgeschlossenen Zustand nicht zu löschen; dafür gibt es jetzt
+  diesen zweiten, ausdrücklichen Knopf. Die Rückfrage nennt vorher die Zahlen.
+- **„Alles aus dem Wettbewerbsbetrieb löschen“** am Ende der Wettbewerbsseite, falls ihr
+  erst später offiziell anfangt und alles davor Testmüll ist. Das nimmt Wettbewerbe,
+  Durchgänge, Startlisten, Resultate, die ganzen Stammsätze und alle Anmeldungen weg.
+  **Konten, Vereine und Modelltypen bleiben.** Danach legt ihr einen Wettbewerb an, und die
+  Stammliste baut sich von selbst wieder auf – aus den Anmeldungen.
+
+**Nach der Datenbankaktualisierung führt der Weg zurück zur Aktualisierung.** Vorher
+schickte die Seite zu den Vereinen – ein Rest aus einer Zeit, als die Startnummern dort
+standen. Wer dort nichts mehr sucht, lief im Kreis.
+
 ## 2.0.5
 
 **Die Datenbankaktualisierung steht jetzt unter `admin/upgrade.php` und läuft nur für den

@@ -120,6 +120,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             flash($e->getMessage(), 'err');
         }
+    } elseif ($action === 'leeren') {
+        // Alles aus dem Wettbewerbsbetrieb weg: Wettbewerbe, Durchgaenge,
+        // Startlisten, Resultate, Stammsaetze und Anmeldungen. Konten, Vereine
+        // und Modelltypen bleiben - die gehoeren nicht dazu.
+        //
+        // Das ist EINE Aktion und nicht drei. Der Weg ueber Loeschknoepfe sieht
+        // vernuenftig aus und blockiert dann doch, sobald jemand geflogen ist:
+        // der Stammsatz laesst sich nicht loeschen, solange der Pilot in einer
+        // Startliste steht, und die Startliste gehoert zu einem Wettbewerb, der
+        // seinerseits nicht ohne seine Ergebnisse wegzufuehren ist.
+        if (!is_superadmin()) {
+            flash('Das darf nur der SuperAdmin.', 'err');
+        } else {
+            try {
+                $ergebnis = wettbewerbsbetrieb_leeren();
+                $v = $ergebnis['vorher'];
+                // "1 Anmeldungen" liest sich nach Programmfehler, und eine Zahl
+                // ohne zugehoeriges Wort sieht man nicht auf einen Blick.
+                $stueck = static function (int $n, string $einzel, string $mehr): string {
+                    return $n === 1 ? '1 ' . $einzel : $n . ' ' . $mehr;
+                };
+                flash(sprintf(
+                    'Betrieb auf null gesetzt: %s, %s, %s, %s, %s und %s sind weg. '
+                    . 'Konten, Vereine und Modelltypen sind geblieben.',
+                    $stueck($v['wettbewerbe'], 'Wettbewerb', 'Wettbewerbe'),
+                    $stueck($v['rounds'], 'Durchgang', 'Durchgänge'),
+                    $stueck($v['pilots'], 'Pilot', 'Piloten'),
+                    $stueck($v['scores'], 'Ergebnis', 'Ergebnisse'),
+                    $stueck($v['profiles'], 'Stammsatz', 'Stammsätze'),
+                    $stueck($v['anmeldungen'], 'Anmeldung', 'Anmeldungen')
+                ), 'ok');
+            } catch (Throwable $e) {
+                flash($e instanceof DomainException ? $e->getMessage()
+                    : 'Der Bestand konnte nicht geleert werden.', 'err');
+            }
+        }
+        redirect('wettbewerbe.php');
+    } elseif ($action === 'delete_all') {
+        // Der SuperAdmin darf auch das, was sonst niemand darf: einen
+        // beendeten Wettbewerb samt seiner Ergebnisse loeschen. Genau daran
+        // scheitert sonst das Aufraeumen eines Testbestands, und genau das kam
+        // aus dem Betrieb.
+        //
+        // Der normale Weg bleibt, wie er war: kein Loeschen von beendeten
+        // Wettbewerben, keines mit Resultaten oder Anmeldungen. Wer dort nicht
+        // weiterkommt und es wirklich meint, muss es ausdruecklich sagen - und
+        // dann eben mit allem, was dranhaengt.
+        if (!is_superadmin()) {
+            flash('Das darf nur der SuperAdmin.', 'err');
+        } else {
+            $id = (int) post('id');
+            $pdo = db();
+            try {
+                require_competition_access($id);
+                $bestand = competition_bestand($id);
+                $pdo->beginTransaction();
+                $check = $pdo->prepare('SELECT * FROM competitions WHERE id = ? FOR UPDATE');
+                $check->execute([$id]);
+                $wettbewerb = $check->fetch();
+                if (!$wettbewerb) {
+                    throw new DomainException('Wettbewerb nicht gefunden.');
+                }
+                if ((int) $wettbewerb['is_current'] === 1) {
+                    $offen = (int) $pdo->query('SELECT COUNT(*) FROM competitions
+                                              WHERE completed_at IS NULL AND id <> ' . $id)->fetchColumn();
+                    if ($offen === 0) {
+                        throw new DomainException(
+                            'Dieser Wettbewerb ist der einzige offene und kann nicht gelöscht werden. '
+                            . 'Beende vorher einen anderen oder lege einen an.');
+                    }
+                }
+                // Was mitgeht, wird nicht verschwiegen: Durchgaenge, Piloten
+                // und Resultate fallen ueber die Fremdschluessel mit.
+                //
+                // Die Stammsaetze der Piloten bleiben stehen - sie gehoeren
+                // nicht diesem einen Wettbewerb. Eine Anmeldung bleibt auch
+                // stehen, verliert aber ihren Wettbewerb und taucht dadurch
+                // nirgends mehr auf.
+                $pdo->prepare('DELETE FROM competitions WHERE id = ?')->execute([$id]);
+                $pdo->commit();
+                flash(sprintf(
+                    'Wettbewerb gelöscht: %d Durchgaenge, %d Piloten und %d Resultate sind mit weg. '
+                    . 'Die Stammsaetze der Piloten bleiben erhalten.',
+                    $bestand['rounds'], $bestand['pilots'], $bestand['scores']
+                ) . ($bestand['registrations'] > 0
+                    ? sprintf(' %d Anmeldung(en) gehören jetzt keinem Wettbewerb mehr.', $bestand['registrations'])
+                    : ''), 'ok');
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                flash($e instanceof DomainException ? $e->getMessage()
+                    : 'Der Wettbewerb konnte nicht gelöscht werden.', 'err');
+            }
+        }
+        redirect('wettbewerbe.php' . $competitionQS);
     } elseif ($action === 'region') {
         // Ein Wettbewerb kann nachträglich in den Regiocup aufgenommen oder
         // daraus genommen werden - das Jahr steht im Datum, nicht im Namen.
@@ -301,6 +397,8 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
         $sid = (int) $s['id'];
         $counts = $countsById[$sid] ?? ['rounds' => 0, 'scores' => 0, 'registrations' => 0];
         $progress = $progressById[$sid];
+        // Einmal je Karte, nicht viermal in der Rueckfrage.
+        $bestand = competition_bestand($sid);
         $completed = $s['completed_at'] !== null;
         // "Abgesagt" heisst: fand nicht statt. Das ist etwas anderes als
         // "beendet" - dort sind alle Resultate da. Beide sind gesperrt, und
@@ -488,12 +586,29 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                                 : 'Wettbewerb ' . h($s['name']) . ' zum Regiocup hinzufügen? Er zählt dann zur Regiorangliste des Jahres, in dem er stattfindet.' ?>"
                     ><?= $imRegiocup ? '🏆 Regiocup' : '○ Regiocup' ?></button>
                 </form>
-                <?php if ($counts['scores'] === 0 && !$completed): ?>
+<?php if ($counts['scores'] === 0 && !$completed): ?>
                     <button class="btn danger small" type="submit" form="delform<?= $sid ?>"
                             data-confirm-click="Wettbewerb <?= h($s['name']) ?> ohne Resultate löschen?">✕ Löschen</button>
                     <form method="post" id="delform<?= $sid ?>" style="display:none">
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id" value="<?= $sid ?>">
+                    </form>
+                <?php elseif (is_superadmin()): ?>
+                    <?php // Zweite Loeschung, aber nur dort, wo die harmlose nicht
+                          // angezeigt wird - also genau dann, wenn Ergebnisse
+                          // dranhaengen oder der Wettbewerb beendet ist.
+                          //
+                          // Die Rueckfrage nennt die Zahlen. "Wirklich loeschen?"
+                          // genuegt nicht: wer 110 Resultate wegwirft, hat danach
+                          // keine Erinnerung mehr daran, wie viele es waren.
+                          // Die Stammsaetze bleiben stehen - die gehoeren ja
+                          // nicht diesem einen Wettbewerb. ?>
+                    <button class="btn danger small" type="submit" form="delall<?= $sid ?>"
+                            data-confirm-click="Wettbewerb <?= h($s['name']) ?> WIRKLICH löschen<?= $bestand['scores'] > 0 ? '? Dabei werden ' . (int) $bestand['scores'] . ' Resultate gelöscht' : '' ?><?= $bestand['rounds'] > 0 ? ', dazu ' . (int) $bestand['rounds'] . ' Durchgänge und ' . (int) $bestand['pilots'] . ' Startlisteneinträge' : '' ?>. Das lässt sich nicht zurücknehmen. Die Stammsätze der Piloten bleiben erhalten.">✕ Löschen samt Ergebnissen</button>
+                    <form method="post" id="delall<?= $sid ?>" style="display:none">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="delete_all">
                         <input type="hidden" name="id" value="<?= $sid ?>">
                     </form>
                 <?php endif; ?>
@@ -504,4 +619,31 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
 <?php if (!$competitions): ?>
     <p class="lead">Es ist noch kein Wettbewerb angelegt.</p>
 <?php endif; ?>
+
+<?php if (is_superadmin() && $competitions): ?>
+    <?php // Bewusst am Ende der Seite und nicht bei den Knoepfen einer Karte. Das
+          // ist keine Kartenaktion, sondern ein Eingriff in den ganzen Betrieb -
+          // und es soll nicht zwischen "Regiocup umschalten" und "Speichern"
+          // liegen.
+          //
+          // Die Zahlen stehen im Text, damit man vor dem Klick weiss, was weggeht. ?>
+    <div class="panel no-print" style="margin-top:20px">
+        <h3 style="margin-top:0">Auf null setzen</h3>
+        <p class="small">Wenn ihr erst später offiziell anfangt, ist alles davor Testmuell.
+            Diese eine Aktion nimmt den ganzen Wettbewerbsbetrieb weg.</p>
+        <p class="small muted">Gelöscht werden <strong><?= count($competitions) ?> Wettbewerbe</strong>
+            mit <?= (int) array_sum(array_column($countsById, 'rounds')) ?> Durchgängen,
+            <?= (int) array_sum(array_column($countsById, 'scores')) ?> Resultaten, den ganzen
+            Stammsätzen und allen Anmeldungen.<br>
+            <strong>Es bleiben:</strong> die Konten, die Vereine und die Modelltypen. Die Namen
+            der Piloten sind danach weg – sie stehen nur in deinem Datenbank-Backup.</p>
+        <form method="post">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="leeren">
+            <button class="btn danger" type="submit"
+                    data-confirm-click="Wirklich alles löschen? <?= count($competitions) ?> Wettbewerbe mit allen Durchgängen, Startlisten, Resultaten, den Stammsätzen und allen Anmeldungen gehen unwiderruflich weg. Konten, Vereine und Modelltypen bleiben.">Alles aus dem Wettbewerbsbetrieb löschen</button>
+        </form>
+    </div>
+<?php endif; ?>
+
 <?php page_end();

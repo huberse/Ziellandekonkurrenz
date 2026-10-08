@@ -70,11 +70,12 @@ page_start('Aktualisierung', 'admin', 'aktualisieren.php');
     <?php if ($log): ?>
         <ul><?php foreach ($log as $line): ?><li><?= h($line) ?></li><?php endforeach; ?></ul>
     <?php endif; ?>
-    <p class="lead">Prüfe die Vereine und Startnummern im Wettkampfbüro.</p>
+    <p class="lead">Die Datenbank ist jetzt auf dem Stand der Dateien. Die Aktualisierungsseite
+        weiss, ob noch etwas offen ist – dort geht es zurück.</p>
     <p class="small muted">Diese Seite kann hier liegen bleiben: sie ist nur für den angemeldeten
         SuperAdmin erreichbar und läuft ohne ihn nichts. Wer sie nicht mehr braucht, kann sie
         löschen.</p>
-    <p><a class="btn" href="vereine.php">Zu den Vereinen</a></p>
+    <p><a class="btn" href="aktualisieren.php">Zurück zur Aktualisierung</a></p>
 <?php else: ?>
     <h2>Versionierte Datenbankaktualisierung</h2>
     <p class="lead">Diese Seite führt die Datenbankschritte in einer festen, versionierten Reihenfolge aus.

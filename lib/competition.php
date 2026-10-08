@@ -665,6 +665,98 @@ function competitions_uebersicht(): array
  * Durchgänge, Resultate und offene Anmeldungen je Wettbewerb in einer Abfrage:
  * id => ['rounds' => int, 'scores' => int, 'registrations' => int].
  */
+/**
+ * Was an einem Wettbewerb haengt - fuer die Rueckfrage vor dem Loeschen.
+ *
+ * Die Zahl steht im Text, den der Bestandsabgleich zurueckgibt, damit sie in
+ * der Rueckfrage stehen kann. Wer hier nur "wirklich loeschen?" lesen muesste,
+ * wuesste nicht, was er wegwirft.
+ */
+function competition_bestand(int $competitionId): array
+{
+    // Viermal "?" statt viermal ":w": PDO kann ohne emulierte Prepare einen
+    // benannten Platzhalter nicht wiederverwenden. Die Meldung lautet dann
+    // "Invalid parameter number" und zeigt auf keine Zeile, die man falsch hat.
+    $st = db()->prepare(
+        'SELECT (SELECT COUNT(*) FROM rounds r WHERE r.competition_id = ?) AS rounds,
+                (SELECT COUNT(*) FROM pilots p WHERE p.competition_id = ?) AS pilots,
+                (SELECT COUNT(*) FROM scores s WHERE s.competition_id = ?) AS scores,
+                (SELECT COUNT(*) FROM registrations g WHERE g.competition_id = ?) AS anmeldungen'
+    );
+    $st->execute([$competitionId, $competitionId, $competitionId, $competitionId]);
+    $zeile = $st->fetch() ?: [];
+    return [
+        'rounds' => (int) ($zeile['rounds'] ?? 0),
+        'pilots' => (int) ($zeile['pilots'] ?? 0),
+        'scores' => (int) ($zeile['scores'] ?? 0),
+        'registrations' => (int) ($zeile['anmeldungen'] ?? 0),
+    ];
+}
+
+/**
+ * Den Wettbewerbsbetrieb auf null setzen.
+ *
+ * Fuer den Fall, dass ein Verein erst 2017 offiziell anfaengt und der ganze
+ * Bestand davor Testmuell ist. Alles, was einen Wettbewerb ausmacht, geht
+ * weg: Wettbewerbe, Durchgaenge, Startlisten, Resultate, Stammsaetze und
+ * Anmeldungen. **Was bleibt, sind die Dinge, die nichts mit einem Wettbewerb
+ * zu tun haben:** Konten, Vereine und Modelltypen. Genau die Liste ist auch
+ * die Aufteilung der Fremdschluessel - und nicht nur technisch: eine
+ * Kontenverwaltung, die man beim Aufraeumen mitloescht, waere eine zweite
+ * Baustelle.
+ *
+ * Das ist bewusst EINE Aktion und nicht drei. Der Weg ueber Loeschknoepfe
+ * fuehrt in eine Sackgasse, sobald ein Pilot schon geflogen ist: sein
+ * Stammsatz laesst sich nicht loeschen, solange er in einer Startliste steht,
+ * und die Startliste gehoert zu einem Wettbewerb, der wiederum nicht ohne
+ * seine Ergebnisse wegzufuehren ist. Ein Aufraeumen in Schritten sieht
+ * brauchbar aus und ist dann doch blockiert.
+ *
+ * @return array Wieviel von was weg ist
+ */
+function wettbewerbsbetrieb_leeren(?PDO $pdo = null): array
+{
+    $pdo = $pdo ?? db();
+    $zaehlen = static function (PDO $pdo, string $sql): int {
+        return (int) $pdo->query($sql)->fetchColumn();
+    };
+    $vorher = [
+        'wettbewerbe' => $zaehlen($pdo, 'SELECT COUNT(*) FROM competitions'),
+        'rounds' => $zaehlen($pdo, 'SELECT COUNT(*) FROM rounds'),
+        'pilots' => $zaehlen($pdo, 'SELECT COUNT(*) FROM pilots'),
+        'scores' => $zaehlen($pdo, 'SELECT COUNT(*) FROM scores'),
+        'profiles' => $zaehlen($pdo, 'SELECT COUNT(*) FROM pilot_profiles'),
+        'anmeldungen' => $zaehlen($pdo, 'SELECT COUNT(*) FROM registrations'),
+    ];
+
+    $pdo->beginTransaction();
+    try {
+        // Reihenfolge von hinten nach vorn. Die Fremdschluessel tragen zwar
+        // ON DELETE CASCADE, aber registrations.pilot_id zeigt auf pilots und
+        // registrations.competition_id auf competitions - beide mit SET NULL.
+        // Ohne eigenes Loeschen bliebe eine Anmeldungsliste ohne Wettbewerb
+        // stehen, in der niemand mehr aufloesen kann, worum es geht.
+        $weg = [];
+        $weg['anmeldungen'] = $pdo->exec('DELETE FROM registrations');
+        // competitions loescht rounds, pilots und scores ueber die Kaskade.
+        $weg['wettbewerbe'] = $pdo->exec('DELETE FROM competitions');
+        // Die Stammsaetze zuletzt: pilots.profile_id steht auf RESTRICT, und
+        // nach dem Loeschen der Wettbewerbe ist die Liste ohne Startlisteneintraege.
+        $weg['profiles'] = $pdo->exec('DELETE FROM pilot_profiles');
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+    return ['vorher' => $vorher, 'weg' => [
+        'wettbewerbe' => (int) $weg['wettbewerbe'],
+        'profiles' => (int) $weg['profiles'],
+        'anmeldungen' => (int) $weg['anmeldungen'],
+    ]];
+}
+
 function competition_counts(): array
 {
     $rows = db()->query(
