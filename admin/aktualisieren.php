@@ -13,7 +13,10 @@ require_once __DIR__ . '/../lib/layout.php';
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/update.php';
 require_once __DIR__ . '/../lib/migrations.php';
-require_superadmin();
+// Der Gegenstand steht im Aufruf, sonst hiess es hier "Die Benutzerverwaltung
+// ist dem SuperAdmin vorbehalten" - und genau dieser Satz ist dem Nutzer auf der
+// Live-Seite begegnet, ohne dass er etwas mit Benutzerkonten zu tun hatte.
+require_superadmin('Die Aktualisierung');
 
 /** Hinterlaeuft die Datenbank hinter dem Programm? */
 function schema_hinter_programm(): bool

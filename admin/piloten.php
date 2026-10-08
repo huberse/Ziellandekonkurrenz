@@ -361,8 +361,11 @@ page_start('Piloten', 'admin', 'piloten.php');
         <p class="lead"><?= count($pilots) ?> für den Wettbewerb „<?= h($competition['name']) ?>“ gemeldet.
             Für einen neuen Wettbewerb meldet sich jeder wieder an, entweder über
             <a href="../anmeldung.php?competition=<?= (int) $competition['id'] ?>">das Anmeldeformular</a> oder hier
-            direkt. Name und SMV-Nummer stehen in den <a href="stammdaten.php?competition=<?= (int) $competition['id'] ?>">Stammdaten</a>
-            und gelten für alle Wettbewerbe; hier ändert sich je Wettbewerb nur die Startnummer,
+            direkt. <?= is_superadmin()
+                ? 'Name und SMV-Nummer stehen in den <a href="stammdaten.php?competition='
+                  . (int) $competition['id'] . '">Stammdaten</a> und gelten für alle Wettbewerbe'
+                : 'Name und SMV-Nummer gelten für alle Wettbewerbe und werden vom SuperAdmin gepflegt' ?>;
+            hier ändert sich je Wettbewerb nur die Startnummer,
             der Verein und das Modell.</p>
     </div>
 </div>

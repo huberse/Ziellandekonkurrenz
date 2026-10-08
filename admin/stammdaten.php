@@ -15,7 +15,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_once __DIR__ . '/../lib/profiles.php';
-$me = require_superadmin();
+// Das Wort 'Benutzerverwaltung' stand hier fest im Sperrtext - eine Meldung
+// ueber Konten, wenn jemand auf die Stammliste wollte.
+$me = require_superadmin('Die Stammdaten', true);
 
 $suche = text_limit(get('q'), 120);
 $action = post('action');

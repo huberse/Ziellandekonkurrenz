@@ -70,15 +70,27 @@ function is_superadmin(): bool
 }
 
 /**
- * Wächter für die Benutzerverwaltung. Alle anderen Seiten bleiben für jedes
- * Konto zugänglich; nur das Anlegen, Ändern und Löschen von Konten ist dem
- * SuperAdmin vorbehalten.
+ * Wächter für die Seiten, die dem SuperAdmin vorbehalten sind: Benutzer,
+ * Vereine und Modelltypen. Alle anderen Seiten bleiben für jedes Konto
+ * zugänglich.
+ *
+ * Der Gegenstand steht im Parameter, weil die Meldung sonst das Falsche sagt.
+ * Vorher stand hier fest "Die Benutzerverwaltung ist dem SuperAdmin vorbehalten"
+ * - und dieselbe Seite sperrt inzwischen auch die Vereine und die Modelltypen.
+ * Wer als Vereinskonto auf die Vereinsseite ging, las einen Text über
+ * Benutzerkonten und konnte sich nichts dabei denken.
+ *
+ * @param string $gegenstand  Was gesperrt wird, im Nominativ mit Artikel:
+ *                           "Die Benutzerverwaltung", "Die Vereinsverwaltung"
+ * @param bool   $mehrzahl    true bei "Die Stammdaten" und "Die Modelltypen" -
+ *                           sonst stimmt das Verb nicht: "die Modelltypen ist"
+ *                           ist ein Fehler, den man in einer Meldung sofort sieht.
  */
-function require_superadmin(): array
+function require_superadmin(string $gegenstand = 'Die Benutzerverwaltung', bool $mehrzahl = false): array
 {
     $u = require_login();
     if (!is_superadmin()) {
-        flash('Die Benutzerverwaltung ist dem SuperAdmin vorbehalten.', 'err');
+        flash($gegenstand . ($mehrzahl ? ' sind' : ' ist') . ' dem SuperAdmin vorbehalten.', 'err');
         redirect('index.php');
     }
     return $u;

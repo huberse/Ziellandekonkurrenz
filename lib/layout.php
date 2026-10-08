@@ -64,8 +64,13 @@ function user_menu(string $base, bool $mitTrenner = false): void
     // sehen darf, soll ihn finden - ohne ihn allen anderen aufzudraengen.
     // Die Stammdaten der Piloten sind Programmsache, nicht Vereinssache:
     // ein Verein sieht seine Startliste, die Stammliste aller Piloten nicht.
+    // Dasselbe gilt fuer Vereine und Modelltypen: beide wirken auf alle, nicht
+    // auf den einen Verein, deshalb gehoeren sie hierher und nicht in die Leiste,
+    // die auch ein Vereinskonto sieht.
     if ((int) ($u['is_superadmin'] ?? 0) === 1) {
         echo '<a class="user-item" href="' . h($base) . '/admin/stammdaten.php">Stammdaten</a>';
+        echo '<a class="user-item" href="' . h($base) . '/admin/vereine.php">Vereine</a>';
+        echo '<a class="user-item" href="' . h($base) . '/admin/modelltypen.php">Modelltypen</a>';
     }
     if (function_exists('region_club_id') && (is_superadmin() || region_darf_sehen())) {
         echo '<a class="user-item" href="' . h($base) . '/admin/regiocup.php">Regiocup</a>';
@@ -144,13 +149,14 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     $links = $area === 'admin'
         ? [
             'index.php'       => 'Übersicht',
-            'erfassung.php'   => 'Resultate erfassen',
+            // Die Reihenfolge folgt dem Wettbewerbstag, nicht der Dateienamen:
+            // erst anlegen, dann Startliste, dann erst die Ergebnisse. "Resultate
+            // erfassen" stand vorher an zweiter Stelle, vor allem anderen - es ist
+            // aber der letzte Schritt und stand damit an erster Stelle.
             'wettbewerbe.php'     => 'Wettbewerbe',
-            'durchgaenge.php' => 'Durchgänge',
             'piloten.php'     => 'Piloten',
-            'stammdaten.php'  => 'Stammdaten',
-            'vereine.php'     => 'Vereine',
-            'modelltypen.php' => 'Modelltypen',
+            'durchgaenge.php' => 'Durchgänge',
+            'erfassung.php'   => 'Resultate erfassen',
             'anmeldungen.php' => 'Anmeldungen',
             'einstellungen.php' => 'Einstellungen',
         ]
@@ -161,6 +167,14 @@ function page_start(string $title, string $area = 'public', string $here = '', b
             'teilnehmer.php'=> 'Teilnehmer',
             'anmeldung.php' => 'Anmeldung',
         ];
+
+    // Stammdaten, Vereine und Modelltypen stehen im Benutzermenü oben rechts und
+    // nicht in dieser Leiste. Im Benutzermenü sieht sie genau der, für den sie
+    // gedacht sind - hier standen sie bei jedem Konto, obwohl drei davon für ein
+    // Vereinskonto nicht zugänglich sind und nur auf die Übersicht umleiten.
+    if ($area === 'admin') {
+        unset($links['stammdaten.php'], $links['vereine.php'], $links['modelltypen.php']);
+    }
 
     // Benutzerverwaltung und Aktualisierung sind dem SuperAdmin vorbehalten und
     // stehen deshalb im Benutzermenü oben rechts, nicht hier. In der Leiste

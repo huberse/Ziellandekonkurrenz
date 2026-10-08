@@ -10,6 +10,35 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.7
+
+**Ein Wettbewerb ließ sich überhaupt nicht mehr aktivieren – seit 2.0.0.** Der Knopf „Aktivieren“
+war beim Umbau für „Wettbewerb abgesagt“ weggefallen, ohne dass es jemand gemerkt hätte. Der Text
+im Anlegeformular versprach ihn weiter: *„Aktivieren Sie den neuen erst in der Liste unten“* – unten
+war nichts. Ein neuer Wettbewerb wird nur dann von selbst aktiv, wenn es überhaupt keinen aktiven
+gibt. **Hielt ein anderer Verein den aktiven, blieb deiner für immer offen**, und alle Seiten zeigten
+„Du bearbeitest den Wettbewerb …, nicht den aktiven Wettbewerb“. Der Knopf ist wieder da, und
+er gehört jetzt dem SuperAdmin.
+
+**Ein Konto konnte einem anderen Verein den aktiven Wettbewerb wegnehmen.** Mit dem Konto eines
+Vereins ließ sich „Aktivieren“ abschicken; das schaltet *alle* anderen Wettbewerbe ab. Dem anderen
+Verein fehlte danach mitten im Wettbewerbstag die Erfassung, ohne jede Meldung. Jetzt geht das nur
+noch für den SuperAdmin – auch dann, wenn das Formular ohne Klick abgeschickt wird.
+
+**Vereine und Modelltypen kann jetzt nur der SuperAdmin ändern.** Vorher genügte ein beliebiges
+Konto. Nachgewiesen mit dem Konto „Testverein Nord“: es ließ sich **„Testverein Süd“ umbenennen**,
+löschen oder deaktivieren. Ein Modelltyp wirkt auf die Rangliste aller, ein Vereinsname auf die
+öffentlichen Seiten und auf die Vereinswertung – beides gehört nicht in die Hand eines einzelnen.
+
+**Jede Sperre nennt jetzt das Richtige.** Der Text „Die Benutzerverwaltung ist dem SuperAdmin
+vorbehalten“ stand fest in der gemeinsamen Sperre und erschien deshalb auch auf Aktualisierung,
+Vereinen, Modelltypen und Stammdaten.
+
+**Die Leiste im Wettkampfbüro ist kürzer und in der richtigen Reihenfolge.** „Resultate erfassen“
+steht hinter „Piloten“ – es ist der letzte Schritt am Wettbewerbstag und stand vorne. Stammdaten,
+Vereine und Modelltypen sind aus der Leiste ins Menü oben rechts gewandert, wo sie nur der
+SuperAdmin sieht.
+
 ## 2.0.6
 
 **Die SMV-Nummer ist jetzt Pflicht beim Anmelden.** Wer sich ohne Nummer anmeldet, wird

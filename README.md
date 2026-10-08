@@ -494,13 +494,36 @@ Es gibt genau zwei Rollen:
 
 | Rolle | Darf |
 | --- | --- |
-| **SuperAdmin** | alles, was ein Benutzer darf, **plus** die Benutzerverwaltung – und **alle** Vereine sehen |
-| **Benutzer** | die Wettbewerbe **seines Vereins** steuern: Erfassung, Startliste, Durchgänge, Vereine, Modelltypen, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – dazu das [eigene Profil](#anmelden-und-das-eigene-profil) mit Anzeigename und Passwort |
+| **SuperAdmin** | alles, was ein Benutzer darf, **plus** Benutzerverwaltung, **Vereine**, **Modelltypen**, **Stammdaten** und das **Aktivieren** eines Wettbewerbs – und **alle** Vereine sehen |
+| **Benutzer** | die Wettbewerbe **seines Vereins** steuern: Erfassung, Startliste, Durchgänge, Anmeldungen, Export, Laufzettel und die Einstellungen des jeweiligen Wettbewerbs – dazu das [eigene Profil](#anmelden-und-das-eigene-profil) mit Anzeigename und Passwort |
 
 Die Zugehörigkeit zum Verein entscheidet, wer welchen Wettbewerb steuern darf. Ein Benutzer
 kann **nicht** anlegen, ändern, sperren oder löschen – auch nicht mit einem abgefangenen oder
-manipulierten Aufruf. Die Seite **Benutzer** ist für ihn weder erreichbar noch zu sehen – sie
-steht nur im Menü des Benutzersymbols, und dort erscheint der Punkt nur beim SuperAdmin.
+manipulierten Aufruf.
+
+### Was nur der SuperAdmin darf – und warum genau das
+
+Fünf Seiten sind dem SuperAdmin vorbehalten, und jede ist aus demselben Grund gesperrt: **was
+dort geändert wird, wirkt auf alle Vereine, nicht auf den eigenen.** Eine Seite, die nur der
+eigene Verein betrifft, gehört darum in die Leiste unten; eine, die den ganzen Betrieb betrifft,
+gehört in das Menü oben rechts – dort sieht sie nur der, für den sie da ist.
+
+| Seite | Was ein Vereinskonto dort früher konnte | Warum das ein Fehler war |
+| --- | --- | --- |
+| **Vereine** | **jeden** Verein umbenennen, deaktivieren, löschen, neue anlegen | Der Vereinsname steht auf den öffentlichen Seiten, in der Vereinswertung und in den Kopfzeilen aller Ergebnislisten. Nachgewiesen: Das Konto „Testverein Nord“ benannte „Testverein Süd“ um. |
+| **Modelltypen** | Modelltypen anlegen, umbenennen, löschen | Ein Modelltyp entscheidet, für welche Wertung ein Pilot gezählt wird – auch bei anderen Vereinen. |
+| **Stammdaten** | nichts, aber der Link führte ins Leere | Die Seite war in der Leiste zu sehen und leitete dann auf die Übersicht um. |
+| **Aktivieren** | den eigenen Wettbewerb aktivieren | Aktivieren schaltet **alle** anderen Wettbewerbe ab. Ein Klick hat einem anderen Verein mitten im Wettbewerbstag die Erfassung weggenommen, ohne dass dieser etwas bemerkt hat. |
+| **Benutzer** | nichts | seit jeher so; stand aber in derselben Sperre und meldete sich deshalb überall mit demselben Satz. |
+
+Jede dieser Sperren gilt auch dann, wenn das Formular **ohne Klick** abgeschickt wird – ein
+Knopf, den man nicht sieht, ist harmlos, ein Formular, das trotzdem annimmt, nicht. Und jede
+nennt **das Richtige**: „Die Modelltypen sind dem SuperAdmin vorbehalten“, nicht „Die
+Benutzerverwaltung …“, wie es vorher auf jeder dieser Seiten hieß.
+
+Beim Aktivieren steht bei einem Vereinskonto statt des Knopfes derselbe Knopf als Hinweis:
+**„◉ Aktivieren – der SuperAdmin“**. Der Punkt bleibt sichtbar, damit man weiß, dass es
+passieren muss und nicht vergessen wurde.
 
 Unter **Benutzer** kann der SuperAdmin je Konto:
 
@@ -768,6 +791,22 @@ aktivieren. Aktiviert wird jetzt ausdrücklich, in der Liste der Wettbewerbe.
 Eine Ausnahme bleibt: **gibt es überhaupt keinen aktiven Wettbewerb**, muss einer her, sonst zeigt
 jede Seite ins Leere. Dann wird der neue aktiv – und die Meldung sagt es auch so.
 
+**Aktivieren darf nur der SuperAdmin**, und zwar über den Knopf **◉ Aktivieren** in der Liste der
+Wettbewerbe. Das ist der einzige Ort, an dem mehr als ein Verein betroffen ist: aktivieren
+schaltet **alle** anderen Wettbewerbe ab. Deshalb gehört es nicht in die Hand eines einzelnen
+Vereins – ein Klick, der einem anderen mitten im Wettbewerbstag die Erfassung wegnimmt, ist kein
+Versehen, sondern eine Entscheidung, die jemand treffen muss, der beide Seiten sieht.
+
+Bei einem Vereinskonto steht an derselben Stelle der Knopf als Hinweis: **◉ Aktivieren – der
+SuperAdmin**. Er bleibt sichtbar, damit klar ist, dass etwas zu tun ist und nicht bloß vergessen
+wurde. Das Absenden ohne Klick ist wirkungslos.
+
+> **Der Knopf fehlte von 2.0.0 bis 2.0.7.** Er war beim Umbau für „Wettbewerb abgesagt“
+> weggefallen, ohne Meldung, während der Text im Anlegeformular ihn weiter versprach. Da ein neuer
+> Wettbewerb nur ohne vorhandenen aktiven von selbst aktiv wird, konnte bei laufender Saison
+> überhaupt nichts mehr aktiviert werden. Wer das nicht bemerkt hat, kam nie weiter: der Wettbewerb
+> blieb offen, und jede Seite sagte „Du bearbeitest den Wettbewerb …, nicht den aktiven“.
+
 **Ein beendeter Wettbewerb ist nie aktiv.** Er bleibt als Archiv stehen, seine Ergebnisse sind
 gesperrt. Vor 1.9.22 trug er nach dem Beenden weiter das Kennzeichen „aktiv“: der Seitenkopf zeigte
 ihn weiter an, und die Verwaltung bearbeitete ein Archiv. Zwei Stellen haben das begünstigt – das
@@ -851,8 +890,10 @@ sein: der neueste noch offene Wettbewerb übernimmt, sonst bleibt kurz keiner ak
 abgeschlossenen bleibt änderbar. Bei einem Korrekturfehler holt ein Administrator ihn mit
 *Wieder öffnen* zurück.
 
-Ein Wettbewerb mit Anmeldungen oder Resultaten wird nicht gelöscht, damit keine Daten
-verloren gehen.
+Ein Wettbewerb mit Anmeldungen oder Resultaten wird nicht gelöscht, damit keine Daten verloren
+gehen – **außer** über die beiden ausdrücklichen Knöpfe, die es seit 2.0.6 dafür gibt:
+[das Löschen samt Ergebnissen](#wettbewerbe-löschen) und das
+[Leeren des ganzen Betriebs](#wettbewerbe-löschen). Beide sind dem SuperAdmin vorbehalten.
 
 **Auswahl.** Die öffentlichen Seiten bieten keine Auswahlliste mehr, sondern Knöpfe: auf der
 Startseite grosse Karten, auf den Unterseiten eine schmale Leiste darüber. Kein Formular, kein
@@ -1120,19 +1161,19 @@ teilnehmer.php         öffentliche Teilnehmerliste
 anmeldung.php          öffentliches Anmeldeformular
 
 admin/index.php        Übersicht
-admin/wettbewerbe.php  Wettbewerbe anlegen, aktivieren, beenden
+admin/wettbewerbe.php  Wettbewerbe anlegen, beenden; Aktivieren nur SuperAdmin
 admin/erfassung.php    Resultate erfassen
 admin/piloten.php      Startliste: wer fliegt in diesem Wettbewerb
-admin/stammdaten.php   Stammdaten der Piloten: SMV-Nummer und Name (2.0.0)
+admin/stammdaten.php   Stammdaten der Piloten, nur SuperAdmin (2.0.0/2.0.7)
 admin/durchgaenge.php  Durchgänge und Zielzeiten
-admin/vereine.php      Vereine
-admin/modelltypen.php  Modelltypen
+admin/vereine.php      Vereine (nur SuperAdmin, 2.0.7)
+admin/modelltypen.php  Modelltypen (nur SuperAdmin, 2.0.7)
 admin/anmeldungen.php  Anmeldungen freigeben oder ablehnen
 admin/laufzettel.php   Laufzettel, HTML und PDF
 admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
-admin/benutzer.php     Benutzerverwaltung, nur für den SuperAdmin
-admin/aktualisieren.php Aktualisierung von GitHub, nur für den SuperAdmin
+admin/benutzer.php     Benutzerverwaltung, nur SuperAdmin
+admin/aktualisieren.php Aktualisierung von GitHub, nur SuperAdmin
 admin/profil.php      Eigenes Profil: Anzeigename, Passwort
 admin/regiocup.php    Regiocup: Einstellung und Vorschau (1.9.22)
 admin/login.php        Anmeldung des Wettkampfbüros

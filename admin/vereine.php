@@ -3,7 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
-require_login();
+// Die Vereinsliste gehoert allen - sie ist eine Auswahl im Anmeldeformular.
+// Das AENDERN nicht: ein Vereinskonto konnte "Testverein Sued" umbenennen,
+// deaktivieren und loeschen, weil hier nur require_login() stand. Das wirkt auf
+// die oeffentlichen Seiten, auf die Vereinswertung und auf alle Konten.
+require_superadmin('Die Vereinsverwaltung');
 $competition = resolve_competition_param(competition_request_param(), true);
 $notCurrent = (int) $competition['id'] !== current_competition_id();
 $competitionQS = $notCurrent ? '?competition=' . (int) $competition['id'] : '';

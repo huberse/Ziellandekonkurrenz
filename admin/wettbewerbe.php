@@ -45,8 +45,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $aktiv = (int) $st->fetchColumn() === 1;
                 $wie = $aktiv
                     ? 'und aktiv gesetzt. Erfassung und Rangliste zeigen jetzt diesen Wettbewerb.'
-                    : 'und bleibt offen: der bisher aktive Wettbewerb läuft weiter. Aktivieren Sie ihn '
-                      . 'in der Liste unten, wenn er an der Reihe ist.';
+                    : 'und bleibt offen: der bisher aktive Wettbewerb läuft weiter. '
+                      . (is_superadmin()
+                          ? 'Aktivieren Sie ihn in der Liste unten, wenn er an der Reihe ist.'
+                          : 'Der SuperAdmin aktiviert ihn in der Liste unten, wenn er an der Reihe ist.');
                 $wer = $clubId !== null && $clubId > 0 ? 'Veranstalter: ' . club_name($clubId) . '. ' : '';
                 $auch = isset($_POST['region']) ? 'Zählt zum Regiocup des Jahres. ' : '';
                 flash("Wettbewerb „{$name}“ angelegt {$wie} {$wer}{$auch}"
@@ -58,17 +60,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'activate') {
-        $id = (int) post('id');
-        try {
-            if (!find_competition($id)) {
-                throw new RuntimeException('Wettbewerb nicht gefunden.');
+        // Nur der SuperAdmin. Aktivieren schaltet ALLE anderen Wettbewerbe auf
+        // "nicht aktiv" - es ist ein Eingriff in den Betrieb aller Vereine und
+        // nicht in den des eigenen. Ein Vereinskonto konnte das bisher, und ein
+        // Klick hat einem anderen Verein mitten im Wettbewerbstag die Erfassung
+        // weggenommen, ohne dass dieser etwas bemerkt hat.
+        //
+        // Der Knopf in der Kartenleiste ist fuer andere Konten nicht da; diese
+        // Pruefung ist trotzdem noetig, weil ein Formular auch ohne Klick
+        // abgeschickt werden kann.
+        if (!is_superadmin()) {
+            flash('Das Aktivieren ist dem SuperAdmin vorbehalten.', 'err');
+        } else {
+            $id = (int) post('id');
+            try {
+                if (!find_competition($id)) {
+                    throw new RuntimeException('Wettbewerb nicht gefunden.');
+                }
+                require_competition_access($id);
+                set_current_competition($id);
+                $competitionQS = '';
+                flash('Wettbewerb aktiviert. Erfassung und Rangliste zeigen jetzt diesen Wettbewerb.', 'ok');
+            } catch (Throwable $e) {
+                flash($e->getMessage(), 'err');
             }
-            require_competition_access($id);
-            set_current_competition($id);
-            $competitionQS = '';
-            flash('Wettbewerb aktiviert. Erfassung und Rangliste zeigen jetzt diesen Wettbewerb.', 'ok');
-        } catch (Throwable $e) {
-            flash($e->getMessage(), 'err');
         }
     } elseif ($action === 'complete' || $action === 'complete_trotzdem') {
         // "trotzdem" heisst: die Ergebnisse sind unvollstaendig, die Saison soll
@@ -327,6 +342,14 @@ $progressById = [];
 foreach ($competitions as $s) {
     $progressById[(int) $s['id']] = competition_result_progress((int) $s['id']);
 }
+// Steht ueberhaupt schon einer auf "aktiv"? Nur dann loest das Aktivieren eines
+// anderen etwas aus - und nur dann steht der Zusatz in der Rueckfrage.
+// Ueber ALLE Wettbewerbe, nicht ueber die sichtbaren: massgeblich ist, ob
+// irgendein Verein gerade erfasst, nicht ob man es selbst ist.
+$irgendeinAktiver = (int) db()->query(
+    'SELECT COUNT(*) FROM competitions
+      WHERE is_current = 1 AND completed_at IS NULL AND cancelled_at IS NULL'
+)->fetchColumn() > 0;
 
 page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
 ?>
@@ -343,8 +366,10 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
 <div class="panel">
     <h3 style="margin-top:0">Neuen Wettbewerb anlegen</h3>
     <p class="lead">Der neue Wettbewerb ist zuerst <b>offen</b>, nicht aktiv: der bisher aktive Wettbewerb
-        läuft unterbrechungsfrei weiter. Aktivieren Sie den neuen erst in der Liste unten, wenn er an
-        der Reihe ist – dann zeigen Erfassung, Durchgänge und Rangliste ihn.</p>
+        läuft unterbrechungsfrei weiter. <?= is_superadmin()
+            ? 'Aktivieren Sie den neuen erst in der Liste unten, wenn er an der Reihe ist'
+            : 'Der SuperAdmin aktiviert den neuen in der Liste unten, wenn er an der Reihe ist' ?>
+        – dann zeigen Erfassung, Durchgänge und Rangliste ihn.</p>
     <form method="post">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="create">
@@ -573,6 +598,37 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                         <button class="btn ghost small" type="submit"
                                 data-confirm-click="Wettbewerb <?= h($s['name']) ?> als abgesagt markieren? Er wird gesperrt wie ein beendeter und zählt nicht zum Regiocup. <?= (int) $progress['completed'] ?> von <?= (int) $progress['total'] ?> Ergebnissen sind erfasst; sie bleiben sichtbar, werden aber nicht gewertet.">☁ Abgesagt</button>
                     </form>
+                <?php endif; ?>
+                <?php // "Aktivieren" fehlte von 2.0.0 bis 2.0.7. Es war beim Umbau
+                      // fuer "Abgesagt" weggefallen, ohne dass eine Meldung es
+                      // angekuendigt haette - und der Text oben im Anlegeformular
+                      // ("Aktivieren Sie den neuen erst in der Liste unten")
+                      // versprach die ganze Zeit einen Knopf, den es nicht gab.
+                      //
+                      // Wer das nicht bemerkt hat, kam nie weiter: ein neuer
+                      // Wettbewerb wird nur dann automatisch aktiv, wenn es
+                      // ueberhaupt keinen aktiven gibt. Haelt ein anderer Verein
+                      // den aktiven, blieb der neue fuer immer offen.
+                      //
+                      // Der Knopf gehoert dem SuperAdmin. Aktivieren heisst: alle
+                      // anderen Wettbewerbe werden stillschweigend abgeschaltet -
+                      // das ist ein Eingriff in den Betrieb aller Vereine und
+                      // gehoert deshalb nicht in die Hand eines einzelnen. ?>
+                <?php if (!$abgesagt && !$completed): ?>
+                    <?php if ((int) $s['is_current'] === 0): ?>
+                        <?php if (is_superadmin()): ?>
+                        <form method="post" style="display:inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="activate">
+                            <input type="hidden" name="id" value="<?= $sid ?>">
+                            <input type="hidden" name="competition" value="<?= $sid ?>">
+                            <button class="btn small" type="submit"
+                                    data-confirm-click="Wettbewerb <?= h($s['name']) ?> aktivieren? Erfassung, Durchgänge und Rangliste zeigen danach diesen Wettbewerb.<?= $irgendeinAktiver ? ' Der bisher aktive Wettbewerb wird abgeschaltet.' : '' ?>">◉ Aktivieren</button>
+                        </form>
+                        <?php else: ?>
+                            <span class="hint" style="align-self:center">◉ Aktivieren – der SuperAdmin</span>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <form method="post" style="display:inline">
                     <?= csrf_field() ?>

@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
-require_login();
+// Wie die Vereine: ein Modelltyp wirkt auf die Rangliste von allen. Ein
+// Vereinskonto konnte einen Modelltyp anlegen, umbenennen und loeschen und
+// damit die Auswertung eines fremden Wettbewerbs verschieben.
+require_superadmin('Die Modelltypen', true);
 $competition = resolve_competition_param(competition_request_param(), true);
 $notCurrent = (int) $competition['id'] !== current_competition_id();
 $competitionQS = $notCurrent ? '?competition=' . (int) $competition['id'] : '';
