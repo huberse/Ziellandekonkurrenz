@@ -10,42 +10,79 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.11
+
+**Die Änderungsliste ist für Vereine geschrieben, nicht für Entwickler.** Auf Wunsch des Nutzers
+vom 9. Oktober 2026 durchgesehen und überarbeitet:
+
+- **Keine Namen mehr.** Weder Benutzerkonten noch Vereins- oder Wettbewerbsnamen noch der Name
+  der eigenen Seite standen in der Liste. Ein Verein, der diese Liste liest, hat mit fremden
+  Namen nichts zu tun – das waren Beispiele aus dem Betrieb des einen Nutzers.
+- **Keine Umsetzungsdetails mehr.** Keine Funktionsnamen, keine Tabellen- und Spaltennamen, keine
+  Stilausdrücke, keine Werkzeugpfade, keine Prüfsummenliste. Was blieb, ist die **Wirkung**: was
+  man jetzt sieht, was jetzt geht und was vorher kaputt war.
+- **Keine Testnamen aus meiner eigenen Prüfumgebung.** Zwei Vereinsnamen, die nie existiert
+  haben und nur in den Testdaten standen, tauchten in Beispielen und Kommentaren auf.
+- **Wo Anweisungen stehen, bleiben sie.** „Einmal `admin/upgrade.php` laufen lassen“ und „danach
+  `install.php` und `diagnose.php` löschen“ sind Anweisungen, keine Fachsprache. Seiten, auf denen
+  man sich bewegt, behalten ihren Namen: Profil, Regiocup, Rangliste.
+- Ein paar Einträge aus den ältesten Fassungen waren reine Bau-Notizen und sind ganz entfallen.
+
+**Dieselben Namen standen auch an Stellen, die Vereine wirklich sehen – dort sind sie jetzt
+weg:**
+
+- **Die Beispieltexte in den Formularen.** Beim Anlegen eines Wettbewerbs, beim Eintragen von
+  Piloten, in den Einstellungen und beim Anlegen eines Vereins standen als Beispiele echte Namen
+  aus einem Betrieb. Das sieht jeder Verein, sobald er die Seite öffnet. Jetzt steht dort
+  *Vereinsname – Wettbewerbsname 2027* und Ähnliches.
+- **Domain und Browserfehler in den Programmdateien.** Der Name der eigenen Seite und der
+  Fehlercode des Browsers standen in Kommentaren der ausgelieferten Dateien. Wer die Dateien
+  hat, kann sie lesen – auch jeder andere Verein nach einem Update.
+- **Das Regionalwappen ist nicht mehr dabei.** Die Datei `logo_nordwest.jpg` stand im
+  Repository **und** war die Vorgabe für jeden, der das Programm neu einrichtet – jeder Verein
+  hätte das Wappen eines Vereins bekommen, für den es nicht arbeitet. Jetzt ist `logo.png` die
+  Vorgabe, ein neutrales Segelflug-Emblem. **Wer sein eigenes Logo will, trägt es in
+  `config.php` ein** – das bleibt bei jeder Aktualisierung erhalten. Auf Servern, die die Datei
+  schon haben, bleibt sie liegen und wird nicht angetastet; die Aktualisierung meldet sie nur
+  als *nicht mehr gebraucht*, und das ist keine Fehlermeldung.
+
+An der Technik ändert sich nichts: dieselben Fassungen, dieselben Änderungen, dieselben
+Berechtigungen.
+
 ## 2.0.10
 
-**Die Regiocup-Seite im Wettkampfbüro ist jetzt dem SuperAdmin vorbehalten.** Das Konto
-„TestBK“ (Wettkampfleitung bei MG Stein Fricktal) ist kein SuperAdmin und kam trotzdem auf
-`admin/regiocup.php`.
+**Die Regiocup-Verwaltung ist jetzt dem SuperAdmin vorbehalten.** Ein Vereinskonto kam trotzdem
+hinein, obwohl es keine SuperAdmin-Rechte hat.
 
 Das war so vorgesehen – allerdings für eine andere Sache. Die Vorgabe lautete: „Regiocup als eigene
 Seite für SuperAdmin **und** eingestellten Verein.“ Der eingestellte Verein sollte die
-Regiorangliste sehen können. Dafür ist `region.php` da: öffentlich, ohne Anmeldung, mit derselben
-Liste. Im Wettkampfbüro stand für ihn zusätzlich eine Seite, die er ohnehin nicht brauchte.
+Regiorangliste sehen können. Dafür ist die öffentliche Regiorangliste da: ohne Anmeldung, mit
+derselben Liste. Im Wettkampfbüro stand für ihn zusätzlich eine Seite, die er ohnehin nicht
+brauchte.
 
 - **Der Menüpunkt „Regiocup“** ist für Vereinskonten verschwunden.
 - **Ein direkter Aufruf** wird abgelehnt und sagt, was gesperrt ist: *„Die Regiocup-Verwaltung ist
   dem SuperAdmin vorbehalten.“*
-- **Bis 2.0.9 kam zusätzlich jeder hinein, sobald die Ergebnisse ohnehin öffentlich waren.** Die
-  Bedingung enthielt `region_darf_sehen()`. Bei öffentlichen Ergebnissen stand damit jeder in der
-  Verwaltung – obwohl die Knöpfe „Jahr öffentlich freigeben“ und „Punkteliste“ ohnehin nur für den
-  SuperAdmin angezeigt wurden.
+- **Bis 2.0.9 kam zusätzlich jeder hinein, sobald die Ergebnisse ohnehin öffentlich waren.** Dann
+  stand jeder in der Verwaltung – obwohl die Knöpfe zum Freigeben und zum Ändern der Punkteliste
+  ohnehin nur dem SuperAdmin angezeigt wurden.
 
-Der eingestellte Verein verliert nichts: `region.php` zeigt ihm die Regiorangliste weiterhin, und
-die Startseite zeigt die Kachel. Geprüft wird jetzt **beide Richtungen** – dass er `region.php`
-sehen darf **und** dass ein fremder Verein und ein Besucher ohne Konto es bei gesperrten
-Ergebnissen nicht.
+Der eingestellte Verein verliert nichts: Die öffentliche Regiorangliste zeigt sie ihm weiterhin,
+und die Startseite zeigt die Kachel. Geprüft wird jetzt **beide Richtungen** – dass der
+eingestellte Verein sie sehen darf **und** dass ein fremder Verein und ein Besucher ohne Konto sie
+bei gesperrten Ergebnissen nicht.
 
 ## 2.0.9
 
-**Eine Meldung konnte sich sechzigmal hintereinander auf einer Seite aufbauen.** Beim Konto
-„TestBK“ (Wettkampfleitung bei MG Stein Fricktal) stand auf der Regiocup-Seite rund sechzigmal
-derselbe Satz: *„Dieser Wettbewerb gehört einem anderen Verein.“* – und darunter dann die
-Regiocup-Seite selbst, so als wäre nichts gewesen.
+**Eine Meldung konnte sich sechzigmal hintereinander auf einer Seite aufbauen.** Bei einem
+Vereinskonto stand auf der Regiocup-Seite rund sechzigmal derselbe Satz: *„Dieser Wettbewerb
+gehört einem anderen Verein.“* – und darunter dann die Regiocup-Seite selbst, so als wäre nichts
+gewesen.
 
-Der Grund ist eine Folge aus zwei Stellen: Der Zugriffswächter **blitzt und leitet um, bevor die
-Seite ihren Kopf schreibt**. Der Blitz bleibt deshalb in der Sitzung liegen und wird auf der
-Zielseite gar nicht angezeigt. Der nächste Aufruf macht dasselbe, und so warteten die Meldungen
-aufeinander, bis endlich eine Seite ohne Umleitung ihren Kopf schrieb und alle auf einmal
-ausgab.
+Der Grund: Eine Seite, auf die man kein Recht hat, schreibt einen Hinweis und leitet sofort
+weiter – noch **bevor** ihr Kopf angezeigt wird. Der Hinweis bleibt deshalb hängen und wird auf der
+nächsten Seite gar nicht gezeigt. Der nächste Aufruf macht dasselbe, und so warteten die Meldungen
+aufeinander, bis endlich eine Seite ohne Umleitung ihren Kopf schrieb und alle auf einmal ausgab.
 
 Jetzt gilt:
 
@@ -56,24 +93,22 @@ Jetzt gilt:
 
 Beides betrifft alle Meldungen im Programm, nicht nur diese eine.
 
-**Zur Regiocup-Verwaltung, nach der gefragt wurde:** TestBK ist kein SuperAdmin, darf die Seite
-aber sehen – das ist so gewollt, der **eingestellte Verein** soll die Regiorangliste sehen
-können. Er kann sie nur **sehen**. Jeder der vier Aufrufe – Regiocup-Kennzeichen setzen,
-Jahr öffentlich freigeben, Punkteliste speichern, Punkteliste zurücksetzen – wird abgelehnt,
-auch wenn das Formular ohne Klick abgeschickt wird. Geprüft und als Test festgehalten.
+**Zur Regiocup-Verwaltung, nach der gefragt wurde:** Der eingestellte Verein durfte die Seite
+sehen – das ist so gewollt, er soll die Regiorangliste sehen können. Er konnte sie aber nur
+**sehen**. Jeder der vier Aufrufe – Regiocup-Knopf setzen, Jahr öffentlich freigeben, Punkteliste
+speichern, Punkteliste zurücksetzen – wurde abgelehnt, auch wenn das Formular ohne Klick
+abgeschickt wurde. Geprüft und als Test festgehalten.
 
 ## 2.0.8
 
-**Ein Konto, dessen Verein noch keinen Wettbewerb hat, konnte sich nicht anmelden.**
-Auf wonder.li kam statt des Wettkampfbüros:
+**Ein Konto, dessen Verein noch keinen Wettbewerb hat, konnte sich nicht anmelden.** Statt des
+Wettkampfbüros erschien im Browser nur der Hinweis, die Seite sei vorübergehend nicht erreichbar
+und werde zu oft umgeleitet.
 
-> Diese Seite funktioniert im Moment nicht. wonder.li wird zu oft umgeleitet.
-> ERR_TOO_MANY_REDIRECTS
-
-Der Grund war eine Schleife aus zwei Zeilen: Der Wettbewerb gehörte einem anderen Verein,
-also wurde auf die Übersicht umgeleitet – und die Übersicht war die Seite, die gerade
-umgeleitet hatte. Sie wiederholte sich, bis der Browser nach zwanzig Umleitungen aufgab.
-Wer sich einloggte und nichts konnte, war nicht einmal in der Lage, das zu sehen.
+Der Grund war eine Umleitungsschleife: Der Wettbewerb gehörte einem anderen Verein, also ging es
+zurück auf die Übersicht – und die Übersicht war genau die Seite, die gerade umgeleitet hatte. Sie
+wiederholte sich, bis der Browser nach zwanzig Umleitungen aufgab. Wer sich einloggte und nichts
+konnte, war nicht einmal in der Lage, das zu sehen.
 
 - **Nach dem Anmelden geht es jetzt auf die Wettbewerbsseite**, nicht ins Wettkampfbüro.
   Dort steht „Es ist noch kein Wettbewerb angelegt“ – und das ist die Wahrheit für *dieses*
@@ -132,7 +167,7 @@ Verein fehlte danach mitten im Wettbewerbstag die Erfassung, ohne jede Meldung. 
 noch für den SuperAdmin – auch dann, wenn das Formular ohne Klick abgeschickt wird.
 
 **Vereine und Modelltypen kann jetzt nur der SuperAdmin ändern.** Vorher genügte ein beliebiges
-Konto. Nachgewiesen mit dem Konto „Testverein Nord“: es ließ sich **„Testverein Süd“ umbenennen**,
+Konto. Nachgewiesen: Ein Vereinskonto ließ einen **fremden Verein umbenennen**,
 löschen oder deaktivieren. Ein Modelltyp wirkt auf die Rangliste aller, ein Vereinsname auf die
 öffentlichen Seiten und auf die Vereinswertung – beides gehört nicht in die Hand eines einzelnen.
 
@@ -268,7 +303,7 @@ Kleinigkeiten und ein Fehler, der im Betrieb aufgefallen ist.
 
 **Ein Wettbewerb ließ sich nicht beenden.** Der Knopf „Beenden" war da – und hat
 nichts getan. Betroffen waren Wettbewerbe ohne einen einzigen Piloten in der
-Startliste, unter anderem der Erlencup. Das ist behoben.
+Startliste. Das ist behoben.
 
 **Stammsätze lassen sich jetzt löschen** (Stammdaten, nur für den SuperAdmin).
 Das hilft, wenn sich jemand zweimal angemeldet hat: einmal mit der richtigen
@@ -377,8 +412,8 @@ zu schließen – und genau dann steht man am Saisonende da.
 
 ## 1.9.23
 
-- **Die Punkteliste der Regiowertung ist einstellbar.** Bisher stand sie fest
-  in `lib/region.php`: 1 → 100, 2 → 80, 3 → 60 … bis Platz 30 mit einem Punkt.
+- **Die Punkteliste der Regiowertung ist einstellbar.** Bisher stand sie fest im
+  Programm: 1 → 100, 2 → 80, 3 → 60 … bis Platz 30 mit einem Punkt.
   Der SuperAdmin stellt sie jetzt unter **Regiocup → Punkteliste** ein – welcher
   Rang wie viele Punkte bekommt.
   - **Ohne gespeicherte Liste gilt weiter die FIS-Vorgabe.** Wer nichts
@@ -397,10 +432,10 @@ zu schließen – und genau dann steht man am Saisonende da.
     ein Versteck.
 
 - **Der ausrichtende Verein stand im Anmeldeformular nirgends.** Die Überschrift
-  lautete *„Anmeldung – Schwarzbubenfliegen 2027“*; wer den Wettbewerb
-  ausrichtet, war nirgends zu lesen. Bei einem Wettbewerb, der nur *Erlencup*
-  heißt, ist damit nicht zu erkennen, wer ihn veranstaltet. Die Überschrift nennt
-  jetzt den Verein: **„Anmeldung – MFV Brislach Schwarzbubenfliegen 2027“**.
+  nannte nur den Wettbewerb; wer ihn ausrichtet, war nirgends zu lesen. Bei einem
+  Wettbewerb, dessen Name allein nichts sagt, ist damit nicht zu erkennen, wer ihn
+  veranstaltet. Die Überschrift nennt den Verein jetzt mit, und zwar **vor** dem
+  Wettbewerbsnamen.
   - Steht der Verein bereits im Namen, wird er **nicht wiederholt**.
   - Ohne Verein bleibt der Name, wie er ist.
 
@@ -439,13 +474,14 @@ zu schließen – und genau dann steht man am Saisonende da.
   Wettbewerbe. Eine Ausnahme bleibt und wird auch so gemeldet: gibt es überhaupt
   keinen aktiven Wettbewerb, muss einer her, sonst zeigt jede Seite ins Leere.
 
-- **Ein beendeter Wettbewerb konnte weiter „aktiv“ dastehen.** Nicht der Cache –
-  es waren zwei Stellen: das Beenden selbst hat das Kennzeichen nicht mitgenommen,
-  und die Anzeige prüfte „aktiv“ vor „beendet“, also gewinnte das falsche Etikett.
-  Behoben an beiden, und `current_competition()` weist einen beendeten Wettbewerb
-  auch dann ab, wenn die Spalte noch so dasteht – damit berichtigt sich ein
-  Altbestand von selbst, ohne Migration. Beim Beenden übernimmt der neueste noch
-  offene Wettbewerb; ist keiner offen, bleibt kurz keiner aktiv.
+- **Ein beendeter Wettbewerb konnte weiter „aktiv“ dastehen.** Es waren zwei Stellen:
+  das Beenden selbst hat das Kennzeichen nicht mitgenommen, und die Anzeige prüfte
+  „aktiv“ vor „beendet“ – also gewann das falsche Etikett.
+  Behoben an beiden, und ein beendeter Wettbewerb wird auch dann nicht mehr als
+  aktiv angesehen, wenn er von früher noch so dasteht – damit berichtigt sich ein
+  Altbestand von selbst, ohne dass etwas von Hand zu tun ist. Beim Beenden
+  übernimmt der neueste noch offene Wettbewerb; ist keiner offen, bleibt kurz
+  keiner aktiv.
 
 - **Der Regiocup ist eine eigene Seite: `admin/regiocup.php`, im Benutzermenü.**
   Vorher stand er als Sektion im Profil, und dort war er nur für den SuperAdmin
@@ -454,16 +490,16 @@ zu schließen – und genau dann steht man am Saisonende da.
   Liste und ohne das Formular. Alle anderen sehen dieselbe Sperre wie `region.php`.
 
 - **Der eingestellte Verein muss nicht für die Anmeldung freigeschaltet sein.**
-  Das war die eigentliche Überraschung beim Testen: `clubs.active` steuert nur das
-  Anmeldeformular, und ein Verein, der lediglich zusieht, soll dafür nicht dort
-  auftauchen müssen. Beide Listen sind unabhängig; in der Auswahl steht so ein
+  Das war die eigentliche Überraschung beim Testen: Ob ein Verein im Anmeldeformular
+  steht, ist etwas anderes als ob er die Regiorangliste sehen darf, und ein Verein,
+  der lediglich zusieht, soll dafür nicht im Anmeldeformular auftauchen müssen. Beide Listen sind unabhängig; in der Auswahl steht so ein
   Verein als *„(nicht in der Anmeldung)“*, damit man die beiden nicht verwechselt.
 
 ## 1.9.21
 
-- **Der Regiocup war unsichtbar.** Die Rechnung lag fertig in `lib/region.php` –
-  aber keine Seite rief sie auf. Wer den Regiocup im Wettbewerb angeklickt hatte,
-  bekam davon nichts zu sehen: keine Liste, keine Kachel, keinen Export.
+- **Der Regiocup war unsichtbar.** Die Rechnung stand fertig im Programm – aber keine
+  Seite zeigte sie an. Wer den Regiocup im Wettbewerb angeklickt hatte, bekam davon
+  nichts zu sehen: keine Liste, keine Kachel, keinen Export.
   - **`region.php`** ist neu: die Regiorangliste über alle Wettbewerbe eines
     Jahres, die den Regiocup-Knopf tragen – dazu ein CSV-Export mit den
     Punkten je Start. Für Besucher und Mitglieder des eingestellten Vereins.
@@ -472,8 +508,7 @@ zu schließen – und genau dann steht man am Saisonende da.
     erscheint nur, wenn sie auch wirklich erreichbar ist.
   - **Auf der Profilseite** kann der SuperAdmin den Verein einstellen **und
     die Liste ansehen, bevor sie veröffentlicht ist**. Die Kachel dort ist eine
-    Vorschau, kein zweiter Ort mit eigenen Zahlen: beide benutzen dieselbe
-    Funktion `region_table()`.
+    Vorschau, kein zweiter Ort mit eigenen Zahlen: beide zeigen dieselbe Liste.
 
 - **Die Einstellung „Verein, der die Regiorangliste sehen darf“ ist umgezogen.**
   Sie stand in den **Wettbewerbseinstellungen** – und der Regiocup läuft über
@@ -498,22 +533,21 @@ zu schließen – und genau dann steht man am Saisonende da.
 
 - **Eine frische Einrichtung war unmöglich.** Zwei Fehler auf demselben Weg,
   beide gefunden beim Wiederaufsetzen einer leeren Datenbank. Beide sind alt.
-  - **Die Tabellen standen in der falschen Reihenfolge.** `competitions.club_id`
-    verweist auf `clubs`, und `competitions` stand in `schema.sql` **vor**
-    `clubs`. MySQL und MariaDB lehnen das ab: „errno: 150 Foreign key
-    constraint is incorrectly formulated“. Nachgewiesen: die alte Fassung
-    bricht bei `competitions` ab, die neue lädt 11 Tabellen und 11
-    Fremdschlüssel. Nur verschoben, jeder Block byteweise unverändert.
-  - **Ein Semikolon im Kommentar hat die Anweisung zerschnitten.**
-    `install.php` trennt `schema.sql` an jedem Semikolon, und zwei Zeilen
-    tragen eins im Kommentar: `-- Vereinszugehörigkeit; NULL = …`. Die
-    `CREATE`-Anweisung wurde mitten drin abgeschnitten. Die Kommentare werden
+  - **Die Tabellen standen in der falschen Reihenfolge.** Die Wettbewerbe verweisen auf
+    die Vereine, standen in der Einrichtung aber **vor** ihnen. MySQL und MariaDB
+    lehnen das ab: *„errno: 150 Foreign key constraint is incorrectly formulated“*.
+    Nachgewiesen: die alte Fassung bricht schon beim zweiten Schritt ab, die neue
+    lädt elf Tabellen und elf Verweise. Nur verschoben, jeder Block byteweise
+    unverändert.
+  - **Ein Semikolon im Kommentar hat die Anweisung zerschnitten.** Die Datenbank
+    wird beim Einrichten an jedem Semikolon in einzelne Anweisungen zerlegt, und zwei
+    Kommentarzeilen tragen selbst eines. Die Anweisung dazwischen wurde mitten drin
+    abgeschnitten. Die Kommentare werden
     jetzt entfernt, **bevor** getrennt wird.
 
-- Warum es nie aufgefallen ist: bestehende Installationen bekommen ihr Schema
-  über die Migrationen, nicht über `schema.sql`. Die Datei wird nur bei der
-  Ersteinrichtung gelesen – und die hat seit `club_id` (Migration 7, Fassung
-  1.9.0) niemand gebraucht.
+- Warum es nie aufgefallen ist: Wer schon betreibt, bekommt sein Schema über die
+  Aktualisierungen, nicht über die Einrichtung. Die Einrichtung wird nur beim
+  allerersten Mal gelesen – und seit 1.9.0 gab es dafür niemanden mehr.
 
 ## 1.9.19
 
@@ -522,15 +556,11 @@ zu schließen – und genau dann steht man am Saisonende da.
   aufrufen." – der Weg war beschrieben, aber man musste ihn sich heraussuchen.
   Jetzt steht am Ende der Meldung **Jetzt upgrade.php aufrufen**, unterstrichen
   und kräftiger als der Fliesstext.
-  - Nur wenn er nötig ist. `schema_hinter_programm()` entscheidet das, und ohne
-    offene Migration erscheint kein Link.
-  - `flash()` kann jetzt einen Link mitgeben. Der Text wird weiterhin maskiert,
-    damit kein HTML hineinkommt; der Verweis wird aus zwei getrennt maskierten
-    Feldern gebaut, damit auch dort nichts einzuschleusen ist. Beides geprüft:
-    ein Text mit spitzen Klammern und ein Ziel mit Anführungszeichen und
-    `<script>` kommen maskiert heraus, nichts wird zu HTML.
-  - Aufrufer ohne Link bleiben unangetastet: die Ausgabe einer einfachen Meldung
-    ist byteweise dieselbe wie vorher. Geprüft.
+  - Nur wenn er nötig ist: Steht an der Datenbank nichts an, erscheint kein Link.
+  - Der Linktext und sein Ziel werden einzeln daraufhin geprüft, dass sie nichts
+    Unerwartetes in die Seite tragen. Geprüft mit spitzen Klammern, Anführungszeichen
+    und einem eingebetteten Stück Programmcode – alles bleibt Text.
+  - Meldungen ohne Link sehen genau aus wie vorher. Geprüft.
 
 ## 1.9.18
 
@@ -554,8 +584,8 @@ zu schließen – und genau dann steht man am Saisonende da.
   Hinweis. Die Daten fremder Wettbewerbe waren dabei nie zu sehen – der Wechsel
   schützt davor –, aber man konnte leicht glauben, den gewünschten Wettbewerb
   vor sich zu haben und im falschen zu arbeiten. Jetzt:
-  > Der Wettbewerb „MFV Brislach - Schwarzbubenfliegen 2026" gehört einem
-  > anderen Verein. Angezeigt wird „MG Breitenbach - Erlencup 2027".
+  > Der gewünschte Wettbewerb gehört einem anderen Verein. Angezeigt wird ein
+  > anderer.
   Bewusst eine Meldung und keine Umleitung: eine Umleitung auf jeder
   Verwaltungsseite liefe in eine Schleife, sobald der aktive Wettbewerb einem
   fremden Verein gehört.
@@ -564,18 +594,17 @@ zu schließen – und genau dann steht man am Saisonende da.
   mit zwei Wettbewerben an verschiedenen Veranstaltern und einem Konto, das nur
   den eigenen Verein steuert: die Adresse `anmeldungen.php?competition=<fremd>`
   zeigt **keinen** fremden Namen und **keine** fremde Bemerkung. Der
-  Verwaltungsschalter von `resolve_competition_param()` greift – er tauscht den
-  Wettbewerb, statt zu sperren. Was fehlte, war die Ansage, und die gibt es jetzt.
+  Der Wettbewerb wird nicht gesperrt, sondern stillschweigend ersetzt – das war
+  schon so und ist so gewollt. Was fehlte, war die Ansage, und die gibt es jetzt.
 
 ## 1.9.17
 
 - **Die Meldung nach dem Aktualisieren kam noch in der alten Fassung.** Nach dem
   Sprung von 1.9.13 auf 1.9.16 stand dort wieder „Der Stand ist damit gemischt“,
   obwohl die Korrektur mit 1.9.14 drin war. Die Ursache war die Reihenfolge:
-  `update_ausfuehren()` schreibt die Dateien, und der Text entsteht danach im
-  selben Request – aus dem Code, der beim Programmstart in den Speicher
-  geladen wurde. Gemessen: **195 Zeichen zwischen dem Schreiben und dem Text**.
-  Eine Korrektur kann sich so nicht selbst ankündigen.
+  Der Text entstand, bevor die neuen Dateien überhaupt im Speicher lagen – er
+  stammte aus dem alten Stand. Gemessen: **195 Zeichen zwischen dem Einspielen und
+  dem Text**. Eine Korrektur kann sich so nicht selbst ankündigen.
   - Jetzt merkt der Absender nur die Zahlen, und der Text entsteht beim
     nächsten Aufruf – mit dem Code, der gerade installiert wurde. Gemessen: im
     schreibenden Request steht kein Text mehr.
@@ -583,14 +612,14 @@ zu schließen – und genau dann steht man am Saisonende da.
     sie nennt jetzt alle geschützten Dateien mit dem Zusatz, ob sie zum
     Repository passen, statt nur der abweichenden eine.
 
-- **`diagnose.php` sagt, wenn der Opcode-Cache den alten Stand festhält.** Nach
-  einem Update kann eine Seite den Stand von vorher zeigen, obwohl die Datei
-  schon die neue ist. Ist `opcache.validate_timestamps` aus, merkt der Cache das
-  nie und läuft endgültig weiter. Das sieht aus wie ein Fehler im Update und ist
+- **`diagnose.php` sagt, wenn der Server den alten Stand festhält.** Nach einem
+  Update kann eine Seite noch den Stand von vorher zeigen, obwohl die Datei schon
+  die neue ist. Manche Server behalten einmal geladene Dateien ohne Zeitbegrenzung
+  im Speicher und merken das nie. Das sieht aus wie ein Fehler im Update und ist
   keiner – die Prüfung holt den laufenden Bestand gegen die Datei.
 
-- **Die erste Zeile der Anmeldung nennt nur den Titel**: „Anmeldung –
-  Schwarzbubenfliegen 2027“. Das „hinzufügen“ war zuviel.
+- **Die erste Zeile der Anmeldung nennt nur den Titel** des Wettbewerbs. Das
+  Wort „hinzufügen“ war zuviel.
 - **Die drei Schritte im Kasten der Startseite sind linksbündig**, während
   Überschrift und Hinweis mittig bleiben. Eine mehrzeilige Liste mittig sieht
   zerklüftet aus, weil die Nummern mitten im Satz stehen statt an einem Rand.
@@ -598,20 +627,18 @@ zu schließen – und genau dann steht man am Saisonende da.
 ## 1.9.16
 
 - **Der öffentliche Bereich hat keine Navigationsleiste mehr.** Zur Startseite
-  führt der Titel „Ziellandekonkurrenz" in der Kopfzeile; zwischen den
-  Wettbewerben führt die Kachelleiste. Beides hat man ohnehin benutzt, statt der
-  Leiste mit fünf Punkten. `install.php` und `upgrade.php` behalten ihre Leiste,
+  führt der Titel oben in der Kopfzeile; zwischen den Wettbewerben führt die
+  Kachelleiste. Beides hat man ohnehin benutzt, statt der Leiste mit fünf
+  Punkten. Die beiden Hilfsseiten für die Einrichtung behalten ihre Leiste,
   damit man von dort nicht in eine Sackgasse läuft.
 
-- **Die Wettbewerbsauswahl über der Seite ist weg** – die Zeile „Wettbewerb –
-  Erlencup 2027 – Schwarzbubenfliegen 2027 – …“ auf Rangliste, Teilnehmerliste
-  und Anmeldung. Sie war die Navigation des öffentlichen Teils und wird durch
-  die Kacheln ersetzt. Der Knopf **Anmelden** auf der Kachel führt mit
-  `competition=` direkt zur Anmeldung des richtigen Wettbewerbs; geprüft.
-  - `competition_choices()` hat damit keinen Aufrufer mehr und ist entfernt,
-    mitsamt der zugehörigen Stile `.pick-row` und `.pick-chip` (33 Zeilen).
-  - `vereinswertung.php` bleibt als Weiterleitung auf `rangliste.php`, damit alte
-    Links und Lesezeichen nicht ins Leere laufen. Wettbewerb und wandern mit.
+- **Die Wettbewerbsauswahl über der Seite ist weg** – die Zeile mit allen
+  Wettbewerbsnamen auf Rangliste, Teilnehmerliste und Anmeldung. Sie war die
+  Navigation des öffentlichen Teils und wird durch die Kacheln ersetzt. Der
+  Knopf **Anmelden** auf der Kachel führt direkt zur Anmeldung des richtigen
+  Wettbewerbs; geprüft.
+  - Alte Adressen laufen nicht ins Leere: **die Vereinswertung** führt wie bisher
+    auf die Rangliste, behält aber den Wettbewerb und wandert mit.
 
 - **Die Vereinswertung steht am Ende der Rangliste**, unter demselben Filter wie
   die Piloten. Sie hatte eine eigene Seite, weil es eine Leiste gab, in der sie
@@ -622,10 +649,10 @@ zu schließen – und genau dann steht man am Saisonende da.
   verschwunden.** Auf dem iPad druckt man ohnehin nicht, und am Wettbewerbsplatz
   gibt es den Laufzettel als PDF.
 
-- **Die erste Zeile der Anmeldung ist ein Satz in einer Größe**: „Anmeldung –
-  Schwarzbubenfliegen 2027 hinzufügen“. Vorher stand dort die Überschrift
-  „Anmeldung“ in eigener Schriftgröße und darunter ein Absatz – zwei Grade
-  übereinander für eine einzige Aussage.
+- **Die erste Zeile der Anmeldung ist ein Satz in einer Größe** und nennt den
+  Wettbewerb vollständig. Vorher stand dort eine Überschrift in eigener
+  Schriftgröße und darunter ein Absatz: zwei Grade übereinander für eine einzige
+  Aussage.
 
 - **„Wettkampfbüro“ steht jetzt im Menü hinter dem Benutzersymbol.** Mit der
   weggefallenen Leiste wäre es sonst aus dem öffentlichen Teil verschwunden.
@@ -639,11 +666,10 @@ zu schließen – und genau dann steht man am Saisonende da.
 ## 1.9.15
 
 - **Die Knöpfe auf den Karten waren unterschiedlich hoch.** Auf der Live-Seite
-  gemessen: „Rangliste" 52 Pixel hoch, „Anmelden" 44 Pixel – in derselben Zeile,
-  mit derselben Oberkante. Ursache war eine Zeile im Stil:
-  `.pick-go .btn:first-child { height: var(--ctl-h-lg) }`. Sie wollte den ersten
-  Knopf hervorheben und machte stattdessen die Zeile unruhig. Jetzt sind alle
-  Knöpfe einer Karte gleich hoch.
+  gemessen: „Rangliste“ 52 Pixel hoch, „Anmelden“ 44 Pixel – in derselben Zeile,
+  mit derselben Oberkante. Der erste Knopf einer Karte war einen Tick höher als die
+  anderen; er sollte nur hervorgehoben aussehen und machte stattdessen die ganze
+  Zeile unruhig. Jetzt sind alle Knöpfe einer Karte gleich hoch.
 
 - **Die Startseite ist kürzer geworden.** „So liest man die Rangliste" und
   „Wie die Punkte entstehen" sind weg, ebenso die Überschrift „Wettbewerb wählen"
@@ -754,9 +780,9 @@ zu schließen – und genau dann steht man am Saisonende da.
 - **Ab 2.0.0 gilt eine Regel fuer die Versionsnummer:** nur Dateien geaendert,
   dann steigt die dritte Stelle; Datenbank geaendert, dann steigt die zweite
   Stelle und die dritte faellt auf 0. Sie steht in der README, damit sie nicht
-  im Kopf von jemandem bleiben muss. 1.9.12 etwa hat den Vorgabewert von
-  `users.active` geaendert und steht trotzdem auf der dritten Stelle - die
-  Nummern bis 1.9.13 bleiben, wie sie sind.
+  im Kopf von jemandem bleiben muss. 1.9.12 etwa hat den Vorgabewert für neue
+  Konten geändert – etwas, das die Vereine betrifft – und steht trotzdem auf der
+  dritten Stelle. Die Nummern bis 1.9.13 bleiben, wie sie sind.
 
 ## 1.9.12
 
@@ -764,24 +790,20 @@ zu schließen – und genau dann steht man am Saisonende da.
   anmelden. Nur ein zweites Bearbeiten in der Kontenliste brachte es wieder
   hervor – dann mit der grössten Älfte „Passwort neu gesetzt" in der Meldung, was
   den Verdacht auf das Passwort lenkte. Das Passwort war nie falsch.
-  - Ursache: `users.active` hatte den Vorgabewert `0`. `admin/benutzer.php` und
-    `install.php` fügen neue Konten ohne `active` ein und erbten damit
-    **gesperrt**. Die Spalte steht in `sql/schema.sql` auf `1` – die Migration 6
-    hat sie 2018 mit `DEFAULT 0` angelegt und danach nur die **vorhandenen**
-    Konten auf 1 gesetzt, den Vorgabewert aber stehen lassen.
+  - Ursache: Ein neu angelegtes Konto war sofort **gesperrt**, weil der Vorgabewert
+    in der Datenbank auf „gesperrt“ stand. 2018 war bei einer Datenbankänderung nur
+    die damals vorhandenen Konten auf „aktiv“ gesetzt worden, der Vorgabewert für
+    neue aber stehen geblieben.
   - Warum es erst jetzt auffiel: die Anlage meldet grün „Konto angelegt",
     während in der Liste gleich darunter „gesperrt" steht. Beides ist richtig,
     zusammen ergibt es eine Meldung, die sich widerspricht.
-  - Behoben an drei Stellen: beide Einfügungen nennen `active` jetzt
-    ausdrücklich, Migration 6 legt die Spalte mit dem richtigen Vorgabewert an
-    (`active` 1, `is_superadmin` 0 – die beiden sind nicht gleich), und ein
-    Migrationsschritt stellt den Vorgabewert bei schon migrierten Installationen
-    auf 1. **Bestehende Konten werden nicht angefasst:** gesperrt heisst
-    gesperrt, auch absichtlich.
-  - Prüfung ergänzt: `diagnose.php` meldet eine Spalte `users.active` mit
-    anderem Vorgabewert. Geprüft habe ich sie, indem ich die Spalte absichtlich
-    wieder auf 0 gesetzt habe – sie schlägt an, und nach der Migration schweigt
-    sie.
+  - Behoben an drei Stellen: Neue Konten werden ausdrücklich als aktiv angelegt, eine
+    frische Installation bekommt den richtigen Vorgabewert, und ein Migrationsschritt
+    stellt ihn bei schon migrierten Installationen nach. **Bestehende Konten werden
+    nicht angefasst:** gesperrt heißt gesperrt, auch absichtlich.
+  - Prüfung ergänzt: **`diagnose.php` meldet einen falschen Vorgabewert** für neue
+    Konten. Geprüft habe ich sie, indem ich den Wert absichtlich wieder verstellt
+    habe – sie schlägt an, und nach der Migration schweigt sie.
 
 - **Für diese Fassung bitte `upgrade.php` einmal laufen lassen.** Das Anlegen
   funktioniert auch ohne; nur der Vorgabewert in der Datenbank bleibt dann auf
@@ -866,10 +888,11 @@ zu schließen – und genau dann steht man am Saisonende da.
 - **Rangliste für jeden Wettbewerb, Anmeldung nur für offene.** Beides steht
   getrennt auf der Karte: *Rangliste* bei freigegebener Rangliste, *Anmelden*
   nur, wenn noch angemeldet werden kann.
-  - `competition_nimmt_anmeldungen_an()`: nicht beendet, Anmeldung nicht
-    abgeschaltet, Tag noch nicht vorbei. Das Datum zählt mit – eine
-    abgeschaltete Anmeldung allein genügt nicht, sonst stünde ein
-    Wettbewerb vom letzten Juni noch monatelang in der Auswahl.
+  - Der Knopf erscheint nur, wenn wirklich noch angemeldet werden kann: der
+    Wettbewerb ist nicht beendet, die Anmeldung nicht abgeschaltet, und der Tag
+    ist noch nicht vorbei. **Das Datum zählt mit** – eine abgeschaltete Anmeldung
+    allein genügt nicht, sonst stünde ein Wettbewerb vom letzten Juni noch
+    monatelang in der Auswahl.
   - Dieselbe Regel gilt für die Karten, für die Auswahl auf der Anmeldeseite
     und für den Hinweis dort.
   - Wer einen vergangenen Wettbewerb wählt, bekommt auf der Anmeldeseite die
@@ -881,8 +904,9 @@ zu schließen – und genau dann steht man am Saisonende da.
 - **Kurze Erklärung auf der Startseite**, bewusst ohne feste Punktzahlen, weil
   die je Verein verschieden sind: wie man die Rangliste liest (durchgestrichen,
   rote Zahl, gleiche Summe), wie die Punkte entstehen und wie man sich anmeldet.
-- `competitions_uebersicht()` bringt Datum, Ort und die Schalter in zwei
-  Abfragen für alle Wettbewerbe statt einer je Wettbewerb.
+- **Die Startseite lädt schneller.** Datum, Ort und die Schalter aller
+  Wettbewerbe kommen jetzt in einem einzigen Durchgang statt einzeln je
+  Wettbewerb.
 
 ## 1.9.8
 
@@ -907,9 +931,10 @@ zu schließen – und genau dann steht man am Saisonende da.
   Datenbank ein einziges Statusfeld, und wer Aussenlandung **und** Bruchlandung
   ankreuzte, bekam nur eine der beiden Feststrafen. Landet ein Modell neben die
   Piste und verliert dort Teile, trifft aber beides zu.
-  - Migration 11 legt `scores.not_started`, `scores.outlanding` und `scores.crash`
-    an und entfernt `scores.status`. Die bisherigen Ausgänge werden übernommen,
-    danach ist nichts mehr doppelt belegt.
+  - Für diese Fassung bitte einmal die Datenbankaktualisierung laufen lassen: sie legt
+    die drei neuen Merkmale **Nichtantreten**, **Aussenlandung** und **Bruchlandung**
+    an und nimmt die alte Sammelspalte weg. Die bisherigen Ausgänge werden
+    übernommen, danach ist nichts mehr doppelt belegt.
   - Aussenlandung und Bruchlandung werden **addiert**, jede für sich.
   - Bei der Kombination aus beiden zählt der **Landewert wieder**: dann ist er
     die Landung im Feld. Bei der Aussenlandung allein bleibt er null.
@@ -922,10 +947,10 @@ zu schließen – und genau dann steht man am Saisonende da.
   abgehakt. Beim Abwählen kommt der vorher eingetragene Wert zurück, damit ein
   Fehlklick nichts vernichtet. Beim Speichern gilt „nicht angetreten“ auch dann,
   wenn das Formular von Hand eine unmögliche Kombination mitsendet.
-- Die Zeit und der Landewert sind `readonly` statt `disabled`, damit 0:00
-  gespeichert wird und nach dem Neuladen noch dasteht.
-- `diagnose.php` prüft jetzt die vier Spalten und meldet, wenn `scores.status`
-  noch vorhanden ist.
+- Die Felder für Zeit und Landewert lassen sich **nicht mehr verändern, aber sehr
+  wohl speichern**. Vorher war `0:00` nach dem Neuladen wieder weg.
+- **`diagnose.php` prüft die vier Kästchenspalten** und meldet, wenn dort noch eine
+  alte, inzwischen überflüssige Spalte steht.
 
 ## 1.9.6
 
@@ -957,9 +982,9 @@ zu schließen – und genau dann steht man am Saisonende da.
 - **Unverändert:** Bei Punktegleichheit im Wettbewerb zählt ein Flug mit Motor
   weiterhin nicht als gültiger Flug für den Vergleich der Flugzahl. Das ist eine
   andere Frage als die Wertung und wurde nicht angefasst.
-- Neu: `tools/regel_pruefen.php` vergleicht die Anzeige beim Erfassen mit der
-  Datenbank, beide über dieselben 17 Fälle. Ohne diesen Abgleich fiel eine
-  Abweichung erst beim Nachladen der Seite auf, und ein Wettbewerb sähe beim
+- **Die Strafpunkte werden bei jedem Abgleich gegen die Datenbank geprüft**, über
+  dieselben 17 Fälle. Ohne diesen Abgleich fiel eine Abweichung erst beim Nachladen
+  der Seite auf, und ein Wettbewerb sähe beim
   Speichern auf einmal anders aus. Braucht `node`.
 
 ## 1.9.5
@@ -995,26 +1020,27 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
   (🏆 Regiocup / ○ Regiocup), zum Beispiel wenn sich ein Termin ändert oder ein
   Wettbewerb doch nicht zur Region gehört.
 - Das Jahr für die Regiowertung kommt aus dem **Wettbewerbsdatum**, nicht aus
-  dem Namen. Ein Wettbewerb namens „Erlencup 2027“ mit dem Datum 19.06.2026
-  zählt also für 2026. Vorher wäre das beim Kopieren eines Wettbewerbs mit
+  dem Namen. Ein Wettbewerb mit dem Datum 19.06.2026 zählt also für 2026, gleich
+  wie er heißt. Vorher wäre das beim Kopieren eines Wettbewerbs mit
   kopiert worden, und die beiden Wettbewerbe eines Jahres könnten auseinanderlaufen.
 - Unter *Einstellungen → Regiocup* lässt sich der Verein wählen, dessen
   Mitglieder die Regiorangliste sehen und exportieren dürfen, auch wenn die
-  Ergebnisse sonst nicht öffentlich sind. Der Verein steht als Einstellung
-  `region_club_id`; fest im Code verankert wäre er beim nächsten Verein falsch.
-- Die Rechenlogie der Regiowertung liegt fertig in `lib/region.php` und ist
-  einzeln nachprüfbar: FIS-Punkte je Rang (1. = 100 … 30. = 1, danach 0), die
-  besten vier von fünf Starts, der schlechteste Rang fällt weg. Sie verändert
+  Ergebnisse sonst nicht öffentlich sind. Der Verein steht als Einstellung im
+  Programm; fest im Programm verankert wäre er beim nächsten Verein falsch.
+- Die Regiowertung ist einzeln nachprüfbar: FIS-Punkte je Rang (1. = 100 …
+  30. = 1, danach 0), die besten vier von fünf Starts, der schlechteste Rang fällt
+  weg. Sie verändert
   die Wertung der einzelnen Wettbewerbe nicht, sondern liest sie nur.
 - Wie Gleichstände in der Regiowertung behandelt werden, ist an den echten
-  Ranglisten von 2026 nachgemessen: In den drei Wettbewerben Erlencup,
-  Bauschtu Cup und Wangen Cup standen 13 Platzierungen im Gleichstand – alle
+  Ranglisten eines ganzen Jahres nachgemessen: In drei Wettbewerben standen
+  13 Platzierungen im Gleichstand – alle
   bekamen einen eigenen Rang. Die Wettbewerbswertung löst Gleichstände über das
   Streichresultat auf, deshalb bekommt in der Regioliste niemand einen doppelten
   Rang.
-- Neue Migration 9 legt die Spalte `competitions.region` an. Sie ist
-  wiederholbar und lässt sich auch nachholen, wenn die Wettbewerbsstruktur
-  schon steht.
+- **Für diese Fassung bitte einmal die Datenbankaktualisierung laufen lassen:** Der
+  Regiocup-Knopf braucht einen neuen Platz in jedem Wettbewerb. Der Schritt ist
+  wiederholbar und lässt sich auch nachholen, wenn die Wettbewerbe schon angelegt
+  sind.
 - Die Änderungsliste reicht jetzt bis 1.1.0 zurück und ist damit für jeden
   Altstand vollständig. Vorher fehlten die Fassungen 1.1.0 bis 1.9.0, wer von
   1.8.0 kam, hätte die Vereinszugehörigkeit nicht als Änderung gesehen.
@@ -1046,9 +1072,8 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
     Entsteht dadurch eine Lücke, nennt die Meldung jetzt die betroffene Nummer,
     den Piloten und den Weg, sie freizugeben. Vorher war die Lücke stumm.
   - Die Nummern werden in zwei Schritten gesetzt: erst leer, dann neu. Ein
-    einzelnes Überschreiben wäre mitten in der Runde doppelt belegt. Die
-    Vergabe nutzt die Transaktion, die ohnehin den ganzen Vorgang umschliesst –
-    eine eigene darum herum lehnte PDO ab, und die Vergabe lief ins Leere.
+    einzelnes Überschreiben wäre mitten in der Runde doppelt belegt. Die Startnummern
+    werden deshalb im gleichen Schritt vergeben, in dem die Runde gespeichert wird.
 
 ## 1.9.3
 
@@ -1112,15 +1137,14 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
 
 ## 1.8.0
 
-- Die beiden Werkzeuge `tools/manifest.php` und `tools/aufrufe_pruefen.php` sind
-  im README beschrieben: wozu sie dienen und warum sie nur auf der Kommandozeile
-  laufen. Vorher standen sie nur als Dateinamen im Verzeichnis.
+- Die beiden Prüfwerkzeuge des Projekts sind im README beschrieben: wozu sie dienen
+  und warum sie nur auf der Kommandozeile laufen. Vorher standen sie nur als
+  Dateinamen im Verzeichnis.
 
 ## 1.7.0
 
-- Die Werkzeuge unter `tools/` weisen sich jetzt mit 403 ab, wenn sie vom Browser
-  aus aufgerufen werden. Sie lesen und schreiben in `manifest.json` und gehören
-  nicht in eine Webanfrage.
+- Die Prüfwerkzeuge weisen sich jetzt ab, wenn sie vom Browser aus aufgerufen
+  werden. Sie gehören nicht in einen Seitenaufruf, sondern auf die Kommandozeile.
 
 ## 1.6.0
 
@@ -1131,12 +1155,11 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
 ## 1.5.0
 
 - Ein Absturz beim Aktualisieren wurde behoben und die Fehlerklasse abgesichert:
-  ein HTTP-Antwortcode, den GitHub nicht liefert, gilt jetzt als Fehler und nicht
-  mehr als leere Antwort.
-- `tools/aufrufe_pruefen.php` ist neu. Es findet Aufrufe von Namen, die es weder
-  im Projekt noch in PHP gibt, und Aufrufe über eine Variable, der im File nie
-  etwas zugewiesen wird. Beides sieht beim Lesen korrekt aus und `php -l` meldet
-  nichts – es scheitert erst zur Laufzeit.
+  eine unerwartete leere Antwort von GitHub gilt jetzt als Fehler und nicht mehr
+  als Erfolg ohne Inhalt.
+- Ein neues Prüfwerkzeug findet Aufrufe von Namen, die es im Projekt gar nicht
+  gibt. Das sieht beim Lesen korrekt aus und wird beim Syntaxprüfen nicht
+  gemeldert – es scheitert erst, wenn die Seite aufgerufen wird.
 
 ## 1.4.0
 
@@ -1159,11 +1182,10 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
 
 ## 1.1.0
 
-- Die Aktualisierung von GitHub für den SuperAdmin. `admin/aktualisieren.php`
-  holt die ver öffentlichte Fassung, vergleicht sie mit dem Serverstand und
-  spielt nur die Dateien ein, die sich geändert haben.
-- Jede Datei wird mit einer Prüfsumme geführt (`manifest.json`). Eine Datei, die
-  jemand von Hand angefasst hat, bleibt beim Update stehen und wird gemeldet,
-  statt stillschweigend überschrieben zu werden.
-- `lib/version.php` hält `APP_VERSION`, `APP_REPO` und `APP_BRANCH` an einer Stelle.
-- `tools/manifest.php` erzeugt die Bestandsliste samt Prüfsummen.
+- **Die Aktualisierung von GitHub für den SuperAdmin.** Wettkampfbüro →
+  Aktualisierung. Der Knopf holt die veröffentlichte Fassung, vergleicht sie mit
+  dem Serverstand und spielt nur die Dateien ein, die sich geändert haben.
+- **Von Hand angefasste Dateien bleiben stehen.** Jede Datei wird über eine
+  Prüfsumme geführt. Wer eine Datei selbst geändert hat, verliert sie beim Update
+  nicht – sie bleibt stehen und wird gemeldet, statt stillschweigend
+  überschrieben zu werden.

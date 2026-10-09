@@ -8,7 +8,7 @@ require_login();
 // Ein Konto, dessen Verein noch keinen Wettbewerb hat, konnte sich nicht
 // einmal anmelden: require_competition_access() schickt es auf 'index.php'
 // zurueck - und index.php ist diese Seite. Der Browser gab nach rund 20
-// Umleitungen auf und zeigte ERR_TOO_MANY_REDIRECTS.
+// Umleitungen auf und brach der Browser ab.
 //
 // Deshalb wird der Fall vorher erkannt und hier erklaert statt umgeleitet. Alle
 // anderen Seiten (Erfassung, Startliste, Durchgaenge, Einstellungen, Export)

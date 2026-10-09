@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 // Die Vereinsliste gehoert allen - sie ist eine Auswahl im Anmeldeformular.
-// Das AENDERN nicht: ein Vereinskonto konnte "Testverein Sued" umbenennen,
+// Das AENDERN nicht: ein Vereinskonto konnte einen fremden Verein umbenennen,
 // deaktivieren und loeschen, weil hier nur require_login() stand. Das wirkt auf
 // die oeffentlichen Seiten, auf die Vereinswertung und auf alle Konten.
 require_superadmin('Die Vereinsverwaltung');
@@ -187,7 +187,7 @@ page_start('Vereine', 'admin', 'vereine.php');
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="add">
             <div class="grid-2">
-                <div class="field"><label for="n">Name</label><input type="text" id="n" name="name" placeholder="MFV Brislach" required></div>
+                <div class="field"><label for="n">Name</label><input type="text" id="n" name="name" placeholder="Vereinsname" required></div>
                 <div class="field"><label for="k">Kürzel</label><input type="text" id="k" name="short_name" placeholder="MFVB"></div>
                 <div class="field"><label for="o">Ort</label><input type="text" id="o" name="place"></div>
                 <div class="field"><label for="s">Reihenfolge</label><input type="number" id="s" name="sort_order" value="<?= (count($clubs) + 1) * 10 ?>"></div>

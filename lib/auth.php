@@ -110,7 +110,7 @@ function require_superadmin(string $gegenstand = 'Die Benutzerverwaltung', bool 
  * Vorher landete alles auf index.php. Dort versuchte die Seite, einen
  * Wettbewerb zu zeigen, den das Konto nicht steuern darf, und wurde von der
  * Zugriffspruefung auf index.php zurueckgeschickt - also auf sich selbst. Das
- * war die Schleife, die auf wonder.li als ERR_TOO_MANY_REDIRECTS aufkam.
+ * war eine Umleitungsschleife: der Browser gab nach zwanzig Runden auf.
  *
  * @param string $wunsch  Das "?next=" des Aufrufers, wenn es eines gab
  */
@@ -190,8 +190,8 @@ function can_manage_competition(int $competitionId): bool
  * Wettbewerb und schickte auf 'index.php'. Die Seiten, die ohne Wettbewerb
  * nichts anzeigen koennen, rufen diese Funktion aber selbst auf - und eine
  * davon IST index.php. Also immer wieder, bis der Browser nach rund 20
- * Umleitungen aufgab und ERR_TOO_MANY_REDIRECTS zeigte. Gemeldet am
- * 9. Oktober 2026 von wonder.li, als sich ein Konto nicht einmal anmelden
+ * Umleitungen aufgab. Gemeldet am 9. Oktober 2026, als sich ein Konto nicht
+ * einmal anmelden
  * konnte.
  *
  * Die Seite sagt jetzt, was los ist, und geht nach drei Sekunden von selbst

@@ -16,5 +16,5 @@ return [
     // Feste Bezeichnung oben links im Kopf und das Logo dazu.
     // Beides gehört zur Installation, nicht zu einem Wettbewerb.
     'site_name' => 'Ziellandekonkurrenz',
-    'logo'      => 'logo_nordwest.jpg', // Datei in assets/
+    'logo'      => 'logo.png',         // Datei in assets/
 ];

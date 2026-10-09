@@ -202,7 +202,7 @@ function site_name(): string
 function site_logo(): string
 {
     $logo = trim((string) (config()['logo'] ?? ''));
-    return preg_match('/^[A-Za-z0-9._-]+\.(png|jpe?g|svg|webp|gif)$/i', $logo) ? $logo : 'logo_nordwest.jpg';
+    return preg_match('/^[A-Za-z0-9._-]+\.(png|jpe?g|svg|webp|gif)$/i', $logo) ? $logo : 'logo.png';
 }
 
 /* ---------- Adressen und Links ---------- */

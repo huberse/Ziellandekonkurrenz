@@ -460,11 +460,11 @@ function seed_competition_settings(int $competitionId, ?int $sourceCompetitionId
 
 /**
  * Wie der Wettbewerb heisst, wenn der ausrichtende Verein davorsteht:
- * „MFV Brislach Schwarzbubenfliegen 2027“.
+ * „Verein Wettbewerb 2027“.
  *
  * Der ausrichtende Verein ist das, was einen Wettbewerb von einem anderen
  * unterscheidet, und er stand auf den oeffentlichen Seiten nirgends - nur der
- * eigene Name des Wettbewerbs. Bei einem Namen wie „Erlencup“ ist nicht zu
+ * eigene Name des Wettbewerbs. Bei einem Namen wie „Pokal“ ist nicht zu
  * erkennen, wer ihn veranstaltet.
  *
  * Steht der Verein bereits im Namen, wird er nicht wiederholt. Sonst hiesse es
@@ -496,7 +496,7 @@ function competition_anzeigename(array $competition, ?string $name = null): stri
         return $name;
     }
     // Ohne Beachtung von Gross- und Kleinschreibung und von Leerzeichen:
-    // "RMV Nordwest" steckt in "RMV Nordwest Erlencup", aber nicht in "Erlencup".
+    // "Segelflug Nord" steckt in "Segelflug Nord Pokal", aber nicht in "Pokal".
     $falten = static function (string $s): string {
         return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $s)), 'UTF-8');
     };
@@ -1105,7 +1105,7 @@ function complete_competition(int $competitionId, bool $erzwingen = false): arra
         // missing === 0 in der Karte stand bei genau solchen Wettbewerben der
         // Knopf "Beenden" da und tat dann nichts: der Knopf schickt "complete"
         // ohne erzwingen, und diese Abfrage lehnte ihn ab. Der Nutzer meldete
-        // das am Erlencup, einem Wettbewerb mit 0 Piloten und 6 Durchgaengen.
+        // das an einem Wettbewerb mit 0 Piloten und 6 Durchgaengen.
         if (!$alreadyCompleted && (int) $progress['missing'] > 0 && !$erzwingen) {
             throw new DomainException(sprintf(
                 'Es fehlen noch %d Ergebnis%s. Entweder werden sie noch erfasst, '

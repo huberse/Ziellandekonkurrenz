@@ -80,14 +80,14 @@ Wettkampfort kein Internet zur Verfügung steht.
        'db_port' => 3306,
        'timezone' => 'Europe/Zurich',
        'site_name' => 'Ziellandekonkurrenz',
-       'logo'      => 'logo_nordwest.jpg',   // Datei in assets/
+       'logo'      => 'logo.png',           // Datei in assets/
    ];
    ```
 
    `site_name` und `logo` gehören zur Installation und nicht zu einem Wettbewerb. Oben links im
    Kopf steht der Name der Plattform, der ausgewählte Wettbewerb daneben im Abzeichen – jeder
    Wettbewerb bekommt seinen Namen also nur einmal zu sehen. Fehlen die beiden Angaben in einer
-   älteren `config.php`, gelten `Ziellandekonkurrenz` und `logo_nordwest.jpg`.
+   älteren `config.php`, gelten `Ziellandekonkurrenz` und `logo.png`.
 
 3. **`install.php` aufrufen.** Die Dateien hochladen und `install.php` im Browser öffnen. Das legt
    die Tabellen, den ersten Wettbewerb, die Durchgänge und das erste Konto an.
@@ -276,7 +276,7 @@ aufrufen oder den PHP-Dienst neu starten, danach die Seite neu laden.
 | --- | --- | --- |
 | `config.php` | Zugangsdaten | nein |
 | `.htaccess`, `.gitignore` | Serveranweisungen, Repository-Regeln | nein |
-| `assets/logo.png`, `assets/logo_nordwest.jpg` | Vereinslogo | nein |
+| `assets/logo.png` | Vereinslogo | nein |
 | `install.php`, `config.sample.php` | nur zur Ersteinrichtung | nein |
 
 Steht eine dieser Dateien in der Bestandsliste und ist auf dem Server älter als
@@ -517,7 +517,7 @@ gehört in das Menü oben rechts – dort sieht sie nur der, für den sie da ist
 
 | Seite | Was ein Vereinskonto dort früher konnte | Warum das ein Fehler war |
 | --- | --- | --- |
-| **Vereine** | **jeden** Verein umbenennen, deaktivieren, löschen, neue anlegen | Der Vereinsname steht auf den öffentlichen Seiten, in der Vereinswertung und in den Kopfzeilen aller Ergebnislisten. Nachgewiesen: Das Konto „Testverein Nord“ benannte „Testverein Süd“ um. |
+| **Vereine** | **jeden** Verein umbenennen, deaktivieren, löschen, neue anlegen | Der Vereinsname steht auf den öffentlichen Seiten, in der Vereinswertung und in den Kopfzeilen aller Ergebnislisten. Nachgewiesen: Ein Vereinskonto benannte einen fremden Verein um. |
 | **Modelltypen** | Modelltypen anlegen, umbenennen, löschen | Ein Modelltyp entscheidet, für welche Wertung ein Pilot gezählt wird – auch bei anderen Vereinen. |
 | **Stammdaten** | nichts, aber der Link führte ins Leere | Die Seite war in der Leiste zu sehen und leitete dann auf die Übersicht um. |
 | **Aktivieren** | den eigenen Wettbewerb aktivieren | Aktivieren schaltet **alle** anderen Wettbewerbe ab. Ein Klick hat einem anderen Verein mitten im Wettbewerbstag die Erfassung weggenommen, ohne dass dieser etwas bemerkt hat. |
@@ -560,8 +560,8 @@ selbst. Es ist nichts einzuschalten und nichts zu bestätigen.
 > **Das war bis 2.0.8 ein Fehler, der den Login blockierte.** `require_competition_access()` hat
 > einen nicht vorhandenen Wettbewerb wie einen fremden behandelt und auf `index.php` umgeleitet –
 > und `index.php` ist selbst eine der Seiten, die diese Funktion aufruft. Ergebnis war eine
-> Umleitungsschleife, die der Browser nach zwanzig Runden mit `ERR_TOO_MANY_REDIRECTS` beendete
-> (gemeldet am 9. Oktober 2026 von wonder.li). Der Unterschied ist jetzt im Code ausgedrückt:
+> Umleitungsschleife, die der Browser nach zwanzig Runden abbrach (gemeldet am
+> 9. Oktober 2026). Der Unterschied ist jetzt im Code ausgedrückt:
 > **Ein fremder Wettbewerb ist eine falsche Anzeige, ein nicht vorhandener ist ein leerer Betrieb.**
 
 ### Wer den aktiven Wettbewerb bestimmt
@@ -826,7 +826,7 @@ Name des Wettbewerbs selbst bleibt auch nach dem Abschluss änderbar.
 ## Wettbewerbe
 
 Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel
-`MFV Brislach - Schwarzbubenfliegen 2027`, eigene Durchgänge, eine leere Startliste und eigene
+`Vereinsname - Wettbewerbsname 2027`, eigene Durchgänge, eine leere Startliste und eigene
 Einstellungen. Der aktive Wettbewerb ist der Vorgabe für Erfassung, Anmeldung, Export und die
 öffentlichen Seiten.
 
@@ -964,7 +964,7 @@ sofort, und es gab keine Möglichkeit, den Zustand auf einen Blick zu sehen.
 Seit 1.9.11 liess sich ein Wettbewerb wieder herausnehmen. Vorher war der Umschalter
 kaputt: er konnte nur einschalten, weil `isset()` den Wert `0` als „Feld vorhanden"
 las und damit aus dem Herausnehmen ein Hineinmachen machte.
-Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen – ein „Erlencup 2027“ mit dem Datum
+Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen – ein „Pokal 2027“ mit dem Datum
 19.06.2026 zählt also für 2026. Das ist Absicht: das Datum wird beim Kopieren eines
 Wettbewerbs ohnehin mitgenommen, während der Name frei ist. Wer einen Wettbewerb umbenennt,
 verschiebt ihn damit also nicht versehentlich in ein anderes Jahr.
@@ -1171,8 +1171,8 @@ das: es blitzt und leitet weiter, *bevor* die Seite ihren Kopf schreibt. Der Bli
 Zielseite also gar nicht angezeigt und wartet auf die nächste.
 
 Bei einem Konto ohne eigenen Wettbewerb häuften sich diese Blitze, bis eine Seite ohne
-Umleitung ihren Kopf schrieb und **alle auf einmal** ausgab – auf wonder.li rund sechzigmal
-derselbe Satz, darunter dann ganz normal die Regiocup-Seite. Zwei Regeln verhindern das:
+Umleitung ihren Kopf schrieb und **alle auf einmal** ausgab – rund sechzigmal derselbe Satz,
+darunter dann ganz normal die Regiocup-Seite. Zwei Regeln verhindern das:
 
 - **Dieselbe Meldung direkt hintereinander wird nicht erneut abgelegt.**
 - **Es sind höchstens fünf.** Die fünf jüngsten bleiben, denn die passen zu dem, was man gerade
@@ -1228,7 +1228,7 @@ wer den Namen selbst tippt, überschreibt nichts. Ein selbst eingetragener Name 
 jedem Link, den derverein verschickt, und jeder, der sie kennt, sieht damit auch den Namen. Nach
 meiner Einschätzung ist das vertretbar: die Liste umfasst die rund fünfzig Mitglieder eines
 Vereins, nicht das ganze SMV-Verzeichnis, und der Pilot sieht ohnehin seinen eigenen Namen.
-Wenn das für den RMV Nordwest anders ist, dann gehört die Vorabfüllung abgeschaltet – dann
+Wenn das für einen Verein anders ist, dann gehört die Vorabfüllung abgeschaltet – dann
 tippt jeder seinen Namen selbst, und die Nummer bringt nur die Wiedererkennung in der
 Regiowertung.
 

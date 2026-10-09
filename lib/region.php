@@ -526,7 +526,7 @@ function region_rangliste(array $competitionIds): array
     return ['zeilen' => $zeilen, 'wettbewerbe' => $wettbewerbe, 'piloten' => count($zeilen)];
 }
 
-/** Ein kurzes Kuerzel fuer die Spaltenueberschrift, z. B. "Erlencup 2027" -> "Erlencup". */
+/** Ein kurzes Kuerzel fuer die Spaltenueberschrift, z. B. "Pokal 2027" -> "Pokal". */
 function competition_kuerzel(string $name): string
 {
     $name = trim(preg_replace('/\s*\d{4}\s*$/', '', $name) ?? $name);
@@ -544,8 +544,8 @@ function competition_kuerzel(string $name): string
  * Ergebnisveroeffentlichung abgeschaltet ist.
  *
  * Der Verein steht als Einstellung `region_club_id` – fest im Code waere der
- * Name "RMV Nordwest" eine stille Kopplung, die beim naechsten Verein dann
- * falsch waere.
+ * Name eines bestimmten Vereins eine stille Kopplung, die beim naechsten
+ * Verein dann falsch waere.
  */
 function region_club_id(): ?int
 {

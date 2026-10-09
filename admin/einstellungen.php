@@ -299,7 +299,7 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
             <div class="field">
                 <label for="rsn">Absendername der Bestätigung</label>
                 <input type="text" id="rsn" name="registration_sender_name" maxlength="120"
-                       value="<?= h(setting('registration_sender_name')) ?>" placeholder="z.B. Wettkampfleitung MFV Brislach">
+                       value="<?= h(setting('registration_sender_name')) ?>" placeholder="z. B. Wettkampfleitung Musterverein">
                 <p class="hint">Leer lassen, um den Namen des Wettbewerbs zu verwenden.</p>
             </div>
             <div class="field">

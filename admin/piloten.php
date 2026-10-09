@@ -533,7 +533,7 @@ page_start('Piloten', 'admin', 'piloten.php');
         <input type="hidden" name="action" value="import">
         <input type="hidden" name="competition" value="<?= (int) $competition['id'] ?>">
         <div class="field">
-            <textarea name="csv" placeholder="123456;Serge;Huber;MFV Brislach;Schlepp;01&#10;Serge;Huber;MFV Brislach;Schlepp;02"></textarea>
+            <textarea name="csv" placeholder="123456;Vorname;Nachname;Vereinsname;Schlepp;01&#10;123457;Vorname;Nachname;Vereinsname;Schlepp;02"></textarea>
         </div>
         <button class="btn ghost" type="submit">Importieren</button>
     </form>

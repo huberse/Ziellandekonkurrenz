@@ -79,7 +79,8 @@ function update_geschuetzt(): array
         '.htaccess'                => 'Serveranweisungen',
         '.gitignore'               => 'Repository-Regeln',
         'assets/logo.png'          => 'Vereinslogo',
-        'assets/logo_nordwest.jpg' => 'Vereinslogo',
+        // Das Regionalwappen wird nicht mehr ausgeliefert; die Vorgabe ist
+        // assets/logo.png. Wer sein eigenes Logo setzt, traegt es in config.php ein.
         'install.php'              => 'nur zur Ersteinrichtung',
         'config.sample.php'        => 'nur zur Ersteinrichtung',
     ];

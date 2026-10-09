@@ -340,8 +340,8 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
         <div class="grid-2">
             <div class="field">
                 <label for="n">Name</label>
-                <input type="text" id="n" name="name" maxlength="160" placeholder="MFV Brislach - Schwarzbubenfliegen <?= (int) date('Y') + 1 ?>" required>
-                <p class="hint">Der Name darf den Veranstalter und das Jahr enthalten, z.B. „MG Breitenbach - Erlencup <?= (int) date('Y') + 1 ?>“.</p>
+                <input type="text" id="n" name="name" maxlength="160" placeholder="Vereinsname - Wettbewerbsname <?= (int) date('Y') + 1 ?>" required>
+                <p class="hint">Der Name darf den Veranstalter und das Jahr enthalten, z. B. „Vereinsname - Wettbewerbsname <?= (int) date('Y') + 1 ?>“.</p>
             </div>
             <div class="field">
                 <label for="rc">Anzahl Durchgänge</label>
