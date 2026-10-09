@@ -18,6 +18,19 @@ require_once __DIR__ . '/../lib/migrations.php';
 // Live-Seite begegnet, ohne dass er etwas mit Benutzerkonten zu tun hatte.
 require_superadmin('Die Aktualisierung');
 
+/**
+ * "1 Anmeldung" oder "3 Anmeldungen".
+ *
+ * Einmal hier und nicht an beiden Stellen: die Zahl steht sowohl im Text neben
+ * dem Knopf als auch in der Meldung danach, und "1 Anmeldungen" liest sich
+ * sofort nach Programmfehler. Wer die Meldung baut und den Text nicht, hat
+ * genau einen davon.
+ */
+function stueck(int $n, string $einzel, string $mehr): string
+{
+    return $n === 1 ? '1 ' . $einzel : $n . ' ' . $mehr;
+}
+
 /** Hinterlaeuft die Datenbank hinter dem Programm? */
 function schema_hinter_programm(): bool
 {
@@ -107,6 +120,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (post('action') === 'undo') {
         $ergebnis = update_rueckgaengig();
         flash($ergebnis['text'], $ergebnis['ok'] ? 'ok' : 'err');
+        redirect('aktualisieren.php');
+    }
+
+    // Der Wettbewerbsbetrieb auf null. Stand 2.0.8 hier und nicht auf der
+    // Wettbewerbsseite: es ist kein Wettbewerb, was man auf null setzt,
+    // sondern der ganze Betrieb. Zusammen mit "Neueste Sicherung
+    // zurueckholen" und dem Selbsttest gehoert es zu den Werkzeugen, und
+    // diesen Bereich sieht ohnehin nur der SuperAdmin.
+    if (post('action') === 'leeren') {
+        try {
+            $ergebnis = wettbewerbsbetrieb_leeren();
+            $v = $ergebnis['vorher'];
+            flash(sprintf(
+                'Betrieb auf null gesetzt: %s, %s, %s, %s, %s und %s sind weg. '
+                . 'Konten, Vereine und Modelltypen sind geblieben.',
+                stueck($v['wettbewerbe'], 'Wettbewerb', 'Wettbewerbe'),
+                stueck($v['rounds'], 'Durchgang', 'Durchgänge'),
+                stueck($v['pilots'], 'Pilot', 'Piloten'),
+                stueck($v['scores'], 'Ergebnis', 'Ergebnisse'),
+                stueck($v['profiles'], 'Stammsatz', 'Stammsätze'),
+                stueck($v['anmeldungen'], 'Anmeldung', 'Anmeldungen')
+            ), 'ok');
+        } catch (Throwable $e) {
+            flash($e instanceof DomainException ? $e->getMessage()
+                : 'Der Bestand konnte nicht geleert werden.', 'err');
+        }
         redirect('aktualisieren.php');
     }
 }
@@ -312,6 +351,43 @@ bleiben unberuehrt; ersetzt werden nur Programmdateien.</p>
         <input type="hidden" name="action" value="undo">
         <button class="btn" type="submit">Neueste Sicherung zurueckholen</button>
         <span class="hint">Setzt die Dateien auf den Stand von <?= h($sicherungen[0]['name']) ?> zurueck.</span>
+    </form>
+<?php endif; ?>
+</div>
+
+<?php // Der Betrieb auf null. Ganz unten, nach Sicherungen und Selbsttest, und
+      // ohne Kasten um den Absatz mit den Zahlen: wer hierher kommt, hat den
+      // Selbsttest gelesen und weiss, was er tut.
+      //
+      // Das ist der Eingriff, der sich nicht ruecknehmen laesst. Die Zahlen
+      // stehen deshalb im Text und nicht nur in der Rueckfrage - und beide
+      // kommen aus wettbewerbsbetrieb_stand(), also aus derselben Quelle wie
+      // das, was der Knopf tut.
+$stand = wettbewerbsbetrieb_stand();
+$aufraeumenMoeglich = $stand['wettbewerbe'] > 0 || $stand['profiles'] > 0 || $stand['anmeldungen'] > 0;
+?>
+<div class="panel">
+    <h3>Betrieb auf null setzen</h3>
+<?php if (!$aufraeumenMoeglich): ?>
+    <p class="hint">Der Betrieb ist bereits leer. Es gibt nichts zu tun.</p>
+<?php else: ?>
+    <p class="hint">Wenn ihr erst später offiziell anfangt, ist alles davor Testmuell. Diese eine
+        Aktion nimmt den ganzen Wettbewerbsbetrieb weg:
+        <strong><?= h(stueck($stand['wettbewerbe'], 'Wettbewerb', 'Wettbewerbe')) ?></strong> mit
+        <?= h(stueck($stand['rounds'], 'Durchgang', 'Durchgänge')) ?>,
+        <?= h(stueck($stand['pilots'], 'Startlisteneintrag', 'Startlisteneinträgen')) ?> und
+        <?= h(stueck($stand['scores'], 'Ergebnis', 'Ergebnisse')) ?>, dazu
+        <?= h(stueck($stand['profiles'], 'Stammsatz', 'Stammsätze')) ?> und
+        <?= h(stueck($stand['anmeldungen'], 'Anmeldung', 'Anmeldungen')) ?>.</p>
+    <p class="hint"><strong>Es bleiben:</strong> die Konten, die Vereine und die Modelltypen.
+        Die kann man nicht wieder herstellen, nur neu anlegen.</p>
+    <p class="hint">Die Namen der Piloten sind danach weg. Sie stehen in keiner Sicherung dieses
+        Programms, sondern nur in deinem Datenbank-Backup – <strong>das musst du vorher anlegen</strong>.</p>
+    <form method="post" action="aktualisieren.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="leeren">
+        <button class="btn danger" type="submit"
+                data-confirm-click="Wirklich alles löschen? <?= (int) $stand['wettbewerbe'] ?> Wettbewerbe mit allen Durchgängen, Startlisten, Resultaten, den Stammsätzen und allen Anmeldungen gehen unwiderruflich weg. Konten, Vereine und Modelltypen bleiben.">Alles aus dem Wettbewerbsbetrieb löschen</button>
     </form>
 <?php endif; ?>
 </div>

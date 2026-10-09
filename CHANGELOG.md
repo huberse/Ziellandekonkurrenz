@@ -10,6 +10,60 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.8
+
+**Ein Konto, dessen Verein noch keinen Wettbewerb hat, konnte sich nicht anmelden.**
+Auf wonder.li kam statt des Wettkampfbüros:
+
+> Diese Seite funktioniert im Moment nicht. wonder.li wird zu oft umgeleitet.
+> ERR_TOO_MANY_REDIRECTS
+
+Der Grund war eine Schleife aus zwei Zeilen: Der Wettbewerb gehörte einem anderen Verein,
+also wurde auf die Übersicht umgeleitet – und die Übersicht war die Seite, die gerade
+umgeleitet hatte. Sie wiederholte sich, bis der Browser nach zwanzig Umleitungen aufgab.
+Wer sich einloggte und nichts konnte, war nicht einmal in der Lage, das zu sehen.
+
+- **Nach dem Anmelden geht es jetzt auf die Wettbewerbsseite**, nicht ins Wettkampfbüro.
+  Dort steht „Es ist noch kein Wettbewerb angelegt“ – und das ist die Wahrheit für *dieses*
+  Konto, nicht für die ganze Datenbank.
+- **Jede Seite, die einen Wettbewerb braucht, sagt es jetzt selbst**, statt auf eine andere
+  Seite zu verweisen: *„Noch keine Wettbewerbe vorhanden“*, mit einem Knopf und einer
+  Weiterleitung nach drei Sekunden. Betroffen waren Erfassung, Startliste, Durchgänge,
+  Einstellungen und Laufzettel – bisher jede für sich, jede anders.
+- **Die obere Leiste sagt „Zur Zeit kein Wettbewerb“**, statt einer leeren Kapsel. Sie zeigt
+  einem Konto ohne eigenen Wettbewerb auch nicht mehr den Wettbewerb eines anderen Vereins.
+
+**Die freigegebene Regiorangliste war auf der Startseite unsichtbar.** Nach der Freigabe des
+Jahres 2026 erschien dort gar nichts. Die Kachel rechnete mit dem *neuesten* Jahr, nicht mit dem
+*freigegebenen*: Für ein neu angefangenes Jahr ohne Wettbewerbe verschwand sie ganz, während die
+freigegebene Rangliste voller Ergebnisse war. Jetzt zeigt sie das neueste Jahr, das dieser
+Besucher sehen darf **und** in dem Wettbewerbe sind. Der Knopf nennt das Jahr mit.
+
+**„Alles aus dem Wettbewerbsbetrieb löschen“ steht in der Aktualisierung**, nicht mehr am Ende
+der Wettbewerbsseite. Es ist kein Wettbewerb, was man auf null setzt, sondern der ganze Betrieb –
+und es gehört neben „Sicherung zurückholen“ und „Selbsttest“, wo ohnehin nur der SuperAdmin
+hineinsieht.
+
+**Die Wettkampfleitung zeigt keinen leeren Bestand als frischen Wettbewerb.** Ohne Wettbewerb
+standen dort vorher lauter Nullen: 0 Piloten, 0/0 Resultate, 0 Durchgänge. Das sieht aus wie ein
+Wettbewerb, in dem noch niemand geflogen ist. Jetzt steht dort, dass keiner da ist, mit einem
+Knopf zum Anlegen.
+
+**Alle Durchgänge auf einmal neu berechnen.** Nach einer Änderung an den Strafpunkt-Regeln gab
+es nur den Knopf für *einen* Durchgang – bei fünf Durchgängen also fünf Klicks, und man musste
+die Liste im Kopf durchgehen, um keinen zu übersehen. Die Rückfrage nennt vorher, wie viele
+Resultate das sind, und sagt, was erhalten bleibt: Flugzeit, Landewert und die Kästchen ändern
+sich nicht, nur die daraus berechneten Punkte. Der einzelne Durchgang funktioniert wie bisher.
+
+**Kein Verein bestimmt mehr, welcher Wettbewerb der aktive ist.** Die Sperre aus 2.0.7 galt nur
+für den Knopf „Aktivieren“. Beim Beenden oder Absagen gab es einen zweiten Weg, und der war
+offen: Ein Verein beendet **seinen** aktiven Wettbewerb, und damit wurde automatisch der
+neueste andere offene zum aktiven – notfalls der eines anderen Vereins. Nachgewiesen mit zwei
+Vereinen: Nord beendet seinen Wettbewerb, und Süds Wettbewerb steht danach im Kopf der
+Startseite, ohne dass Süd irgendetwas getan hatte. Jetzt wählt nur der SuperAdmin den
+Nachfolger – beendet er selbst, bleibt es dabei, dass die Saison mit keinem aktiven Wettbewerb
+endet.
+
 ## 2.0.7
 
 **Ein Wettbewerb ließ sich überhaupt nicht mehr aktivieren – seit 2.0.0.** Der Knopf „Aktivieren“

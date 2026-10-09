@@ -412,10 +412,17 @@ Knopf, beide nur für den SuperAdmin:
   abgeschlossenen Zustand. Die Rückfrage nennt vorher die Zahlen: Resultate, Durchgänge,
   Startlisteneinträge, Anmeldungen. Die **Stammsätze der Piloten bleiben** stehen – sie gehören
   nicht diesem einen Wettbewerb.
-- **„Alles aus dem Wettbewerbsbetrieb löschen“** am Ende der Wettbewerbsseite, für den Fall,
+- **„Alles aus dem Wettbewerbsbetrieb löschen“** in der **Aktualisierung**, für den Fall,
   dass ihr erst später offiziell anfangt und alles davor Testmüll ist. Das nimmt Wettbewerbe,
   Durchgänge, Startlisten, Resultate, die ganzen Stammsätze und alle Anmeldungen weg. **Konten,
   Vereine und Modelltypen bleiben.**
+
+  Dieser Knopf stand bis 2.0.8 am Ende der Wettbewerbsseite. Dort war er falsch: Er setzt nicht
+  einen Wettbewerb auf null, sondern den ganzen Betrieb. Er gehört neben „Sicherung zurückholen“
+  und „Selbsttest“ – in einen Bereich, den ohnehin nur der SuperAdmin sieht. Die Zahlen stehen
+  im Text neben dem Knopf und kommen aus derselben Funktion wie das Löschen selbst
+  (`wettbewerbsbetrieb_stand()`), damit neben dem Knopf nicht etwas anderes steht als das, was
+  er tut.
 
 Warum dafür ein eigener Knopf und nicht einfach keiner: Das Aufräumen in Schritten sieht
 brauchbar aus und ist dann doch blockiert. Ein Stammsatz lässt sich nicht löschen, solange der
@@ -524,6 +531,64 @@ Benutzerverwaltung …“, wie es vorher auf jeder dieser Seiten hieß.
 Beim Aktivieren steht bei einem Vereinskonto statt des Knopfes derselbe Knopf als Hinweis:
 **„◉ Aktivieren – der SuperAdmin“**. Der Punkt bleibt sichtbar, damit man weiß, dass es
 passieren muss und nicht vergessen wurde.
+
+### Ein Verein, für den noch kein Wettbewerb geplant ist
+
+Das ist ein **ganz normaler Zustand**: Ein Verein ist dem Wettkampfbüro beigetreten, hat aber
+noch keinen Termin. Solange das so ist, gibt es für dieses Konto nichts zu erfassen, keine
+Startliste und keine Durchgänge.
+
+Das Programm sagt das auch – **auf jeder Seite, die einen Wettbewerb braucht**:
+
+> **Noch keine Wettbewerbe vorhanden**
+> Für deinen Verein ist noch kein Wettbewerb angelegt. […] In drei Sekunden geht es von
+> selbst zu den Wettbewerben. Sag dem SuperAdmin Bescheid, damit er einen für deinen Verein
+> anlegt.
+
+Es gibt den Knopf und die drei Sekunden, weil beides für sich nötig ist: Wer weiterklickt, wird
+nicht auf eine leere Seite geschickt; wer fünf Seiten nacheinander trifft, wartet nicht fünfmal.
+In der **oberen Leiste** steht **„Zur Zeit kein Wettbewerb“** – vorher stand dort eine leere
+Kapsel, die aussah wie ein Fehler im Programm.
+
+Nach dem Anmelden geht ein solches Konto direkt auf die **Wettbewerbsseite**, nicht ins
+Wettkampfbüro. Dort steht „Es ist noch kein Wettbewerb angelegt“, und das ist die Wahrheit für
+dieses Konto – nicht für die ganze Datenbank.
+
+Sobald der SuperAdmin einen Wettbewerb für den Verein anlegt, verschwindet der Hinweis von
+selbst. Es ist nichts einzuschalten und nichts zu bestätigen.
+
+> **Das war bis 2.0.8 ein Fehler, der den Login blockierte.** `require_competition_access()` hat
+> einen nicht vorhandenen Wettbewerb wie einen fremden behandelt und auf `index.php` umgeleitet –
+> und `index.php` ist selbst eine der Seiten, die diese Funktion aufruft. Ergebnis war eine
+> Umleitungsschleife, die der Browser nach zwanzig Runden mit `ERR_TOO_MANY_REDIRECTS` beendete
+> (gemeldet am 9. Oktober 2026 von wonder.li). Der Unterschied ist jetzt im Code ausgedrückt:
+> **Ein fremder Wettbewerb ist eine falsche Anzeige, ein nicht vorhandener ist ein leerer Betrieb.**
+
+### Wer den aktiven Wettbewerb bestimmt
+
+**Nur der SuperAdmin.** Das ist die einzige Stelle im Programm, an der ein Konto über den
+Betrieb **aller** Vereine entscheidet: Es gibt nur einen aktiven Wettbewerb, und er steht im
+Kopf der Startseite, bestimmt die Wettbewerbseinstellungen, in denen gearbeitet wird, und
+zeigt, welche Resultate gerade zu sehen sind.
+
+Ein Vereinskonto darf anlegen, beenden, absagen und wieder öffnen – **alles an seinem eigenen
+Wettbewerb**. Den aktiven Wettbewerb bestimmt es nicht.
+
+Diese Grenze ist in 2.0.8 über einen zweiten Weg entstanden und hat eigene Regeln:
+
+| Auslöser | Was vorher geschah | Was jetzt geschieht |
+| --- | --- | --- |
+| **„Aktivieren“ anklicken** (2.0.7) | Ein Klick schaltete **alle** anderen Wettbewerbe ab. Ein Verein konnte einem anderen mitten im Wettbewerbstag die Erfassung wegnehmen, ohne dass dieser etwas bemerkte. | Abgelehnt, auch ohne Klick. Der Knopf ist weg; dort steht *„◉ Aktivieren – der SuperAdmin“*. |
+| **Eigenen Wettbewerb beenden oder absagen** (2.0.8) | War er der aktive, wurde **automatisch der neueste andere offene zum aktiven** – notfalls der eines anderen Vereins. | Der aktive Platz wird **freigelassen**, wenn der SuperAdmin das nicht selbst veranlasst hat. |
+
+Der zweite Fall ist der, der leicht übersehen wird: Er sieht harmlos aus, weil der Verein ja
+nur seinen **eigenen** Wettbewerb beendet. Nachgewiesen mit zwei Vereinen – Nord beendet
+seinen, und Süds Wettbewerb steht danach im Kopf der Startseite, obwohl Süd nichts getan hat.
+
+Die Grenze gilt auch für den **Selbstheiler**: Fällt das Kennzeichen einmal weg, repariert es
+nur noch der SuperAdmin. Vorher machte es jeder Seitenaufruf, und es machte damit genau das
+zurück, was das Beenden gerade bewusst entschieden hatte. **Am Ende der Saison soll es ohne
+aktiven Wettbewerb bleiben** – das ist gewollt und keine Störung.
 
 Unter **Benutzer** kann der SuperAdmin je Konto:
 
@@ -699,8 +764,17 @@ deshalb keinen Platz kosten, aber es kann Punkte kosten – und die sind in der 
 Dieselbe Reihenfolge gilt in der Vereinswertung.
 
 **Nachträgliche Änderungen.** Wird eine Regel oder eine Zielzeit geändert, bleiben bereits
-gespeicherte Punkte stehen. Unter **Durchgänge** rechnet *Punkte neu berechnen* einen Durchgang
-mit den aktuellen Regeln des Wettbewerbs nach – auch die festen Strafen und der Motorstart.
+gespeicherte Punkte stehen. Unter **Durchgänge** rechnet *Punkte neu berechnen* mit den aktuellen
+Regeln des Wettbewerbs nach – auch die festen Strafen und der Motorstart. Seit 2.0.8 gibt es
+dafür **zwei** Knöpfe: einen für einen ausgewählten Durchgang und **„Alle Durchgänge neu
+berechnen“** für den ganzen Wettbewerb auf einmal. Vorher musste man jeden Durchgang einzeln
+anklicken und die Liste im Kopf durchgehen, um keinen zu übersehen.
+
+Beim Knopf für alle nennt die Rückfrage vorher, wie viele Resultate betroffen sind, und sagt,
+was **nicht** verändert wird: Flugzeit, Landewert und die Kästchen bleiben, nur die daraus
+berechneten Punkte ändern sich. Das ist die einzige Stelle, an der das Programm über viele
+gespeicherte Werte schreibt – deshalb die Zahl vorher und nicht danach.
+
 Nachrechnen lässt sich nur, was gespeichert ist: Resultate, die vor Fassung 1.9.5 ohne Zeit
 erfasst wurden, enthalten keine Flugzeit, und die kann niemand nachrechnen. Sie müssen neu
 eingetragen werden, sonst bleibt bei ihnen die alte Punktesumme stehen.
@@ -773,6 +847,23 @@ laufenden Jahres öffentlich machen – am Ende einer Saison.
   Freigabe dafür ist je Wettbewerb eine eigene.
 - Gespeichert wird der Zustand als programmeigene Einstellung `region_public_jahr`
   und liegt damit nicht in einem Wettbewerb: der Cup läuft über ein ganzes Jahr.
+
+**Die Kachel auf der Startseite zeigt das freigegebene Jahr, nicht das neueste.** Sie stand
+bis 2.0.8 auf `region_jahre()[0]`, dem neuesten Jahr im Bestand – und das ist fast nie das
+freigegebene. Zwei Fehler steckten in dieser einen Zeile:
+
+1. Nach der Freigabe von 2026 stand auf der Kachel 2027 – ein Jahr, das ein Besucher
+   ohne Konto gar nicht sehen darf.
+2. Ein neu angefangenes Jahr hat noch keine Regiocup-Wettbewerbe. Dann kam die
+   `return`-Zeile heraus und die Kachel war **überhaupt nicht da** – während die
+   freigegebene Rangliste voller Ergebnisse war. Genau das wurde am 9. Oktober 2026
+   gemeldet: „Freigabe gemacht, auf der Startseite kommt nichts.“
+
+Jetzt durchläuft `region_card()` die **sichtbaren** Jahre und nimmt das neueste, in dem
+überhaupt Wettbewerbe sind. Der Knopf **„Ansehen“** nennt das Jahr in der Adresse
+(`region.php?jahr=…`). Das tat er vorher nicht, weil Kachel und Seite beide das neueste
+Jahr nahmen und sich darum nicht widersprechen konnten – jetzt kann die Kachel ein
+älteres zeigen, und ohne das Jahr im Link käme man auf einem anderen an.
 
 ### Vier Zustände, und sie schliessen einander aus
 
@@ -1161,7 +1252,7 @@ teilnehmer.php         öffentliche Teilnehmerliste
 anmeldung.php          öffentliches Anmeldeformular
 
 admin/index.php        Übersicht
-admin/wettbewerbe.php  Wettbewerbe anlegen, beenden; Aktivieren nur SuperAdmin
+admin/wettbewerbe.php  Wettbewerbe anlegen, beenden; Aktivieren nur SuperAdmin (2.0.7)
 admin/erfassung.php    Resultate erfassen
 admin/piloten.php      Startliste: wer fliegt in diesem Wettbewerb
 admin/stammdaten.php   Stammdaten der Piloten, nur SuperAdmin (2.0.0/2.0.7)
@@ -1173,7 +1264,8 @@ admin/laufzettel.php   Laufzettel, HTML und PDF
 admin/export.php       CSV-Export
 admin/einstellungen.php Einstellungen des gewählten Wettbewerbs
 admin/benutzer.php     Benutzerverwaltung, nur SuperAdmin
-admin/aktualisieren.php Aktualisierung von GitHub, nur SuperAdmin
+admin/aktualisieren.php Aktualisierung von GitHub und "Betrieb auf null setzen",
+                       beides nur SuperAdmin (2.0.8)
 admin/profil.php      Eigenes Profil: Anzeigename, Passwort
 admin/regiocup.php    Regiocup: Einstellung und Vorschau (1.9.22)
 admin/login.php        Anmeldung des Wettkampfbüros
@@ -1193,7 +1285,7 @@ lib/pdf.php            abhängigkeitsfreier PDF-Generator
 lib/runsheet_pdf.php   A4-Laufzettel als PDF
 lib/layout.php         Kopf, Navigation, Bedienhilfen
 lib/helpers.php        Hilfsfunktionen und Eingabeprüfung
-lib/auth.php           Anmeldung des Wettkampfbüros
+lib/auth.php           Anmeldung, Rechteprüfungen, Landeseite nach dem Login
 lib/migrations.php     versionierte Datenbankmigrationen
 lib/update.php         Aktualisierung von GitHub
 lib/version.php        Fassung des Programms

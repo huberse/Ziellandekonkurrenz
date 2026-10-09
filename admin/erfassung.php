@@ -12,6 +12,14 @@ $competition = resolve_competition_param(competition_request_param(), true);
 require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $rounds = all_rounds($competition['id']);
+if ((int) $competition['id'] === 0) {
+    // Es gibt noch gar keinen Wettbewerb - dann hat dieser Wettbewerb auch
+    // keine Durchgaenge. Ohne diese Unterscheidung landete man bei
+    // "durchgaenge.php?competition=0", also auf einer Adresse, die es nicht gibt.
+    // Nach dem Leeren des Betriebs ist das der Normalfall und nicht der Randfall.
+    flash('Es ist noch kein Wettbewerb angelegt. Leg zuerst einen an.', 'info');
+    redirect('wettbewerbe.php');
+}
 if (!$rounds) {
     flash('Für diesen Wettbewerb sind noch keine Durchgänge angelegt.', 'info');
     redirect('durchgaenge.php?competition=' . $competition['id']);

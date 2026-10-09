@@ -96,6 +96,37 @@ function require_superadmin(string $gegenstand = 'Die Benutzerverwaltung', bool 
     return $u;
 }
 
+/**
+ * Wohin es nach dem Anmelden geht, wenn niemand einen bestimmten Wunsch
+ * mitgebracht hat.
+ *
+ * Ein Konto, dessen Verein noch keinen Wettbewerb hat, kommt nicht in das
+ * Wettkampfsbuero, sondern auf die Wettbewerbsseite. Dort steht "Es ist noch
+ * kein Wettbewerb angelegt" - und das ist die Wahrheit fuer DIESES Konto, nicht
+ * fuer die ganze Datenbank. Das Wettkampfsbuero zeigt dagegen Startliste,
+ * Durchgaenge und Resultate eines Wettbewerbs, den es fuer dieses Konto gar
+ * nicht gibt.
+ *
+ * Vorher landete alles auf index.php. Dort versuchte die Seite, einen
+ * Wettbewerb zu zeigen, den das Konto nicht steuern darf, und wurde von der
+ * Zugriffspruefung auf index.php zurueckgeschickt - also auf sich selbst. Das
+ * war die Schleife, die auf wonder.li als ERR_TOO_MANY_REDIRECTS aufkam.
+ *
+ * @param string $wunsch  Das "?next=" des Aufrufers, wenn es eines gab
+ */
+function login_landing_page(string $wunsch = ''): string
+{
+    $ziel = safe_local_redirect($wunsch, '');
+    if ($ziel !== '') {
+        return $ziel;
+    }
+    if (current_user() && !is_superadmin() && function_exists('accessible_competitions')
+        && accessible_competitions() === []) {
+        return 'wettbewerbe.php';
+    }
+    return 'index.php';
+}
+
 /** Anzahl aktiver SuperAdmins. Darf nie 0 werden, sonst ist niemand mehr zuständig. */
 function superadmin_count(): int
 {
@@ -152,12 +183,60 @@ function can_manage_competition(int $competitionId): bool
  * Wächter für Admin-Seiten, die einen bestimmten Wettbewerb betreffen.
  * Ohne Zugriff wird eine Meldung ausgegeben und umgeleitet.
  */
+/**
+ * Der Zustand "dieses Konto hat gar keinen Wettbewerb".
+ *
+ * Bis 2.0.8 behandelte require_competition_access() das wie einen fremden
+ * Wettbewerb und schickte auf 'index.php'. Die Seiten, die ohne Wettbewerb
+ * nichts anzeigen koennen, rufen diese Funktion aber selbst auf - und eine
+ * davon IST index.php. Also immer wieder, bis der Browser nach rund 20
+ * Umleitungen aufgab und ERR_TOO_MANY_REDIRECTS zeigte. Gemeldet am
+ * 9. Oktober 2026 von wonder.li, als sich ein Konto nicht einmal anmelden
+ * konnte.
+ *
+ * Die Seite sagt jetzt, was los ist, und geht nach drei Sekunden von selbst
+ * zur Wettbewerbsseite. Der Knopf ist da, weil drei Sekunden Warten nicht
+ * jedem passt; die Wartezeit ist da, weil sie beim Blättern stoert, wenn man
+ * zehn Seiten nacheinander trifft.
+ */
+function kein_wettbewerb_ausgeben(): void
+{
+    if (!function_exists('page_start')) {
+        // Ohne Layout gibt es nichts zu rendern. Dann ist die Umleitung nach
+        // Wettbewerben wenigstens besser als eine Schleife.
+        redirect('wettbewerbe.php');
+    }
+    seite_weiterleitung(3, 'wettbewerbe.php');
+    page_start('Kein Wettbewerb', 'admin', 'wettbewerbe.php');
+    echo '<div class="panel" style="max-width:720px">';
+    echo '<h2 style="margin-top:0">Noch keine Wettbewerbe vorhanden</h2>';
+    echo '<p class="lead">Für deinen Verein ist noch kein Wettbewerb angelegt. Die Seiten des '
+        . 'Wettkampfbüros zeigen Startliste, Durchgänge und Einstellungen genau eines Wettbewerbs – '
+        . 'und einen gibt es für dein Konto nicht.</p>';
+    echo '<p class="small muted">In drei Sekunden geht es von selbst zu den Wettbewerben. Sag dem '
+        . 'SuperAdmin Bescheid, damit er einen für deinen Verein anlegt.</p>';
+    echo '<p><a class="btn" href="wettbewerbe.php">Jetzt zu den Wettbewerben</a></p>';
+    echo '</div>';
+    page_end();
+    exit;
+}
+
 function require_competition_access(int $competitionId): void
 {
-    if (!can_manage_competition($competitionId)) {
-        flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
-        redirect('index.php');
+    if (can_manage_competition($competitionId)) {
+        return;
     }
+    // Der Unterschied ist wichtig, und er ist der ganze Fehler: Ein fremder
+    // Wettbewerb ist eine falsche Anzeige - dafuer hilft "Wettbewerbe ansehen".
+    // Ein nicht vorhandener Wettbewerb ist kein Zugriffsproblem, sondern ein
+    // leerer Betrieb, und darauf hat keine der Verwaltungsseiten eine Antwort.
+    if (!is_superadmin()
+        && function_exists('accessible_competitions')
+        && accessible_competitions() === []) {
+        kein_wettbewerb_ausgeben();
+    }
+    flash('Dieser Wettbewerb gehört einem anderen Verein. Du hast keinen Zugriff darauf.', 'err');
+    redirect('index.php');
 }
 
 function login(string $username, string $password): bool

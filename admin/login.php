@@ -3,16 +3,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/layout.php';
 
+// Beides laeuft ueber dieselbe Regel, damit es nicht zwei Orte gibt, an denen
+// man sich entscheidet, wo es nach dem Anmelden hingeht: wer schon angemeldet
+// ist und trotzdem /admin/login.php aufruft, und wer sich gerade angemeldet hat.
 if (current_user()) {
-    redirect('index.php');
+    redirect(login_landing_page());
 }
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     if (login(post('username'), post('password'))) {
-        $next = get('next');
-        redirect(safe_local_redirect($next));
+        redirect(login_landing_page(get('next')));
     }
     $error = 'Benutzername oder Passwort stimmt nicht.';
     usleep(400000);

@@ -92,9 +92,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } elseif ($action === 'recalc') {
             $rid = (int) post('round_id');
-            $st = $pdo->prepare('SELECT s.*, r.target_time_seconds FROM scores s
-                                 JOIN rounds r ON r.id = s.round_id WHERE s.round_id = ? AND r.competition_id = ?');
-            $st->execute([$rid, $competition['id']]);
+            // Ohne round_id: alle Durchgaenge dieses Wettbewerbs. Wunsch des
+            // Testers vom 9. Oktober 2026 - nach einer Regelkorrektur war vorher
+            // fuer jeden Durchgang ein eigener Klick noetig, bei fuenf
+            // Durchgaengen also fuenf, und man haette die Liste im Kopf
+            // durchgehen muessen, um keinen zu uebersehen.
+            //
+            // Ein Filter wird nur angehaengt, wenn wirklich einer dasteht. Ein
+            // round_id = 0 aus einem leeren Formular darf nicht als "Durchgang
+            // mit der Nummer 0" gelesen werden - das waere stillerweise alles.
+            $sql = 'SELECT s.*, r.target_time_seconds FROM scores s
+                    JOIN rounds r ON r.id = s.round_id
+                    WHERE r.competition_id = ?';
+            $werte = [$competition['id']];
+            if ($rid > 0) {
+                $sql .= ' AND s.round_id = ?';
+                $werte[] = $rid;
+            }
+            $st = $pdo->prepare($sql);
+            $st->execute($werte);
             $up = $pdo->prepare('UPDATE scores SET time_penalty = ?, landing_penalty = ?, penalty = ? WHERE id = ?');
             $n = 0;
             foreach ($st as $s) {
@@ -105,7 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $up->execute([$tp, $lp, $tot, $s['id']]);
                 $n++;
             }
-            flash("$n Resultate neu berechnet.", 'ok');
+            flash($rid > 0
+                ? "$n Resultate neu berechnet."
+                : "Alle Durchgänge neu berechnet: $n Resultate. Die Regeln galten soeben.",
+                $n > 0 ? 'ok' : 'info');
         }
         $pdo->commit();
     } catch (Throwable $e) {
@@ -216,7 +235,7 @@ $notCurrent = (int) $competition['id'] !== current_competition_id();
     <div class="panel">
         <h3 style="margin-top:0">Punkte neu berechnen</h3>
         <p class="lead">Nach einer Änderung der Zielzeit oder der Strafpunkt-Regeln bleiben bereits erfasste Punkte
-            stehen. Hier rechnest du einen Durchgang mit den aktuellen Regeln nach.</p>
+            stehen. Hier rechnest du mit den aktuellen Regeln nach – einen Durchgang oder alle auf einmal.</p>
         <form method="post" class="btn-row">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="recalc">
@@ -227,6 +246,23 @@ $notCurrent = (int) $competition['id'] !== current_competition_id();
                 <?php endforeach; ?>
             </select>
             <button class="btn ghost" type="submit">Neu berechnen</button>
+        </form>
+        <?php // Der zweite Knopf rechnet dasselbe, nur ohne den Filter auf einen
+              // Durchgang. Er fragt vorher nach, weil er alles anfasst: bei
+              // fuenf Durchgaengen und vierzehn Piloten sind es 70 Resultate,
+              // und das ist nicht mehr "ein Durchgang nachrechnen".
+              //
+              // Die Zahl steht in der Rueckfrage und wird aus derselben Stelle
+              // geholt wie die Liste daneben - nicht neu gezaehlt, sonst stimmen
+              // die beiden nicht mehr ueberein, sobald zwischen dem Lesen und
+              // dem Klick jemand ein Resultat erfasst. ?>
+        <form method="post" class="btn-row" style="margin-top:10px">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="recalc">
+            <input type="hidden" name="competition" value="<?= (int) $competition['id'] ?>">
+            <input type="hidden" name="round_id" value="0">
+            <button class="btn" type="submit"
+                    data-confirm-click="Alle <?= count($rounds) ?> Durchgänge mit den aktuellen Regeln neu berechnen?<?= array_sum($counts) > 0 ? ' Dabei werden ' . array_sum($counts) . ' Resultate neu gerechnet.' : ' Es ist noch kein Resultat erfasst.' ?> Die Zeit, der Landewert und die Kästchen bleiben, nur die daraus berechneten Punkte ändern sich.<?= count($rounds) > 1 ? ' Ein einzelner Durchgang lässt sich oben nachrechnen.' : '' ?>">Alle Durchgänge neu berechnen</button>
         </form>
     </div>
 </div>

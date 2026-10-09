@@ -101,6 +101,19 @@ function user_menu(string $base, bool $mitTrenner = false): void
  *        Auf der Startseite steht es nicht, denn dort wird der Wettbewerb erst
  *        gewählt; ein Abzeichen würde eine Antwort vortäuschen, die es noch nicht gibt.
  */
+/**
+ *-weiterleitung nach n Sekunden, noch bevor page_start() laeuft.
+ *
+ * Bewusst getrennt von page_start(): der Meta-Tag gehoert in den <head>, und
+ * page_start() hat den zu dem Zeitpunkt schon geschrieben. Ein <meta
+ * http-equiv="refresh"> im <body> ist ungueltiges HTML - die meisten Browser
+ * befolgen es, aber man verlaesst sich darauf nicht.
+ */
+function seite_weiterleitung(int $sekunden, string $ziel): void
+{
+    $GLOBALS['sf_meta_refresh'] = [$sekunden, $ziel];
+}
+
 function page_start(string $title, string $area = 'public', string $here = '', bool $wide = false, bool $nav = true, bool $ohneAbzeichen = false): void
 {
     ensure_competition_context();
@@ -124,6 +137,12 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     echo '<title>' . h($title . ' · ' . $name) . '</title>';
     echo '<link rel="icon" href="' . h($logo) . '">';
     echo '<link rel="stylesheet" href="' . $base . '/assets/style.css">';
+    // Von seite_weiterleitung() gesetzt. Muss hierher, in den <head>.
+    if (!empty($GLOBALS['sf_meta_refresh'])) {
+        [$sekunden, $ziel] = $GLOBALS['sf_meta_refresh'];
+        echo '<meta http-equiv="refresh" content="' . (int) $sekunden . ';url=' . h((string) $ziel) . '">';
+        unset($GLOBALS['sf_meta_refresh']);
+    }
     echo '</head><body>';
 
     // Oben links steht die Plattform aus config.php, der Wettbewerb genau einmal
@@ -132,6 +151,32 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     echo '<h1><a href="' . $base . '/index.php' . $contextQS . '"><img src="' . h($logo) . '" alt="" class="brand-logo">' . h(site_name()) . '</a></h1>';
     echo '<div class="meta">';
     if (!$ohneAbzeichen) {
+        // Ohne Wettbewerb stand hier vorher eine leere Kapsel. Sie sah aus wie
+        // ein Fehler im Programm und liess offen, ob gerade etwas fehlt oder
+        // nichts los ist. Jetzt steht der Zustand drin.
+        //
+        // "Zur Zeit" und nicht "Es gibt keinen": es kann sehr wohl Wettbewerbe
+        // geben, nur keiner davon ist gerade aktiv - etwa zwischen zwei Saisons,
+        // oder nachdem der letzte beendet wurde.
+        //
+        // Und: im Abzeichen steht nie ein Wettbewerb, den dieses Konto gar nicht
+        // steuern darf. selected_competition() faellt sonst auf den aktiven
+        // Wettbewerb zurueck, und der kann einem anderen Verein gehoeren. Ein
+        // Konto ohne eigenen Wettbewerb sah so "Testwettbewerb 2027" oben
+        // stehen und haelt das fuer seines.
+        if (!is_superadmin()
+            && function_exists('competition_darf_verwalten')
+            && !competition_darf_verwalten($selected)) {
+            $competitionName = '';
+        }
+        $competitionName = trim($competitionName);
+        // Der F all gilt fuer jeden leeren Namen, nicht nur fuer die leere
+        // Wettbewerbs-Id: selected_competition() faellt auf den aktiven
+        // Wettbewerb zurueck, und der hat eine Id - auch dann, wenn er diesem
+        // Konto gar nicht gehoert. Sonst stuende hier eine leere Kapsel.
+        if ($competitionName === '') {
+            $competitionName = 'Zur Zeit kein Wettbewerb';
+        }
         echo '<span class="competition-badge">' . h($competitionName) . '</span>';
         // "abgesagt" vor "abgeschlossen": ein abgesagter Wettbewerb ist auch
         // abgeschlossen, und wer nur "abgeschlossen" laese, wuerde ihn fuer
@@ -563,10 +608,32 @@ function region_card(): void
     if (!region_darf_sehen()) {
         return;
     }
-    $jahre = region_jahre();
-    $jahr = $jahre ? (int) $jahre[0] : 0;
-    $wettbewerbe = $jahr > 0 ? region_wettbewerbe($jahr) : [];
-    if (!$wettbewerbe) {
+    // Das neueste Jahr ist hier das falsche. Zwei Fehler kamen aus dieser
+    // einen Zeile, und beide hat man am 9. Oktober 2026 auf der Startseite
+    // gesehen, nachdem das Jahr 2026 oeffentlich freigegeben war:
+    //
+    // 1. region_jahre() liefert alle Jahre, auch die nicht oeffentlichen. Nach
+    //    der Freigabe von 2026 stand auf der Kachel 2027 - ein Jahr, das ein
+    //    Besucher ohne Konto gar nicht sehen darf.
+    //
+    // 2. Ein neu angefangenes Jahr hat noch keine Regiocup-Wettbewerbe. Dann
+    //    kam die frueher early return heraus, und die Kachel war einfach weg -
+    //    obwohl die freigegebene Rangliste voller Ergebnisse war. Das war der
+    //    gemeldete Fall: freigegeben, und auf der Startseite nichts.
+    //
+    // Deshalb: nur die Jahre, die dieser Betrachter sehen darf, und davon das
+    // neueste, das ueberhaupt Wettbewerbe hat.
+    $jahr = 0;
+    $wettbewerbe = [];
+    foreach (region_sichtbare_jahre() as $kandidat) {
+        $k = region_wettbewerbe($kandidat);
+        if ($k) {
+            $jahr = (int) $kandidat;
+            $wettbewerbe = $k;
+            break;
+        }
+    }
+    if ($jahr === 0) {
         return;
     }
     $daten = region_rangliste(array_map(static function (array $w): int {
@@ -600,10 +667,12 @@ function region_card(): void
         echo '<p class="pick-when small">'
             . h('Vorne: ' . implode(' · ', array_slice($besten, 0, 3))) . '</p>';
     }
-    // Ohne Jahresangabe im Link: region.php nimmt ohne Parameter das neueste
-    // Jahr, und der Kachel zeigt ohnehin das neueste. Das Jahr im Link waere
-    // nur eine zweite Stelle, an der es veralten kann.
-    echo '<div class="pick-go"><a class="btn" href="region.php">Ansehen</a></div>';
+    // Das Jahr steht jetzt im Link. Vorher nicht, weil Kachel und Seite
+    // beide das neueste Jahr nahmen und sich darum nicht widersprechen
+    // konnten. Jetzt kann die Kachel ein aelteres Jahr zeigen - dann
+    // fuehrt der Knopf ohne Angabe auf ein anderes, und der Besucher
+    // glaubt, es sei kaputt.
+    echo '<div class="pick-go"><a class="btn" href="region.php?jahr=' . (int) $jahr . '">Ansehen</a></div>';
     echo '</div>';
 }
 

@@ -19,6 +19,38 @@ function open_competitions(): array
  * Aktiver Wettbewerb. Der Fallback auf seasons hält die Upgrade-Seite
  * auch dann lesbar, solange die Datenbankmigration noch nicht gelaufen ist.
  */
+/**
+ * Darf in dieser Anfrage ueberhaupt festgelegt werden, welcher Wettbewerb der
+ * aktive ist?
+ *
+ * "Aktiv" betrifft nicht den einen Wettbewerb, sondern alle: es gibt nur einen.
+ * Wer das Kennzeichen setzt, entscheidet damit auch, welcher Wettbewerb eines
+ * anderen Vereins gerade im Kopf der Startseite steht, in welchen
+ * Wettbewerbseinstellungen gearbeitet wird und welche Resultate oeffentlich
+ * gerade zu sehen sind.
+ *
+ * Deshalb ist es die einzige Stufe, die mehr sieht als alle anderen. Ein
+ * Vereinskonto darf anlegen, beenden, absagen und wieder oeffnen - alles an
+ * seinem eigenen Wettbewerb. Den aktiven Wettbewerb bestimmt der SuperAdmin.
+ *
+ * Die Grenze ist bewusst eng gezogen: sie gilt fuer das Setzen, nicht fuer das
+ * Anzeigen. Wer keinen aktiven Wettbewerb vorfindet, bekommt weiterhin einen
+ * angezeigt - mit dem Hinweis "Zur Zeit kein Wettbewerb".
+ */
+function wettbewerb_stufe_waehlt_nachfolger(): bool
+{
+    // is_superadmin() liegt in auth.php, und diese Datei darf ohne sie auskommen:
+    // current_competition() wird auch von Werkzeugen aufgerufen, die nur
+    // competition.php laden. Ohne diese Pruefung stirbt dort alles mit
+    // "Call to undefined function is_superadmin()" - und zwar mitten in einer
+    // Abfrage, die eigentlich nur lesen wollte.
+    //
+    // Fehlt auth.php, gibt es keine angemeldete Person und damit keinen
+    // SuperAdmin. Das ist fuer einen Lesezugriff richtig: es wird nichts
+    // geschrieben, und die Seite zeigt "Zur Zeit kein Wettbewerb".
+    return function_exists('is_superadmin') && is_superadmin();
+}
+
 function current_competition(): array
 {
     if (array_key_exists('current_competition_cache', $GLOBALS)) {
@@ -48,7 +80,13 @@ function current_competition(): array
             if (!$row && $hasCompletedColumn) {
                 $row = db()->query('SELECT * FROM competitions ORDER BY id DESC LIMIT 1')->fetch();
             }
-            if ($row && (!$hasCompletedColumn || $row['completed_at'] === null)) {
+            // Nur der SuperAdmin repariert hier etwas. Sonst macht diese Zeile
+            // genau das zurueck, was das Beenden gerade bewusst entschieden hat:
+            // ein Verein beendet seinen aktiven Wettbewerb, es bleibt keiner
+            // aktiv - und der naechste Seitenaufruf macht wieder irgendeinen zum
+            // aktiven, vielleicht einen eines anderen Vereins.
+            if ($row && (!$hasCompletedColumn || $row['completed_at'] === null)
+                && wettbewerb_stufe_waehlt_nachfolger()) {
                 db()->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$row['id']]);
                 $row['is_current'] = 1;
             }
@@ -694,6 +732,30 @@ function competition_bestand(int $competitionId): array
 }
 
 /**
+ * Was im Wettbewerbsbetrieb steht - ohne etwas zu loeschen.
+ *
+ * Steht hier und nicht im Löschablauf, weil die Zahl schon VOR dem Klick
+ * gebraucht wird: die Aktualisierungsseite zeigt sie neben dem Knopf, damit man
+ * weiß, worauf man sich einlässt. Beides aus derselben Quelle zu holen heisst:
+ * was neben dem Knopf steht, ist genau das, was er wegnimmt.
+ */
+function wettbewerbsbetrieb_stand(?PDO $pdo = null): array
+{
+    $pdo = $pdo ?? db();
+    $zaehlen = static function (PDO $pdo, string $sql): int {
+        return (int) $pdo->query($sql)->fetchColumn();
+    };
+    return [
+        'wettbewerbe' => $zaehlen($pdo, 'SELECT COUNT(*) FROM competitions'),
+        'rounds' => $zaehlen($pdo, 'SELECT COUNT(*) FROM rounds'),
+        'pilots' => $zaehlen($pdo, 'SELECT COUNT(*) FROM pilots'),
+        'scores' => $zaehlen($pdo, 'SELECT COUNT(*) FROM scores'),
+        'profiles' => $zaehlen($pdo, 'SELECT COUNT(*) FROM pilot_profiles'),
+        'anmeldungen' => $zaehlen($pdo, 'SELECT COUNT(*) FROM registrations'),
+    ];
+}
+
+/**
  * Den Wettbewerbsbetrieb auf null setzen.
  *
  * Fuer den Fall, dass ein Verein erst 2017 offiziell anfaengt und der ganze
@@ -717,17 +779,7 @@ function competition_bestand(int $competitionId): array
 function wettbewerbsbetrieb_leeren(?PDO $pdo = null): array
 {
     $pdo = $pdo ?? db();
-    $zaehlen = static function (PDO $pdo, string $sql): int {
-        return (int) $pdo->query($sql)->fetchColumn();
-    };
-    $vorher = [
-        'wettbewerbe' => $zaehlen($pdo, 'SELECT COUNT(*) FROM competitions'),
-        'rounds' => $zaehlen($pdo, 'SELECT COUNT(*) FROM rounds'),
-        'pilots' => $zaehlen($pdo, 'SELECT COUNT(*) FROM pilots'),
-        'scores' => $zaehlen($pdo, 'SELECT COUNT(*) FROM scores'),
-        'profiles' => $zaehlen($pdo, 'SELECT COUNT(*) FROM pilot_profiles'),
-        'anmeldungen' => $zaehlen($pdo, 'SELECT COUNT(*) FROM registrations'),
-    ];
+    $vorher = wettbewerbsbetrieb_stand($pdo);
 
     $pdo->beginTransaction();
     try {
@@ -1076,14 +1128,21 @@ function complete_competition(int $competitionId, bool $erzwingen = false): arra
         $istAktiv = (int) $competition['is_current'] === 1;
         if ($istAktiv) {
             $pdo->exec('UPDATE competitions SET is_current = 0');
-            // Ohne Platzhalter: PDO kennt bei query() keine, und ein '?'
-            // waere dort ein Syntaxfehler. Die ID ist eine ganze Zahl aus der
-            // Datenbank und wird deshalb direkt eingetragen.
-            $next = $pdo->query('SELECT id FROM competitions
-                                 WHERE completed_at IS NULL AND id <> ' . (int) $competitionId . '
-                                 ORDER BY id DESC LIMIT 1')->fetchColumn();
-            if ($next !== false) {
-                $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([(int) $next]);
+            // Wer den Nachfolger bestimmt, entscheidet ueber einen fremden
+            // Wettbewerb. Das ist Sache des SuperAdmin, der beide Seiten sieht -
+            // ein Verein, der seinen eigenen beendet, waehlt damit sonst stillschweigend
+            // aus, welcher Wettbewerb eines ANDEREN Vereins ab sofort der aktive ist.
+            // Am Saisonende ist das richtig so: es soll dann keinen geben.
+            if (wettbewerb_stufe_waehlt_nachfolger()) {
+                // Ohne Platzhalter: PDO kennt bei query() keine, und ein '?'
+                // waere dort ein Syntaxfehler. Die ID ist eine ganze Zahl aus der
+                // Datenbank und wird deshalb direkt eingetragen.
+                $next = $pdo->query('SELECT id FROM competitions
+                                     WHERE completed_at IS NULL AND id <> ' . (int) $competitionId . '
+                                     ORDER BY id DESC LIMIT 1')->fetchColumn();
+                if ($next !== false) {
+                    $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([(int) $next]);
+                }
             }
         }
         $pdo->commit();
@@ -1143,9 +1202,12 @@ function cancel_competition(int $competitionId): array
         // darf keiner aktiv sein.
         $aktiv = (int) $competition['is_current'] === 1;
         if ($aktiv) {
-            $naechster = $pdo->query('SELECT id FROM competitions
-                                      WHERE completed_at IS NULL AND id <> ' . (int) $competitionId . '
-                                      ORDER BY id DESC LIMIT 1')->fetchColumn();
+            $naechster = false;
+            if (wettbewerb_stufe_waehlt_nachfolger()) {
+                $naechster = $pdo->query('SELECT id FROM competitions
+                                          WHERE completed_at IS NULL AND id <> ' . (int) $competitionId . '
+                                          ORDER BY id DESC LIMIT 1')->fetchColumn();
+            }
             $pdo->exec('UPDATE competitions SET is_current = 0');
             if ($naechster !== false) {
                 $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([(int) $naechster]);
