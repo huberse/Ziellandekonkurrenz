@@ -10,6 +10,34 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.9
+
+**Eine Meldung konnte sich sechzigmal hintereinander auf einer Seite aufbauen.** Beim Konto
+„TestBK“ (Wettkampfleitung bei MG Stein Fricktal) stand auf der Regiocup-Seite rund sechzigmal
+derselbe Satz: *„Dieser Wettbewerb gehört einem anderen Verein.“* – und darunter dann die
+Regiocup-Seite selbst, so als wäre nichts gewesen.
+
+Der Grund ist eine Folge aus zwei Stellen: Der Zugriffswächter **blitzt und leitet um, bevor die
+Seite ihren Kopf schreibt**. Der Blitz bleibt deshalb in der Sitzung liegen und wird auf der
+Zielseite gar nicht angezeigt. Der nächste Aufruf macht dasselbe, und so warteten die Meldungen
+aufeinander, bis endlich eine Seite ohne Umleitung ihren Kopf schrieb und alle auf einmal
+ausgab.
+
+Jetzt gilt:
+
+- **Dieselbe Meldung zweimal hintereinander wird nicht erneut abgelegt.** Sie entsteht
+  zuverlässig, aber sie bringt niemandem etwas, wenn sie sechzigmal dasteht.
+- **Es sind höchstens fünf Meldungen.** Eine Seite mit neunzig Meldungen ist keine Seite mehr –
+  sie schiebt alles weg, was darunter steht.
+
+Beides betrifft alle Meldungen im Programm, nicht nur diese eine.
+
+**Zur Regiocup-Verwaltung, nach der gefragt wurde:** TestBK ist kein SuperAdmin, darf die Seite
+aber sehen – das ist so gewollt, der **eingestellte Verein** soll die Regiorangliste sehen
+können. Er kann sie nur **sehen**. Jeder der vier Aufrufe – Regiocup-Kennzeichen setzen,
+Jahr öffentlich freigeben, Punkteliste speichern, Punkteliste zurücksetzen – wird abgelehnt,
+auch wenn das Formular ohne Klick abgeschickt wird. Geprüft und als Test festgehalten.
+
 ## 2.0.8
 
 **Ein Konto, dessen Verein noch keinen Wettbewerb hat, konnte sich nicht anmelden.**

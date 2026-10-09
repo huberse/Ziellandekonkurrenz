@@ -254,7 +254,28 @@ function flash(string $text, string $type = 'ok', array $link = []): void
     if (!empty($link['text']) && !empty($link['href'])) {
         $eintrag['link'] = ['text' => (string) $link['text'], 'href' => (string) $link['href']];
     }
-    $_SESSION['flash'][] = $eintrag;
+    $warteschlange = $_SESSION['flash'] ?? [];
+
+    // Dieselbe Meldung zweimal hintereinander bringt niemandem etwas. Sie
+    // entsteht zuverlaessig, wenn ein Aufruf blitzt und danach umleitet, bevor
+    // die Seite ihren Kopf schreibt: require_competition_access() macht genau
+    // das. Der Blitz liegt dann in der Sitzung, wird auf der Zielseite nicht
+    // angezeigt und wartet auf die naechste - und die naechste leitet wieder
+    // um. Aus zehn Klicks wurden sechzig gleiche Saetze auf einer Seite.
+    $neuste = end($warteschlange);
+    if (is_array($neuste) && $neuste['text'] === $text && $neuste['type'] === $type) {
+        return;
+    }
+    $warteschlange[] = $eintrag;
+
+    // Fuenf sind genug. Eine Seite, die neunzig Meldungen ausgibt, ist keine
+    // Seite mehr - sie schiebt alles weg, was darunter steht, und man liest
+    // gar nichts. Die letzten fuenf behalten: die sind die juengsten und
+    // damit die, die zu dem passen, was man gerade getan hat.
+    if (count($warteschlange) > 5) {
+        $warteschlange = array_slice($warteschlange, -5);
+    }
+    $_SESSION['flash'] = $warteschlange;
 }
 
 function flash_take(): array

@@ -1130,6 +1130,37 @@ Die Kachel auf der Startseite folgt derselben Regel. Sie erscheint also **nur,
 wenn sie auch erreichbar ist** – eine Kachel, die auf eine gesperrte Seite
 zeigt, wäre eine Sackgasse.
 
+### Sehen ja, ändern nein
+
+`admin/regiocup.php` hat für den eingestelltenverein zwei Gesichter, und das ist gewollt:
+
+| | SuperAdmin | Eingestellter Verein |
+| --- | --- | --- |
+| Seite sehen | ja | **ja** – das ist der Zweck der Einstellung |
+| Regiocup-Kennzeichen setzen | ja | nein |
+| Jahr öffentlich freigeben | ja | nein |
+| Punkteliste speichern / zurücksetzen | ja | nein |
+
+Jeder der vier Aufrufe prüft `is_superadmin()` **auch dann**, wenn das Formular ohne Klick
+abgeschickt wird. Ein Knopf, den man nicht sieht, ist harmlos; eine Annahme, dass er fehlt,
+ist es nicht. Als Test festgehalten in `scripts/regiocup_nur_sehen.sh`, der für jeden der vier
+Aufrufe den Zustand in den Einstellungen vorher und nachher vergleicht.
+
+### Meldungen stapeln sich nicht mehr
+
+`flash()` legt eine Meldung in der Sitzung ab, und `page_start()` zeigt sie beim nächsten
+Aufruf. **Zwischen beiden kann ein Aufruf umleiten** – `require_competition_access()` tut genau
+das: es blitzt und leitet weiter, *bevor* die Seite ihren Kopf schreibt. Der Blitz wird auf der
+Zielseite also gar nicht angezeigt und wartet auf die nächste.
+
+Bei einem Konto ohne eigenen Wettbewerb häuften sich diese Blitze, bis eine Seite ohne
+Umleitung ihren Kopf schrieb und **alle auf einmal** ausgab – auf wonder.li rund sechzigmal
+derselbe Satz, darunter dann ganz normal die Regiocup-Seite. Zwei Regeln verhindern das:
+
+- **Dieselbe Meldung direkt hintereinander wird nicht erneut abgelegt.**
+- **Es sind höchstens fünf.** Die fünf jüngsten bleiben, denn die passen zu dem, was man gerade
+  getan hat.
+
 ### Die Einstellung gehört zum Programm, nicht zum Wettbewerb
 
 `region_club_id` stand bis 1.9.21 in den **Wettbewerbseinstellungen**. Das war
