@@ -28,22 +28,22 @@ if (!schema_has_competitions()) {
     redirect(upgrade_url());
 }
 
-$me = require_login();
-
-// Wer darf diese Seite sehen? SuperAdmin und der eingestellte Verein. Wer
-// sonst ist, sieht dieselbe Sperre wie region.php - keine Liste, kein Export,
-// und die Startseite zeigt ihm keine Kachel.
-$regionClubId = region_club_id();
-$istEingestellterVerein = $regionClubId !== null && user_club_id() === $regionClubId;
-
-if (!is_superadmin() && !$istEingestellterVerein && !region_darf_sehen()) {
-    page_start('Regiocup', 'admin', 'regiocup.php');
-    echo '<div class="panel"><h2>Regiocup</h2><p class="lead">Die Regiorangliste ist hier nicht freigegeben.</p>'
-        . '<p class="small muted">Sobald der SuperAdmin einen Verein freischaltet, steht die'
-        . ' Regiorangliste hier und auf der Startseite.</p></div>';
-    page_end();
-    exit;
-}
+// Diese Seite ist die VERWALTUNG des Regiocup, nicht die Rangliste. Sie ist dem
+// SuperAdmin vorbehalten - Wunsch des Nutzers vom 9. Oktober 2026.
+//
+// Bis 2.0.9 stand hier "SuperAdmin oder der eingestellte Verein". Das kam aus
+// einer aelteren Vorgabe ("Regiocup als eigene Seite fuer SuperAdmin und
+// eingestellten Verein") und hat sich als falsch erwiesen: Der eingestellte
+// Verein sieht die Regiorangliste ueber region.php - oeffentlich und ohne
+// Anmeldung. So ist es gedacht. Im Wettkampfbuero stand fuer ihn zusaetzlich eine
+// Seite, die nach "nicht freigegeben" aussah, obwohl sie ihm alles zeigte.
+//
+// region_darf_sehen() war zusaetzlich im Spiel: Bei oeffentlichen Ergebnissen
+// sah die Seite danach JEDER - obwohl sie die Knoepfe "Jahr oeffentlich
+// freigeben" und "Punkteliste" nur fuer den SuperAdmin anzeigt. Eine
+// Verwaltungsseite, die ein Vereinskonto betreten kann, ist keine
+// Verwaltungsseite.
+$me = require_superadmin('Die Regiocup-Verwaltung');
 
 $action = post('action');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

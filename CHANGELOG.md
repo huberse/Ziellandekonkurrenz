@@ -10,6 +10,30 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.10
+
+**Die Regiocup-Seite im Wettkampfbüro ist jetzt dem SuperAdmin vorbehalten.** Das Konto
+„TestBK“ (Wettkampfleitung bei MG Stein Fricktal) ist kein SuperAdmin und kam trotzdem auf
+`admin/regiocup.php`.
+
+Das war so vorgesehen – allerdings für eine andere Sache. Die Vorgabe lautete: „Regiocup als eigene
+Seite für SuperAdmin **und** eingestellten Verein.“ Der eingestellte Verein sollte die
+Regiorangliste sehen können. Dafür ist `region.php` da: öffentlich, ohne Anmeldung, mit derselben
+Liste. Im Wettkampfbüro stand für ihn zusätzlich eine Seite, die er ohnehin nicht brauchte.
+
+- **Der Menüpunkt „Regiocup“** ist für Vereinskonten verschwunden.
+- **Ein direkter Aufruf** wird abgelehnt und sagt, was gesperrt ist: *„Die Regiocup-Verwaltung ist
+  dem SuperAdmin vorbehalten.“*
+- **Bis 2.0.9 kam zusätzlich jeder hinein, sobald die Ergebnisse ohnehin öffentlich waren.** Die
+  Bedingung enthielt `region_darf_sehen()`. Bei öffentlichen Ergebnissen stand damit jeder in der
+  Verwaltung – obwohl die Knöpfe „Jahr öffentlich freigeben“ und „Punkteliste“ ohnehin nur für den
+  SuperAdmin angezeigt wurden.
+
+Der eingestellte Verein verliert nichts: `region.php` zeigt ihm die Regiorangliste weiterhin, und
+die Startseite zeigt die Kachel. Geprüft wird jetzt **beide Richtungen** – dass er `region.php`
+sehen darf **und** dass ein fremder Verein und ein Besucher ohne Konto es bei gesperrten
+Ergebnissen nicht.
+
 ## 2.0.9
 
 **Eine Meldung konnte sich sechzigmal hintereinander auf einer Seite aufbauen.** Beim Konto

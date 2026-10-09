@@ -59,9 +59,10 @@ function user_menu(string $base, bool $mitTrenner = false): void
     // Navigationsleiste mehr hat. Wer angemeldet ist und im oeffentlichen
     // Teil blättert, findet sonst keinen Weg zurueck in die Verwaltung.
     echo '<a class="user-item" href="' . h($base) . '/admin/index.php">Wettkampfbüro</a>';
-    // Der Regiocup steht hier und nicht in der Leiste: er betrifft den
-    // SuperAdmin und den einen eingestellten Verein, und keinen sonst. Wer ihn
-    // sehen darf, soll ihn finden - ohne ihn allen anderen aufzudraengen.
+    // Der Regiocup steht hier und nicht in der Leiste: er betrifft nur den
+    // SuperAdmin, und der soll ihn finden - ohne ihn allen anderen
+    // aufzudraengen. Der eingestellte Verein sieht die Regiorangliste ueber
+    // region.php, nicht im Wettkampfbuero.
     // Die Stammdaten der Piloten sind Programmsache, nicht Vereinssache:
     // ein Verein sieht seine Startliste, die Stammliste aller Piloten nicht.
     // Dasselbe gilt fuer Vereine und Modelltypen: beide wirken auf alle, nicht
@@ -72,7 +73,12 @@ function user_menu(string $base, bool $mitTrenner = false): void
         echo '<a class="user-item" href="' . h($base) . '/admin/vereine.php">Vereine</a>';
         echo '<a class="user-item" href="' . h($base) . '/admin/modelltypen.php">Modelltypen</a>';
     }
-    if (function_exists('region_club_id') && (is_superadmin() || region_darf_sehen())) {
+    // Der Regiocup gehoert in das Benutzermenue und nicht in die Leiste: er
+    // betrifft den SuperAdmin und den einen eingestellten Verein, und keinen
+    // sonst. Wer ihn sehen darf, soll ihn finden - ohne ihn allen anderen
+    // aufzudraengen. Seit 2.0.10 ist die VERWALTUNG dem SuperAdmin vorbehalten;
+    // der eingestellte Verein sieht die Rangliste ueber region.php.
+    if ((int) ($u['is_superadmin'] ?? 0) === 1) {
         echo '<a class="user-item" href="' . h($base) . '/admin/regiocup.php">Regiocup</a>';
     }
     if ((int) ($u['is_superadmin'] ?? 0) === 1) {

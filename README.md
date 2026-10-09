@@ -1078,20 +1078,24 @@ nimmt teil. Das Jahr steht im **Wettbewerbsdatum**, nicht im Namen.
 | Datei | macht |
 | --- | --- |
 | `region.php` | die Liste, öffentlich wie die Rangliste; `?jahr=` wählt, `?csv=1` exportiert |
-| `admin/regiocup.php` | Einstellung und Vorschau, für SuperAdmin **und** den eingestellten Verein |
+| `admin/regiocup.php` | Regiocup **verwalten**, nur SuperAdmin (1.9.22/2.0.10) |
 | `lib/layout.php` `region_card()` | die Kachel auf der Startseite |
 | `lib/layout.php` `region_table()` | die Tabelle – **eine** für Seite und Vorschau |
 
 Seit 1.9.22 ist der Regiocup eine eigene Seite im Wettkampfbüro,
 `admin/regiocup.php`, und steht im Benutzermenü. Vorher stand er als Sektion im
-Profil – dort war er nur für den SuperAdmin sichtbar, obwohl die Einstellung
-gerade für einen *anderen* Verein gedacht ist.
+Profil.
 
-Die Seite ist erreichbar für:
+**Seit 2.0.10 ist die Seite ausschließlich für den SuperAdmin.** Bis dahin war sie für
+den eingestellten Verein erreichbar, mit der Liste und ohne Formular – aus der
+Vorgabe, der *eingestellte* Verein solle die Regiorangliste sehen können. Das stimmt,
+aber dafür ist `region.php` da: öffentlich, ohne Anmeldung, mit derselben Liste. Im
+Wettkampfbüro stand für ihn zusätzlich eine Seite, die nichts anzeigte, was er nicht
+ohnehin sehen durfte. Der Menüpunkt im Benutzermenü ist mit der Seite verschwunden.
 
-- den **SuperAdmin** – mit dem Formular, mit dem er den Verein einstellt,
-- die **Mitglieder des eingestellten Vereins** – mit der Liste, ohne Formular,
-- alle anderen **nicht** – sie sehen dieselbe Sperre wie `region.php`.
+Erreichbar ist damit nur noch der **SuperAdmin** – mit dem Formular, mit dem er den
+Verein einstellt, mit der Freigabe und mit der Punkteliste. Siehe
+[Sehen ja, ändern nein](#sehen-ja-ändern-nein).
 
 ### Die Punkteliste ist einstellbar
 
@@ -1132,19 +1136,32 @@ zeigt, wäre eine Sackgasse.
 
 ### Sehen ja, ändern nein
 
-`admin/regiocup.php` hat für den eingestelltenverein zwei Gesichter, und das ist gewollt:
+`admin/regiocup.php` ist die **Verwaltung** des Regiocup, nicht die Rangliste – und die ist seit
+2.0.10 **allein dem SuperAdmin vorbehalten**:
 
-| | SuperAdmin | Eingestellter Verein |
+| | SuperAdmin | Vereinskonto |
 | --- | --- | --- |
-| Seite sehen | ja | **ja** – das ist der Zweck der Einstellung |
+| `admin/regiocup.php` sehen | ja | nein (302, mit Meldung) |
 | Regiocup-Kennzeichen setzen | ja | nein |
 | Jahr öffentlich freigeben | ja | nein |
 | Punkteliste speichern / zurücksetzen | ja | nein |
+| **`region.php` – die Rangliste** | ja | **ja, auch ohne Konto**, wenn er der eingestellte Verein ist |
+
+Der eingestellte Verein verliert mit der Verwaltung **nichts**, was er braucht: Die Rangliste
+sieht er ohnehin öffentlich unter `region.php`. Bis 2.0.9 stand hier „SuperAdmin **oder** der
+eingestellte Verein“ – das kam aus einer älteren Vorgabe und hat sich als falsch erwiesen.
+
+Bis 2.0.9 war zusätzlich `region_darf_sehen()` in der Bedingung enthalten. Bei **öffentlichen
+Ergebnissen** kam damit *jeder* in die Verwaltungsseite, obwohl die Knöpfe „Jahr öffentlich
+freigeben“ und „Punkteliste“ ohnehin nur für den SuperAdmin angezeigt wurden. Eine
+Verwaltungsseite, die ein Vereinskonto betreten kann, ist keine Verwaltungsseite.
 
 Jeder der vier Aufrufe prüft `is_superadmin()` **auch dann**, wenn das Formular ohne Klick
 abgeschickt wird. Ein Knopf, den man nicht sieht, ist harmlos; eine Annahme, dass er fehlt,
-ist es nicht. Als Test festgehalten in `scripts/regiocup_nur_sehen.sh`, der für jeden der vier
-Aufrufe den Zustand in den Einstellungen vorher und nachher vergleicht.
+ist es nicht. Als Test festgehalten in `scripts/regiocup_nur_sehen.sh` – der für jeden Aufruf
+den Zustand in den Einstellungen vorher und nachher vergleicht. `scripts/regi_seite.sh` misst
+zusätzlich **beide Richtungen**: der eingestellte Verein muss `region.php` sehen, ein fremder
+Verein und ein Besucher ohne Konto dürfen es bei gesperrten Ergebnissen nicht.
 
 ### Meldungen stapeln sich nicht mehr
 
@@ -1298,7 +1315,7 @@ admin/benutzer.php     Benutzerverwaltung, nur SuperAdmin
 admin/aktualisieren.php Aktualisierung von GitHub und "Betrieb auf null setzen",
                        beides nur SuperAdmin (2.0.8)
 admin/profil.php      Eigenes Profil: Anzeigename, Passwort
-admin/regiocup.php    Regiocup: Einstellung und Vorschau (1.9.22)
+admin/regiocup.php    Regiocup verwalten, nur SuperAdmin (2.0.10)
 admin/login.php        Anmeldung des Wettkampfbüros
 admin/logout.php       Abmeldung
 
