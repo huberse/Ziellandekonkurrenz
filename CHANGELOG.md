@@ -10,6 +10,34 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.12
+
+**Die Anleitung ist jetzt ein Handbuch.** Sie war über 1400 Zeilen lang und jedes Jahr ein Stück
+länger geworden. Wer das Programm aufsetzt oder einen Wettbewerbstag damit fährt, musste das
+Nützliche erst suchen.
+
+- **Drei Teile: was das Programm tut, wie man es installiert, wie man es bedient.** Der
+  Wettbewerbstag steht als Nummerierung ganz vorn, dazu Wettbewerbe, Erfassung und Wertung,
+  Anmeldung, öffentliche Seiten, Rechte, Einstellungen, Regiocup und Aktualisieren.
+- **Sicherheit, Datenschutz und die Lizenz sind vollständig geblieben**, im Wortlaut und an ihrem
+  Platz.
+- **Die Namen der Seiten sind geblieben**, auf denen man sich bewegt, und die Anweisungen, die man
+  braucht: einmal `admin/upgrade.php` laufen lassen, danach `install.php` und `diagnose.php`
+  löschen.
+- **Weggefallen ist die Baugeschichte.** Was in den früheren Fassungen kaputt war und wie es behoben
+  wurde, steht in dieser Änderungsliste – dort gehört es hin und nicht in eine Anleitung. Ebenso
+  das Verzeichnis aller Programmdateien und die Gestaltungsregeln; die stehen in den Kommentaren
+  der Dateien selbst.
+
+Zwei Angaben der alten Anleitung waren schlicht falsch:
+
+- Es gibt **sechs** Strafpunkte, nicht fünf. Die Bruchlandung kam später dazu, und die Zahl war
+  nicht nachgezogen worden. Die Tabelle der alten Fassung hatte recht, der Satz darüber nicht.
+- Das **Passwort** steht im Profil und nicht unter den Einstellungen des Wettbewerbs. Wer es dort
+  gesucht hat, hat es nicht gefunden.
+
+Am Programm selbst ändert sich nichts: dieselben Rechte, dieselben Regeln, dieselbe Bedienung.
+
 ## 2.0.11
 
 **Die Änderungsliste ist für Vereine geschrieben, nicht für Entwickler.** Auf Wunsch des Nutzers
