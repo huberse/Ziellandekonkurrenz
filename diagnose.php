@@ -177,11 +177,11 @@ if (is_file(__DIR__ . '/config.php')) {
             // Stand hier bis 1.9.11 eine 0, obwohl schema.sql eine 1 vorsieht. Dann
             // war jedes neu angelegte Konto sofort gesperrt, ohne dass am Passwort
             // etwas kaputt war - der Grund dafür, dass sich ein Konto erst nach
-            // einem zweiten Durchgang anmelden ließ.
+            // einem zweiten Durchgang anmelden liess.
             $st = $pdo->prepare("SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS
                                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'active'");
             $st->execute();
-            check('users.active ist standardmäßig aktiv', (string) $st->fetchColumn() === '1',
+            check('users.active ist standardmässig aktiv', (string) $st->fetchColumn() === '1',
                 'admin/upgrade.php aufrufen. Neue Konten wären sonst sofort gesperrt.');
             $st = $pdo->prepare('SELECT COUNT(*) FROM users WHERE is_superadmin = 1 AND active = 1');
             $st->execute();

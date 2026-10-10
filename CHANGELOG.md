@@ -10,6 +10,24 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.14
+
+**Kein scharfes s mehr in den Texten, die gelesen werden.** Auf Wunsch des Nutzers vom
+10. Oktober 2026 – in der Schweiz schreibt man ss.
+
+- **Die Änderungsliste** ist an allen 22 Stellen umgestellt. Sie wird einem Verein auf der
+  Aktualisierungsseite wörtlich angezeigt, und der Wortlaut kommt von hier.
+- **Die Diagnoseseite** ebenso: die Zeile über das Benutzerkonto stand vorher mit scharfem s und
+  damit in einer Rechtschreibung, die hier nicht verwendet wird.
+- **Die Kommentare** in den Programmdateilen auch. Die liest kein Verein, aber wer das Programm
+  pflegt, schreibt auch auf diese Weise.
+
+**Nicht angefasst: die Tabelle im PDF-Erzeuger.** Dort ist das scharfe s kein Schriftzeichen,
+sondern ein Regelfall: es steht auf der linken Seite der Tabelle und wird auf der rechten zu ss
+gemacht. Genau darum steht es dort noch – und wer es ersetzt, zerstört die Ersetzung selbst.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.13
 
 **Im Anlageformular steht der Verein jetzt wie ein Feld und nicht wie eine Fussnote.** Auf Wunsch
@@ -22,7 +40,7 @@ des Nutzers vom 10. Oktober 2026:
 - **Der Verein steht als Feld.** Bisher stand dort der Satz „Wird automatisch dein Verein: …“ in
   kleiner, grauer Hinweisschrift – daneben sah er aus wie eine Fussnote zu einem Feld, das es gar
   nicht gibt. Jetzt steht er in **derselben Schrift, Höhe und Farbe wie die Felder daneben**.
-  Gemessen und nicht nur behauptet: gleiche Schriftgröße, gleiche Höhe, gleicher Rahmen, gleicher
+  Gemessen und nicht nur behauptet: gleiche Schriftgrösse, gleiche Höhe, gleicher Rahmen, gleicher
   Innenabstand, gleiche Textfarbe. Der einzige Unterschied ist ein Hauch hellerer Grund, damit man
   sieht, dass dort nichts einzutragen ist.
 
@@ -199,7 +217,7 @@ endet.
 
 ## 2.0.7
 
-**Ein Wettbewerb ließ sich überhaupt nicht mehr aktivieren – seit 2.0.0.** Der Knopf „Aktivieren“
+**Ein Wettbewerb liess sich überhaupt nicht mehr aktivieren – seit 2.0.0.** Der Knopf „Aktivieren“
 war beim Umbau für „Wettbewerb abgesagt“ weggefallen, ohne dass es jemand gemerkt hätte. Der Text
 im Anlegeformular versprach ihn weiter: *„Aktivieren Sie den neuen erst in der Liste unten“* – unten
 war nichts. Ein neuer Wettbewerb wird nur dann von selbst aktiv, wenn es überhaupt keinen aktiven
@@ -208,12 +226,12 @@ gibt. **Hielt ein anderer Verein den aktiven, blieb deiner für immer offen**, u
 er gehört jetzt dem SuperAdmin.
 
 **Ein Konto konnte einem anderen Verein den aktiven Wettbewerb wegnehmen.** Mit dem Konto eines
-Vereins ließ sich „Aktivieren“ abschicken; das schaltet *alle* anderen Wettbewerbe ab. Dem anderen
+Vereins liess sich „Aktivieren“ abschicken; das schaltet *alle* anderen Wettbewerbe ab. Dem anderen
 Verein fehlte danach mitten im Wettbewerbstag die Erfassung, ohne jede Meldung. Jetzt geht das nur
 noch für den SuperAdmin – auch dann, wenn das Formular ohne Klick abgeschickt wird.
 
 **Vereine und Modelltypen kann jetzt nur der SuperAdmin ändern.** Vorher genügte ein beliebiges
-Konto. Nachgewiesen: Ein Vereinskonto ließ einen **fremden Verein umbenennen**,
+Konto. Nachgewiesen: Ein Vereinskonto liess einen **fremden Verein umbenennen**,
 löschen oder deaktivieren. Ein Modelltyp wirkt auf die Rangliste aller, ein Vereinsname auf die
 öffentlichen Seiten und auf die Vereinswertung – beides gehört nicht in die Hand eines einzelnen.
 
@@ -292,7 +310,7 @@ Der Aufraeumer ist deshalb kein nummerierter Schritt, sondern ein **bedingter**:
 Er läuft, solange die alten Schlüssel wirklich noch dastehen, und meldet sich
 sonst nicht mehr.
 
-Die Schlüssel heißen `penalty_per_second_over`, `penalty_per_second_under`,
+Die Schlüssel heissen `penalty_per_second_over`, `penalty_per_second_under`,
 `penalty_not_flown`, `max_time_penalty` und `max_landing_penalty`. Sie werden
 seit der Umstellung der Strafpunktregeln nicht mehr gelesen und stehen nur noch
 herum. Die geltenden Regeln werden **nicht** angefasst.
@@ -332,7 +350,7 @@ unter **Regiocup** im Wettkampfbüro.
 
 - Der Knopf **erscheint erst, wenn kein Wettbewerb des Jahres mehr offen ist**.
   Steht noch einer offen, steht statt des Knopfes die Zahl und der Name. Wer zu
-  früh freigeben will, weiß damit auch, was er zuerst tun muss – beenden oder
+  früh freigeben will, weiss damit auch, was er zuerst tun muss – beenden oder
   als abgesagt markieren. Ein abgesagter Wettbewerb gilt als abgeschlossen.
 - **Danach sieht ein Besucher nur dieses eine Jahr.** Die Jahresknöpfe
   verschwinden für ihn. Vorjahre bleiben hier im Wettbewerbsbüro stehen, sind
@@ -347,7 +365,7 @@ unter **Regiocup** im Wettkampfbüro.
 
 Kleinigkeiten und ein Fehler, der im Betrieb aufgefallen ist.
 
-**Ein Wettbewerb ließ sich nicht beenden.** Der Knopf „Beenden" war da – und hat
+**Ein Wettbewerb liess sich nicht beenden.** Der Knopf „Beenden" war da – und hat
 nichts getan. Betroffen waren Wettbewerbe ohne einen einzigen Piloten in der
 Startliste. Das ist behoben.
 
@@ -409,8 +427,8 @@ die SMV-Nummer** als eigene Spalte.
 ### Wettbewerbe können ausfallen
 
 Ein Wettbewerb kann ausfallen, etwa wegen Wetter, und es findet sich kein
-Ersatztermin. Bisher gab es dafür keinen Zustand: „beendet" hieß immer, dass
-**alle** Ergebnisse da sind. Ein solcher Wettbewerb war damit nie zu schließen
+Ersatztermin. Bisher gab es dafür keinen Zustand: „beendet" hiess immer, dass
+**alle** Ergebnisse da sind. Ein solcher Wettbewerb war damit nie zu schliessen
 – und am Saisonende blieb er einfach aktiv stehen.
 
 - **Neuer Knopf „Abgesagt"** auf der Wettbewerbskarte. Er bedeutet: *fand nicht
@@ -436,10 +454,10 @@ Ersatztermin. Bisher gab es dafür keinen Zustand: „beendet" hieß immer, dass
 
 Der Knopf „Beenden" verschwand ersatzlos, sobald für einen Piloten ein Ergebnis
 fehlte. Damit war ein Wettbewerb, dem ein Pilot oder ein Durchgang fehlte, nie
-zu schließen – und genau dann steht man am Saisonende da.
+zu schliessen – und genau dann steht man am Saisonende da.
 
 - **Neuer Knopf „Trotzdem beenden"** als zweiter Weg. Er sagt vorher, wie viele
-  Ergebnisse fehlen, und schließt den Wettbewerb trotzdem. Die Lücken bleiben
+  Ergebnisse fehlen, und schliesst den Wettbewerb trotzdem. Die Lücken bleiben
   unausgewertet und lassen sich danach nicht mehr nachtragen.
 - **Ein Wettbewerb ohne einen einzigen Piloten** zeigt wieder „Beenden": da
   fehlt nichts.
@@ -449,7 +467,7 @@ zu schließen – und genau dann steht man am Saisonende da.
 - **Der Kasten „Anmelden in drei Schritten" ist genau so breit wie zwei
   Wettbewerbskacheln** und steht bündig über den ersten beiden. Vorher war er
   schmaler und stand für sich mittig; links blieb eine breite Lücke.
-- **Die Kachel der Regiorangliste heißt nur noch „Regiorangliste".** Das Jahr
+- **Die Kachel der Regiorangliste heisst nur noch „Regiorangliste".** Das Jahr
   stand vorher im Namen und sagte nichts über den Inhalt. Es steht jetzt eine
   Zeile tiefer, zusammen mit den Wettbewerben, zu denen es gehört:
   „2027 · 3 Wettbewerbe · 4 Starts zählen".
@@ -489,12 +507,12 @@ zu schließen – und genau dann steht man am Saisonende da.
 
 - **In der Benutzerverwaltung war der Knopf „Löschen“ nicht erreichbar.** Die
   Tabelle war 1214 Pixel breit, ihr Kasten nur 1098 – die letzte Spalte stand
-  einfach außerhalb. Zwei Ursachen: die Spalte **Angelegt** war zu breit, und
+  einfach ausserhalb. Zwei Ursachen: die Spalte **Angelegt** war zu breit, und
   die drei Eingabefelder hatten eine Mindestbreite, die sie nicht brauchten.
   - Die Spalte **Angelegt** ist weg. Sie stand ohnehin nur als Datum da.
   - Die Felder gehen auf `min-width: 9rem`; der Platzhalter im Passwortfeld
-    hieß „unverändert lassen“ und wäre bei der schmaleren Breite ohnehin
-    abgeschnitten worden. Er heißt jetzt „unverändert“.
+    hiess „unverändert lassen“ und wäre bei der schmaleren Breite ohnehin
+    abgeschnitten worden. Er heisst jetzt „unverändert“.
   - Die Tabelle misst jetzt genau 1098 Pixel und passt damit ohne Rest in
     1280. Geprüft: **die letzte Spalte wird nicht mehr abgeschnitten**.
 
@@ -688,16 +706,16 @@ zu schließen – und genau dann steht man am Saisonende da.
 
 - **Die Vereinswertung steht am Ende der Rangliste**, unter demselben Filter wie
   die Piloten. Sie hatte eine eigene Seite, weil es eine Leiste gab, in der sie
-  liegen konnte. „Gesamtwertung“ heißt bei den Vereinen dasselbe wie „alle
+  liegen konnte. „Gesamtwertung“ heisst bei den Vereinen dasselbe wie „alle
   Modelltypen“; „Elektrisch“ und „Schlepp“ schränken jetzt beide Wertungen
   gleichzeitig ein.
 - **Der Knopf „Drucken“ ist von der Rangliste und von der Vereinswertung
   verschwunden.** Auf dem iPad druckt man ohnehin nicht, und am Wettbewerbsplatz
   gibt es den Laufzettel als PDF.
 
-- **Die erste Zeile der Anmeldung ist ein Satz in einer Größe** und nennt den
+- **Die erste Zeile der Anmeldung ist ein Satz in einer Grösse** und nennt den
   Wettbewerb vollständig. Vorher stand dort eine Überschrift in eigener
-  Schriftgröße und darunter ein Absatz: zwei Grade übereinander für eine einzige
+  Schriftgrösse und darunter ein Absatz: zwei Grade übereinander für eine einzige
   Aussage.
 
 - **„Wettkampfbüro“ steht jetzt im Menü hinter dem Benutzersymbol.** Mit der
@@ -736,7 +754,7 @@ zu schließen – und genau dann steht man am Saisonende da.
   iPad im Querformat ebenfalls drei – nur schmaler.
   - Das Raster ist dafür durch Flex ersetzt. Ein Raster zentriert mit
     `justify-content` nur die Spalten: eine einzelne Kachel auf der zweiten
-    Zeile saß linksbündig. Mit Flex steht jede Zeile mittig, auch wenn sie
+    Zeile sass linksbündig. Mit Flex steht jede Zeile mittig, auch wenn sie
     nur eine Kachel hat. Auf 1024 Pixeln sind es drei Kacheln zu 316 Pixeln
     nebeneinander, vorher waren es zwei zu 360 und eine allein darunter.
 
@@ -846,7 +864,7 @@ zu schließen – und genau dann steht man am Saisonende da.
   - Behoben an drei Stellen: Neue Konten werden ausdrücklich als aktiv angelegt, eine
     frische Installation bekommt den richtigen Vorgabewert, und ein Migrationsschritt
     stellt ihn bei schon migrierten Installationen nach. **Bestehende Konten werden
-    nicht angefasst:** gesperrt heißt gesperrt, auch absichtlich.
+    nicht angefasst:** gesperrt heisst gesperrt, auch absichtlich.
   - Prüfung ergänzt: **`diagnose.php` meldet einen falschen Vorgabewert** für neue
     Konten. Geprüft habe ich sie, indem ich den Wert absichtlich wieder verstellt
     habe – sie schlägt an, und nach der Migration schweigt sie.
@@ -1067,7 +1085,7 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
   Wettbewerb doch nicht zur Region gehört.
 - Das Jahr für die Regiowertung kommt aus dem **Wettbewerbsdatum**, nicht aus
   dem Namen. Ein Wettbewerb mit dem Datum 19.06.2026 zählt also für 2026, gleich
-  wie er heißt. Vorher wäre das beim Kopieren eines Wettbewerbs mit
+  wie er heisst. Vorher wäre das beim Kopieren eines Wettbewerbs mit
   kopiert worden, und die beiden Wettbewerbe eines Jahres könnten auseinanderlaufen.
 - Unter *Einstellungen → Regiocup* lässt sich der Verein wählen, dessen
   Mitglieder die Regiorangliste sehen und exportieren dürfen, auch wenn die
@@ -1175,7 +1193,7 @@ Fassung 2.0 – hier wird nur die Grundlage gelegt und erprobt.
   bis der SuperAdmin sie zuweist. Nichts wird dadurch ausgesperrt.
 - Bruchlandung als eigener Ausgang mit eigener Feststrafe, einstellbar je Verein.
 - Beim Erfassen entfällt das Auswahlfeld: die vier Ankreuzfelder des Laufzettels
-  übernehmen die Ausgänge direkt. Kein Feld heißt „geflogen". Das Bemerkungsfeld
+  übernehmen die Ausgänge direkt. Kein Feld heisst „geflogen". Das Bemerkungsfeld
   ist weg.
 - Fehlerbehebung: Nach dem Einspielen der Dateien, aber vor dem Lauf der
   Migrationen, wurden die Konten als abgemeldet behandelt. Damit war der Weg zur

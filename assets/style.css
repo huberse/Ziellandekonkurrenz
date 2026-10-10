@@ -88,7 +88,7 @@ a:hover { color: var(--ink); }
   border-radius: 50%;
   flex: none;
   /* Der helle Rand trennt das Logo auf dem dunklen Balken, egal ob es rund
-     ausgeschnitten ist oder einen weißen Hintergrund hat. */
+     ausgeschnitten ist oder einen weissen Hintergrund hat. */
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
 

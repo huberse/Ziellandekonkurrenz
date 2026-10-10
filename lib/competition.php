@@ -736,7 +736,7 @@ function competition_bestand(int $competitionId): array
  *
  * Steht hier und nicht im Löschablauf, weil die Zahl schon VOR dem Klick
  * gebraucht wird: die Aktualisierungsseite zeigt sie neben dem Knopf, damit man
- * weiß, worauf man sich einlässt. Beides aus derselben Quelle zu holen heisst:
+ * weiss, worauf man sich einlässt. Beides aus derselben Quelle zu holen heisst:
  * was neben dem Knopf steht, ist genau das, was er wegnimmt.
  */
 function wettbewerbsbetrieb_stand(?PDO $pdo = null): array

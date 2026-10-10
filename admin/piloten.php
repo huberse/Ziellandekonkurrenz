@@ -211,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // zu. Leere Werte sind mehrfach erlaubt, deshalb geht das.
                 // Eine eigene Transaktion ist nicht nötig: der ganze Aufruf läuft
                 // bereits in einer, und PDO kennt keine verschachtelten. Scheitert
-                // etwas, rollt der äußere Lauf zurück und die Startnummer bleibt so,
+                // etwas, rollt der äussere Lauf zurück und die Startnummer bleibt so,
                 // wie sie war.
                 $leeren = $pdo->prepare("UPDATE pilots SET bib_number = NULL
                                           WHERE competition_id = ? AND id IN ($in)");

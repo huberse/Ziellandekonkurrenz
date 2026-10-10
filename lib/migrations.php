@@ -593,7 +593,7 @@ function migration_competitions(PDO $pdo): array
 
     // MariaDB 10.3 kann eine an einem Foreign Key beteiligte Spalte nicht
     // immer per CHANGE umbenennen. Deshalb werden die alten Constraints vor
-    // dem Umbau entfernt und anschließend mit neuen Namen neu angelegt.
+    // dem Umbau entfernt und anschliessend mit neuen Namen neu angelegt.
     $constraints = array_merge(
         migration_foreign_keys_referencing_table($pdo, 'seasons'),
         migration_foreign_keys_on_table($pdo, 'scores'),
