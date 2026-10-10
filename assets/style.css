@@ -712,6 +712,13 @@ textarea {
 
 input:focus, select:focus, textarea:focus { border-color: var(--blau); }
 
+/* Ein gesperrtes Feld bleibt ein Feld: gleiche Schrift, gleiche Hoehe, gleiche
+   Kanten, nur der Grund ist einen Tick heller und der Mauszeiger zeigt es an.
+   Ohne das sieht ein "readonly" aus wie ein leeres Eingabefeld, in dem es nur
+   gerade nicht geht - und genau das war vorher der Eindruck beim Vereinsnamen
+   im Anlageformular. */
+input[readonly] { background: #f7f9fb; cursor: default; }
+
 /* Kompakte Bedienelemente. Die Markierung sitzt auf dem Bereich, nicht auf dem
    einzelnen Element, damit eine Zeile nicht halb kompakt und halb normal sein
    kann: .dense verkleinert alles darin, .btn.small einzelne Knöpfe.

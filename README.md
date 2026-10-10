@@ -178,9 +178,9 @@ Rückfrage.
 
 ## Wettbewerbe
 
-Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel
-`Vereinsname - Wettbewerbsname 2027`, eigene Durchgänge, eine leere Startliste und eigene
-Einstellungen.
+Ein Wettbewerb bekommt einen aussagekräftigen Namen, zum Beispiel `Wettbewerbsname 2027`, eigene
+Durchgänge, eine leere Startliste und eigene Einstellungen. Der **Vereinsname gehört nicht hinein**:
+der Veranstalter steht als eigenes Feld daneben und ist für ein Vereinskonto ohnehin fest eingetragen.
 
 ### Die vier Zustände
 

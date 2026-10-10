@@ -340,8 +340,8 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
         <div class="grid-2">
             <div class="field">
                 <label for="n">Name</label>
-                <input type="text" id="n" name="name" maxlength="160" placeholder="Vereinsname - Wettbewerbsname <?= (int) date('Y') + 1 ?>" required>
-                <p class="hint">Der Name darf den Veranstalter und das Jahr enthalten, z. B. „Vereinsname - Wettbewerbsname <?= (int) date('Y') + 1 ?>“.</p>
+                <input type="text" id="n" name="name" maxlength="160" placeholder="Wettbewerbsname <?= (int) date('Y') + 1 ?>" required>
+                <p class="hint">Ein Name mit dem Jahr genügt, z. B. „Wettbewerbsname <?= (int) date('Y') + 1 ?>“.</p>
             </div>
             <div class="field">
                 <label for="rc">Anzahl Durchgänge</label>
@@ -363,9 +363,17 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                 <p class="hint">Nur die Konten dieses Vereins dürfen den Wettbewerb steuern und bearbeiten.</p>
             </div>
             <?php else: ?>
+            <?php // Der Verein steht als Feld und nicht als Satz darunter: in der
+                  // Klasse fuer Hinweise steht er kleiner und grau, daneben sah
+                  // er aus wie eine Fussnote zu einem Feld, das es gar nicht
+                  // gibt. "readonly" statt "disabled", weil ein gesperrtes Feld
+                  // den Wert nicht anzeigt und nicht kopierbar ist - und weil
+                  // der Verein hier ohnehin nicht mitgeschickt werden soll:
+                  // das Formular hat keinen namen-Feld dafuer, und die Seite
+                  // nimmt fuer Nicht-SuperAdmins ohnehin den eigenen Verein. ?>
             <div class="field">
                 <label>Veranstalter</label>
-                <p class="hint" style="margin:0">Wird automatisch dein Verein: <b><?= h((string) (current_user()['club_name'] ?? '')) ?></b></p>
+                <input type="text" value="<?= h((string) (current_user()['club_name'] ?? '')) ?>" readonly>
             </div>
             <?php endif; ?>
         </div>

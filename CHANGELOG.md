@@ -10,6 +10,24 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.13
+
+**Im Anlageformular steht der Verein jetzt wie ein Feld und nicht wie eine Fussnote.** Auf Wunsch
+des Nutzers vom 10. Oktober 2026:
+
+- **Der Vereinsname gehört nicht mehr in den Wettbewerbsnamen.** Der Vorschlag im Feld *Name* war
+  bisher „Vereinsname - Wettbewerbsname 2027“. Das war doppelt: der Veranstalter steht als eigenes
+  Feld daneben und ist für ein Vereinskonto ohnehin fest eingetragen. Jetzt lautet der Vorschlag
+  **„Wettbewerbsname 2027“**, und der Hinweis darunter sagt nur noch das mit dem Jahr.
+- **Der Verein steht als Feld.** Bisher stand dort der Satz „Wird automatisch dein Verein: …“ in
+  kleiner, grauer Hinweisschrift – daneben sah er aus wie eine Fussnote zu einem Feld, das es gar
+  nicht gibt. Jetzt steht er in **derselben Schrift, Höhe und Farbe wie die Felder daneben**.
+  Gemessen und nicht nur behauptet: gleiche Schriftgröße, gleiche Höhe, gleicher Rahmen, gleicher
+  Innenabstand, gleiche Textfarbe. Der einzige Unterschied ist ein Hauch hellerer Grund, damit man
+  sieht, dass dort nichts einzutragen ist.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.12
 
 **Die Anleitung ist jetzt ein Handbuch.** Sie war über 1400 Zeilen lang und jedes Jahr ein Stück
