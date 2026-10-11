@@ -1,8 +1,64 @@
 <?php
 /**
  * Prüft, ob der Server alles mitbringt, was die App braucht.
- * Hochladen, im Browser aufrufen, Ergebnis anschauen, danach löschen.
+ *
+ * Nur der angemeldete SuperAdmin darf sie aufrufen. Sie nennt den Namen der
+ * Datenbank, alle Tabellen, Spalten, Indizes und Fremdschlüssel sowie - seit
+ * 2.0.16 - die Namen der Wettbewerbe ohne Veranstalter. Das gehoert niemandem,
+ * der kein Konto hat, und eine oeffentlich erreichbare Seite, die das ausgibt,
+ * ist eine Landkarte der Installation.
+ *
+ * Weil sie jetzt geschuetzt ist, darf sie auf dem Server bleiben. Vor 2.0.18
+ * stand hier "danach loeschen", weil sie fuer jeden erreichbar war.
+ *
+ * Bewusst ohne Ausweg: kein Schluessel, kein Notfallzugang. Die Datei ist
+ * eigenstaendig und baut ihre Datenbankverbindung selbst auf - genau deshalb
+ * funktioniert sie auch dann, wenn die Anwendung selbst laedt. Mit der
+ * Anmeldepflicht gilt das nicht mehr: ist der Login kaputt, hilft nur noch der
+ * Hoster. Das ist der Preis, und er ist gewollt.
+ *
+ * Auf der Kommandozeile gibt es keine Sitzung und deshalb auch keine Sperre:
+ * wer dort ist, hat ohnehin schon alles.
  */
+if (PHP_SAPI !== 'cli') {
+    $istSuperAdmin = false;
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    if (!empty($_SESSION['uid']) && is_file(__DIR__ . '/config.php')) {
+        try {
+            $cfgZugang = require __DIR__ . '/config.php';
+            $dsnZugang = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+                $cfgZugang['db_host'], $cfgZugang['db_port'] ?? 3306, $cfgZugang['db_name']);
+            $pdoZugang = new PDO($dsnZugang, $cfgZugang['db_user'], $cfgZugang['db_pass'],
+                                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+            $stZugang = $pdoZugang->prepare('SELECT is_superadmin, active FROM users WHERE id = ?');
+            $stZugang->execute([(int) $_SESSION['uid']]);
+            $benutzerZugang = $stZugang->fetch();
+            $istSuperAdmin = $benutzerZugang
+                && (int) $benutzerZugang['is_superadmin'] === 1
+                && (int) $benutzerZugang['active'] === 1;
+        } catch (Throwable $e) {
+            // Keine Verbindung oder keine Tabelle: dann laesst sich die Rolle
+            // nicht feststellen, also kein Zutritt. Genau das ist der Fall, in
+            // dem diese Seite frueher ihr juengstes Werkzeug war.
+            $istSuperAdmin = false;
+        }
+    }
+    if (!$istSuperAdmin) {
+        // Bewusst dieselbe Ausgabe fuer "nicht angemeldet" und "angemeldet,
+        // aber kein SuperAdmin" - sonst verraet die Seite, welche Konten es
+        // ueberhaupt gibt.
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Diese Seite zeigt nur der angemeldete SuperAdmin.\n\n";
+        echo "Sie nennt den Namen der Datenbank, alle Tabellen und Spalten sowie\n";
+        echo "gegebenenfalls die Namen der Wettbewerbe ohne Veranstalter.\n\n";
+        echo "Im Wettkampfbüro unter dem Benutzersymbol anmelden und diese Seite\n";
+        echo "danach erneut aufrufen.\n";
+        exit;
+    }
+}
 
 header('Content-Type: text/plain; charset=utf-8');
 error_reporting(E_ALL);
@@ -266,4 +322,4 @@ echo $ok
       . "(oder den Hoster danach fragen) - dort steht die genaue Fehlermeldung und Zeile.\n"
     : "Mindestens ein Punkt oben fehlt oder ist zu alt. Das ist die wahrscheinliche Ursache für die 500-Fehler.\n";
 
-echo "\nDiese Datei danach vom Server löschen.\n";
+echo "\nDie Datei darf auf dem Server bleiben: sie zeigt nur der angemeldete SuperAdmin.\n";

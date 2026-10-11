@@ -10,6 +10,30 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.18
+
+**`diagnose.php` darf jetzt auf dem Server bleiben – sie ist dem SuperAdmin vorbehalten.** Auf
+Wunsch des Nutzers am 11. Oktober 2026.
+
+Bis hierher musste die Datei nach der Einrichtung vom Server gelöscht werden, weil sie für jeden
+erreichbar war. Sie nennt den **Namen der Datenbank**, alle Tabellen, Spalten, Indizes und
+Fremdschlüssel – und seit 2.0.16 zusätzlich die Namen der Wettbewerbe ohne Veranstalter. Eine
+öffentlich erreichbare Seite, die das ausgibt, ist eine Landkarte der Installation.
+
+- **Ohne Anmeldung oder ohne SuperAdmin-Rechte erscheint nur ein kurzer Hinweis.** Beide Fälle
+  sind absichtlich **wortgleich**, sonst würde die Seite verraten, welche Konten es überhaupt gibt.
+- **Der SuperAdmin sieht alles wie bisher**, mit allen Prüfungen.
+- **Auf der Kommandozeile gibt es keine Sperre.** Wer dort ist, hat ohnehin schon alles – und ohne
+  diese Ausnahme wäre die Seite bei einem kaputten Login auch für den Betreiber unbrauchbar.
+- **Anleitung und Sicherheitsabschnitt angepasst**: `diagnose.php` muss nicht mehr gelöscht werden.
+
+**Was das kostet, offen gesagt:** Läuft eine Installation so weit, dass sich niemand anmelden kann
+– Datenbank nicht erreichbar, alle Konten gesperrt –, dann hilft `diagnose.php` nicht mehr. Dann
+bleibt nur das PHP-Fehlerprotokoll des Hosters. Das ist die Kehrseite davon, dass die Datei vorher
+absichtlich ohne Anmeldung auskam: genau dann war sie ihr juengstes Werkzeug.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.17
 
 **Die Seite „Anmeldungen“ zeigte einem Verein ohne eigenen Wettbewerb die Anmeldungen eines

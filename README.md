@@ -122,7 +122,7 @@ Wettbewerb, die Durchgänge und das erste Konto an.
 | Datei | danach |
 | --- | --- |
 | `install.php` | **löschen** – sie gehört nicht auf einen Server im Internet |
-| `diagnose.php` | darf bleiben, bis man sie einmal gebraucht hat; danach ebenfalls löschen |
+| `diagnose.php` | **darf liegen bleiben** – sie zeigt seit 2.0.18 nur dem angemeldeten SuperAdmin |
 | `admin/upgrade.php` | darf liegen bleiben, siehe [Aktualisieren](#aktualisieren) |
 
 Antwortet eine Seite mit einem 500-Fehler, hilft [`diagnose.php`](#fehlersuche).
@@ -676,7 +676,8 @@ und Modelltypen bleiben.** Siehe [Wettbewerbe](#wettbewerbe).
 
 ## Fehlersuche
 
-Antwortet eine Seite mit einem 500-Fehler, `diagnose.php` hochladen und aufrufen:
+Antwortet eine Seite mit einem 500-Fehler, **als SuperAdmin anmelden** und dann `diagnose.php`
+aufrufen:
 
 ```
 https://ihre-domain/diagnose.php
@@ -684,8 +685,15 @@ https://ihre-domain/diagnose.php
 
 Die Datei prüft PHP-Version, benötigte Erweiterungen, Dateirechte, die Datenbankverbindung, alle
 Tabellen und ob das Schema dem aktuellen Stand entspricht. Für die eigentliche Fehlermeldung mit
-Datei und Zeile hilft meist nur das PHP-Fehlerprotokoll des Hosters. **Danach `diagnose.php`
-löschen.**
+Datei und Zeile hilft meist nur das PHP-Fehlerprotokoll des Hosters.
+
+**Die Datei darf auf dem Server bleiben.** Sie nennt den Namen der Datenbank, alle Tabellen und
+Spalten sowie die Wettbewerbe ohne Veranstalter – deshalb zeigt sie seit 2.0.18 **nur dem
+angemeldeten SuperAdmin** etwas. Wer nicht angemeldet ist, bekommt denselben kurzen Hinweis wie
+jemand ohne SuperAdmin-Rechte; es gibt also nichts zu erraten.
+
+**Der Preis dafür:** Läuft die Anwendung so weit, dass sich niemand anmelden kann, hilft
+`diagnose.php` nicht mehr. Dann bleibt nur das PHP-Fehlerprotokoll des Hosters.
 
 Ein Hinweis, dass eine Tabelle oder Spalte fehlt, bedeutet: `admin/upgrade.php` wurde noch nicht
 gelaufen.
@@ -700,8 +708,9 @@ gelaufen.
 - `config.php` und die Verzeichnisse `lib/` und `sql/` gehören nicht in ein öffentlich
   erreichbares Verzeichnis. Die mitgelieferte `.htaccess` sperrt sie für Apache. Für nginx
   entsprechend selbst konfigurieren.
-- `install.php` und `diagnose.php` nach der Einrichtung vom Server löschen. `admin/upgrade.php`
-  ist dem SuperAdmin vorbehalten und schadet deshalb auch dann nicht, wenn sie liegen bleibt.
+- `install.php` nach der Einrichtung vom Server löschen. `diagnose.php` darf bleiben, weil sie
+  dem SuperAdmin vorbehalten ist. `admin/upgrade.php` ist dem SuperAdmin vorbehalten und schadet
+  deshalb ebenfalls nicht, wenn sie liegen bleibt.
 - Ein Konto kann weder anlegen, ändern, sperren noch löschen – auch nicht mit einem abgefangenen
   oder von Hand gesendeten Formular.
 - Zerstörende Änderungen an Vereinen und Modelltypen werden blockiert, sobald sie in
