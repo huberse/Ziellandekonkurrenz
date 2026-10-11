@@ -299,10 +299,12 @@ function accessible_competitions(): array
         }
         $clubId = user_club_id();
         if ($clubId === null) {
-            // Ohne Verein: nur Altbestand ohne Vereinszuordnung.
-            return db()->query('SELECT * FROM competitions WHERE club_id IS NULL ORDER BY id DESC')->fetchAll();
+            // Ohne Verein: gar nichts. Ein Konto ohne Verein hat nichts zu
+            // steuern; die Ausnahme fuer Wettbewerbe ohne Vereinszuordnung
+            // ist seit 2.0.16 weg - siehe can_manage_competition().
+            return [];
         }
-        $st = db()->prepare('SELECT * FROM competitions WHERE club_id = ? OR club_id IS NULL ORDER BY id DESC');
+        $st = db()->prepare('SELECT * FROM competitions WHERE club_id = ? ORDER BY id DESC');
         $st->execute([$clubId]);
         return $st->fetchAll();
     } catch (PDOException $e) {
@@ -326,9 +328,9 @@ function accessible_open_competitions(): array
         }
         $clubId = user_club_id();
         if ($clubId === null) {
-            return db()->query('SELECT * FROM competitions WHERE club_id IS NULL AND completed_at IS NULL ORDER BY id DESC')->fetchAll();
+            return [];
         }
-        $st = db()->prepare('SELECT * FROM competitions WHERE (club_id = ? OR club_id IS NULL) AND completed_at IS NULL ORDER BY id DESC');
+        $st = db()->prepare('SELECT * FROM competitions WHERE club_id = ? AND completed_at IS NULL ORDER BY id DESC');
         $st->execute([$clubId]);
         return $st->fetchAll();
     } catch (PDOException $e) {

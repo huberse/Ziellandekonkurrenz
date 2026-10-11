@@ -188,6 +188,23 @@ if (is_file(__DIR__ . '/config.php')) {
             $admins = (int) $st->fetchColumn();
             check('Mindestens ein SuperAdmin aktiv', $admins > 0,
                 'Sonst kann niemand die Benutzerverwaltung erreichen. Konto unter admin/benutzer.php prüfen.');
+
+            // Wettbewerbe ohne Veranstalter. Seit 2.0.16 gehört ein solcher
+            // Wettbewerb allein dem SuperAdmin: kein Verein sieht ihn und kann
+            // ihn nicht bearbeiten. Vorher galt "gehört allen", und damit
+            // konnte jeder Verein im Netz die Startliste, die Resultate und die
+            // Anmeldungen eines fremden Wettbewerbs lesen und veraendern. Das
+            // ist nur dann harmlos, wenn keiner existiert - deshalb steht es
+            // hier beim Namen und nicht nur als Zahl.
+            $st = $pdo->prepare('SELECT id, name FROM competitions WHERE club_id IS NULL ORDER BY id');
+            $st->execute();
+            $ohneVeranstalter = $st->fetchAll();
+            check('Jeder Wettbewerb hat einen Veranstalter', count($ohneVeranstalter) === 0,
+                count($ohneVeranstalter) === 0 ? '' :
+                    'Diese Wettbewerbe kann ausser dem SuperAdmin niemand mehr bedienen. '
+                    . 'Unter Wettbewerbe den Veranstalter zuweisen: '
+                    . implode(', ', array_map(static fn($z) => '#' . (int) $z['id'] . ' ' . (string) $z['name'],
+                                                   $ohneVeranstalter)));
             $st = $pdo->prepare("SELECT COUNT(DISTINCT CONCAT(TABLE_NAME, ':', INDEX_NAME)) FROM information_schema.STATISTICS
                                  WHERE TABLE_SCHEMA = DATABASE()
                                  AND ((TABLE_NAME = 'competitions' AND INDEX_NAME = 'uq_competition_name')

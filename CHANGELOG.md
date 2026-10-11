@@ -10,6 +10,47 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.16
+
+**Ein Verein kann nicht mehr in die Daten eines anderen Vereins sehen.** Gemeldet von einem
+Tester des Nutzers am 11. Oktober 2026.
+
+Ein Konto eines Vereins **ohne eigene Wettbewerbe** sah beim bloßen Aufruf der Seite *Anmeldungen*
+die Anmeldungen eines anderen Vereins und konnte sie aufnehmen oder ablehnen.
+
+**Was tatsächlich passierte.** Die Seite *Anmeldungen* nimmt ohne ausdrückliche Wahl von selbst den
+**aktiven** Wettbewerb. Ein Wettbewerb, dem noch kein Veranstalter zugewiesen ist, galt als „gehört
+allen“ – deshalb kam der Aufruf durch die Rechteprüfung, und die Kopfzeile zeigte den Wettbewerb
+eines fremden Vereins so, als wäre er der eigene. Betroffen war nicht nur die Anmeldung: das Konto
+konnte **Startliste, Durchgänge, Resultate und Einstellungen** dieses Wettbewerbs öffnen und
+bearbeiten.
+
+**Warum das bisher niemand aufgefallen ist.** Seit der siebten Datenbankänderung legt nur noch der
+SuperAdmin einen Wettbewerb an, und er wählt dabei den Veranstalter. Ein Wettbewerb ohne Verein
+kann also nur noch Altbestand sein. Die Ausnahme stammt aus der Zeit davor, als es solche
+Wettbewerbe noch regulär gab.
+
+**Geändert:**
+
+- **Ein Wettbewerb ohne Veranstalter gehört allein dem SuperAdmin.** Kein Verein sieht ihn, kann
+  ihn nicht öffnen und kommt nicht an seine Anmeldungen. Das gilt für die Startliste genauso wie
+  für die Anmeldungen.
+- **Ein Vereinskonto sieht nur noch die Anmeldungen des eigenen Vereins** – auch dann, wenn es
+  über eine Adresse oder von Hand eingesetzte Nummer versucht. Eine gesperrte Seite allein nützt
+  nichts, wenn die Annahme trotzdem durchgeht.
+- **`diagnose.php` weist jeden Wettbewerb ohne Veranstalter beim Namen aus**, damit er zugeordnet
+  wird und nicht unbemerkt liegen bleibt.
+- **Der Knopf „Alle Wettbewerbe anzeigen“ ist dem SuperAdmin vorbehalten.** Ein Vereinskonto sah
+  ihn und konnte ihn umschalten; die Aufschrift lud zu einem Lesen ein, das daneben falsch war.
+  Rückwärts heisst er jetzt „Nur den gewählten Wettbewerb“ – vorher stand dort „aktiver“, gemeint
+  war der gewählte.
+
+**Für wen sich etwas ändert:** nur für Vereine, die bisher einen Wettbewerb ohne Veranstalter
+offen hatten. Das war eine Fehlbenutzung; sie ist jetzt nicht mehr möglich. Wer den Wettbewerb
+wirklich braucht, weist ihm unter *Wettbewerbe* den Veranstalter zu.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.15
 
 **Ein Verein kann jetzt selbst sagen, welche Modelltypen in seinem Wettbewerb fliegen.**

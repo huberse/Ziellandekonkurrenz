@@ -153,8 +153,20 @@ function user_club_id(): ?int
  * Darf das aktuelle Konto diesen Wettbewerb steuern und bearbeiten?
  *
  * SuperAdmins dürfen alles. Benutzer dürfen nur Wettbewerbe ihres eigenen
- * Vereins. Wettbewerbe ohne Vereinszuordnung (Altbestand) bleiben für alle
- * sichtbar, damit keine Installation ausgesperrt wird.
+ * Vereins.
+ *
+ * Ein Wettbewerb ohne Vereinszuordnung gehört dem SuperAdmin und sonst
+ * niemandem. Früher stand hier "für alle sichtbar, damit keine Installation
+ * ausgesperrt wird" - das galt, als es noch Wettbewerbe ohne Veranstalter gab,
+ * die von niemandem betreut werden konnten. Seit der siebten Datenbank-
+ * aenderung legt nur noch der SuperAdmin einen Wettbewerb an, und er waehlt
+ * dabei den Veranstalter. Ein Wettbewerb ohne Verein ist damit Altbestand,
+ * dem noch niemand einen Veranstalter gegeben hat - und "gehoert allen" hiess
+ * in der Praxis: jeder Verein im Netz darf Startliste, Resultate und Anmeldungen
+ * eines fremden Wettbewerbs lesen und bearbeiten.
+ *
+ * diagnose.php weist jeden solchen Wettbewerb beim Namen aus. Wer ihn haben
+ * will, weist ihm unter Wettbewerbe den Veranstalter zu.
  */
 function can_manage_competition(int $competitionId): bool
 {
@@ -173,8 +185,8 @@ function can_manage_competition(int $competitionId): bool
         return false;
     }
     if ($competitionClubId === false || $competitionClubId === null) {
-        // Altbestand ohne Vereinszuordnung: für alle sichtbar.
-        return true;
+        // Kein Veranstalter eingetragen: gehoert dem SuperAdmin, sonst niemandem.
+        return false;
     }
     return user_club_id() === (int) $competitionClubId;
 }

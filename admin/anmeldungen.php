@@ -254,12 +254,19 @@ if (!$showAll) {
     $args[] = $competition['id'];
 } elseif (!is_superadmin()) {
     // Nur SuperAdmins sehen Anmeldungen aller Vereine; normale Benutzer nur
-    // die ihres eigenen Vereins sowie Altbestand ohne Vereinszuordnung.
+    // die ihres eigenen Vereins.
+    //
+    // Vorher stand hier zusaetzlich "r.competition_id IS NULL OR sea.club_id
+    // IS NULL", also der Altbestand ohne Vereinszuordnung. Damit sah und
+    // bearbeitete jeder Verein die Anmeldungen eines Wettbewerbs, der gar
+    // keinem Verein gehoert - bei einem anderen Verein, dessen Anmeldungen
+    // damit in der Hand des ersten Vereins lagen. Beide Faelle sind jetzt
+    // Sache des SuperAdmins, der den Veranstalter zuweist.
     $clubId = user_club_id();
     if ($clubId === null) {
-        $sql .= ' WHERE (r.competition_id IS NULL OR sea.club_id IS NULL)';
+        $sql .= ' WHERE 0 = 1';
     } else {
-        $sql .= ' WHERE (r.competition_id IS NULL OR sea.club_id = ? OR sea.club_id IS NULL)';
+        $sql .= ' WHERE sea.club_id = ?';
         $args[] = $clubId;
     }
 }
@@ -285,9 +292,18 @@ page_start('Anmeldungen', 'admin', 'anmeldungen.php');
         </span>
         <a class="btn ghost small" href="einstellungen.php<?= $competitionQS ?>#anmeldung">Ändern</a>
         <a class="btn ghost small" href="../anmeldung.php<?= $competitionQS ?>">Formular ansehen ↗</a>
+        <?php // Der Knopf gehoert dem SuperAdmin: fuer ihn bedeutet "alle Wettbewerbe"
+              // auch wirklich alle. Ein Vereinskonto sieht nur die Anmeldungen
+              // des eigenen Vereins, und die Aufschrift "Alle Wettbewerbe
+              // anzeigen" lud genau zu dem Lesen ein, das daneben falsch war.
+              // Ein Vereinskonto, das ueber ein altes Lesezeichen mit ?alle=1
+              // landet, bekommt den Knopf trotzdem - sonst haette es keinen Weg
+              // zurueck. ?>
+        <?php if (is_superadmin() || $showAll): ?>
         <a class="btn <?= $showAll ? '' : 'ghost' ?> small" href="<?= $competitionQS ?><?= $showAll ? ($competitionQS !== '' ? '&' : '?') . 'alle=0' : ($competitionQS !== '' ? '&' : '?') . 'alle=1' ?>">
-            <?= $showAll ? 'Nur den aktiven Wettbewerb' : 'Alle Wettbewerbe anzeigen' ?>
+            <?= $showAll ? 'Nur den gewählten Wettbewerb' : 'Alle Wettbewerbe anzeigen' ?>
         </a>
+        <?php endif; ?>
     </div>
 </div>
 <?php if ($competitionCompleted): ?>

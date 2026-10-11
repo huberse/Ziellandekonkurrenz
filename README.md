@@ -203,6 +203,20 @@ auch nicht anteilig. Sonst hinge der Punktestand eines Piloten davon ab, an welc
 wurde, und nicht davon, ob er geflogen ist. Was erfasst wurde, bleibt sichtbar, wird aber nicht
 gewertet.
 
+### Ein Wettbewerb ohne Veranstalter
+
+Seit der Einrichtung durch den SuperAdmin hat **jeder neue Wettbewerb einen Veranstalter** – nur
+der SuperAdmin wählt ihn. Ein Wettbewerb ohne Verein kann deshalb nur **Altbestand** sein, dem noch
+niemand einen Veranstalter gegeben hat.
+
+**Ein solcher Wettbewerb gehört allein dem SuperAdmin.** Kein Verein sieht ihn, kann ihn nicht
+öffnen und kann auch die Anmeldungen dazu nicht aufnehmen oder ablehnen. Das ist eine Änderung
+gegenüber älteren Fassungen, in denen ein Wettbewerb ohne Verein für alle Konten sichtbar war.
+
+Wer ihn braucht, weist ihm unter **Wettbewerbe → Veranstalter** den Verein zu – danach gehört er
+diesem Verein. **`diagnose.php` listet jeden solchen Wettbewerb beim Namen auf**, damit er nicht
+unbemerkt liegen bleibt.
+
 ### Aktivieren
 
 **Nur der SuperAdmin darf aktivieren**, über **◉ Aktivieren** in der Liste der Wettbewerbe. Das ist
