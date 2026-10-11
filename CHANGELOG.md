@@ -10,6 +10,39 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.20
+
+**Der SuperAdmin kann jetzt einstellen, ob der Absender auch als Umschlag gesetzt wird – und sich
+eine Testmail schicken.** Auf Wunsch des Nutzers am 11. Oktober 2026.
+
+- **Unter Profil → Ausgehende E-Mails** steht der Schalter „Absender auch als Umschlag setzen
+  (sendmail -f)“, und daneben ein Knopf, der eine Testmail an die Absenderadresse schickt. Beides
+  sieht nur der SuperAdmin; die Einstellung gilt für das ganze Programm.
+- **Aus ist die Voreinstellung.** Viele Hoster sperren `-f` aus Sicherheitsgründen; dann gibt
+  `mail()` `false` zurück und es käme gar nichts mehr an. Wer ihn einschaltet, weiß es und schaltet
+  ihn notfalls wieder ab.
+
+**Was das bringt – und was nicht.** Der Absenderumschlag ist die Adresse, an die eine Rücklaufmail
+geht; die Adresse im `From:`-Kopf ist etwas anderes. Ohne ihn nimmt der Mailserver des Hosters
+seinen eigenen, und die Adresse im Kopf stimmt dann nicht mit der Domain überein, für die SPF und
+DMARC prüfen.
+
+- **Hilft**, wenn die Absenderadresse auf der Domain des Vereins liegt und der Hoster dafür
+  zuständig ist: SPF stimmt, DMARC findet die Übereinstimmung über SPF.
+- **Hilft nicht** bei einer gmail-Adresse. Dann schlägt SPF für gmail.com fehl, und Gmail nimmt die
+  Mail nur mit **DKIM-Signatur** an – die kann nur der Mailserver des Hosters beibringen, nicht
+  PHP. Das ist der Grund, warum hier nichts eingebaut ist, was das vortäuschen würde.
+
+**Die Anleitung** hat einen eigenen Abschnitt *„Die Anmeldebestätigung kommt nicht an“* bekommen,
+mit der Erklärung, welche Rolle SPF, DKIM und DMARC haben und was das Programm tun kann und was
+nicht.
+
+**Außerdem:** `diagnose.php` ist aus dem Hauptverzeichnis verschwunden; sie liegt nur noch in
+`admin/`. Der Kompatibilitätspfad von 2.0.19 ist damit wieder weg – auf Wunsch des Nutzers, mit
+der Begründung, dass ohnehin ausser ihm niemand die Adresse kennt.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.19
 
 **Die Diagnose ist nach `admin/` umgezogen und sagt bei fehlendem Zugriff nur noch „NO ACCESS“.**

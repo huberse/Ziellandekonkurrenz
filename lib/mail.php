@@ -83,7 +83,44 @@ function send_mail(string $to, string $subject, string $body, string $fromEmail,
     $body = str_replace(["\r\n", "\r"], "\n", $body);
     $body = str_replace("\n", "\r\n", $body);
 
-    return @mail($recipient, mail_header_value($subject), $body, implode("\r\n", $headers));
+        $fuenfter = mail_umschlag($fromEmail);
+    return $fuenfter === ''
+        ? @mail($recipient, mail_header_value($subject), $body, implode("\r\n", $headers))
+        : @mail($recipient, mail_header_value($subject), $body, implode("\r\n", $headers), $fuenfter);
+}
+
+/**
+ * Der fünfte Parameter von mail() – oder leer, wenn keiner gesetzt wird.
+ *
+ * Er landet als "-f adresse" beim Aufruf von sendmail und bestimmt den
+ * Absenderumschlag: die Adresse, an die eine Ruecksprungadresse geht. Ohne
+ * sie nimmt der Mailserver des Hosters seinen eigenen, und die Adresse im
+ * "From:" stimmt dann nicht mit der Domain ueberein, fuer die SPF und DMARC
+ * pruefen.
+ *
+ * Wann das etwas bringt: wenn der Absender auf einer Domain liegt, fuer die
+ * der Host zustaendig ist. Dann stimmen Umschlag und Kopf ueberein, SPF geht
+ * durch, und DMARC findet die Uebereinstimmung ueber SPF.
+ *
+ * Wann es nichts bringt: bei einer Adresse einer grossen Mailanbieterin wie
+ * gmail.com. Dann schlaegt SPF fuer gmail.com fehl, weil der Host dort nicht
+ * eingetragen ist. Diese Mails nimmt Gmail nur mit DKIM-Signatur an, und die
+ * kann nur der Mailserver des Hosters beibringen - nicht PHP.
+ *
+ * Ausgeschaltet ist es, weil viele Hoster "-f" aus Sicherheitsgruenden sperren.
+ * Dann gibt mail() false zurueck und es kommt gar nichts. Wer es einschaltet,
+ * weiss es und schaltet es notfalls wieder ab.
+ *
+ * Alles, was in einer Mailadresse nicht vorkommt, faellt vorher weg. Damit
+ * kann aus der Adresse kein zweiter Header und kein zweiter Schalter werden.
+ */
+function mail_umschlag(string $fromEmail): string
+{
+    if (!setting_bool('mail_absender_setzen')) {
+        return '';
+    }
+    $erlaubt = trim((string) preg_replace('/[^a-zA-Z0-9._%+@-]/', '', $fromEmail));
+    return $erlaubt === '' ? '' : '-f ' . $erlaubt;
 }
 
 /** Anzeigewert aus einer Anmeldung: Freitext, sonst der verknüpfte Datensatz. */

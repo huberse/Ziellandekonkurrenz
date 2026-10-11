@@ -690,11 +690,42 @@ Datei und Zeile hilft meist nur das PHP-Fehlerprotokoll des Hosters.
 **Die Datei darf auf dem Server bleiben.** Sie nennt den Namen der Datenbank, alle Tabellen und
 Spalten sowie die Wettbewerbe ohne Veranstalter – deshalb zeigt sie seit 2.0.18 **nur dem
 angemeldeten SuperAdmin** etwas. Wer nicht angemeldet ist oder kein SuperAdmin ist, bekommt
-**„NO ACCESS“** und sonst nichts. Der alte Pfad `diagnose.php` im Hauptverzeichnis funktioniert
-weiter und führt hierher, damit alte Lesezeichen nicht ins Leere laufen.
+**„NO ACCESS“** und sonst nichts. Der alte Pfad `diagnose.php` im Hauptverzeichnis ist seit 2.0.20
+weg – wer ihn im Lesezeichen hat, muss die Adresse auf `admin/diagnose.php` ändern.
 
 **Der Preis dafür:** Läuft die Anwendung so weit, dass sich niemand anmelden kann, hilft
-`diagnose.php` nicht mehr. Dann bleibt nur das PHP-Fehlerprotokoll des Hosters.
+`admin/diagnose.php` nicht mehr. Dann bleibt nur das PHP-Fehlerprotokoll des Hosters.
+
+### Die Anmeldebestätigung kommt nicht an
+
+Das ist die häufigste Eigenheit beim Betrieb, und sie liegt **nicht am Programm**. Drei Dinge
+gehören zusammen:
+
+**SPF, DKIM und DMARC** sind Zusagen, die der *Mailserver deines Hosters* abgibt, nicht das
+Programm. Das Programm verschickt über `mail()`; wer die Adresse prüft, sieht die Zusagen des
+Hosters.
+
+**Der Absenderumschlag** – die Adresse, an die eine Rücklaufmail geht – ist etwas anderes als die
+Adresse im `From:`-Kopf. Ohne sie nimmt der Mailserver des Hosters seinen eigenen. Die Adresse im
+Kopf stimmt dann nicht mit der Domain überein, für die SPF und DMARC prüfen.
+
+**Was hilft und was nicht:**
+
+| Deine Absenderadresse | Bringt „Absender setzen“ etwas? |
+|---|---|
+| auf der Domain deines Vereins, und der Hoster ist dafür zuständig | **ja** – SPF stimmt, DMARC findet die Übereinstimmung |
+| eine gmail-Adresse | **nein** – dort braucht es **DKIM**, und die kann nur der Mailserver des Hosters |
+
+Bei gmail oder anderen grossen Anbietern hilft **nur**, was der Hoster einrichtet: eine
+DKIM-Signatur und ein DNS-Eintrag dafür. Das dauert je nach Hoster Stunden bis Tage. Meldet der
+Empfänger *„DKIM hat nicht bestanden“*, ist das die Antwort – nicht das Programm und nicht eine
+Einstellung darin.
+
+**Der Schalter.** Der SuperAdmin stellt unter **Profil → Ausgehende E-Mails** ein, ob der Absender
+auch als Umschlag gesetzt wird. **Aus ist die Voreinstellung**, weil viele Hoster das aus
+Sicherheitsgründen sperren – dann käme gar nichts mehr an. Neben dem Schalter steht ein Knopf, der
+eine Testmail an die Absenderadresse schickt. **Die Testmail sagt mehr als jede Meldung im Programm:**
+kommt sie an, ist der Weg frei; kommt sie nicht an, liegt es am Hoster.
 
 Ein Hinweis, dass eine Tabelle oder Spalte fehlt, bedeutet: `admin/upgrade.php` wurde noch nicht
 gelaufen.
