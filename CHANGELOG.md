@@ -10,6 +10,34 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.15
+
+**Ein Verein kann jetzt selbst sagen, welche Modelltypen in seinem Wettbewerb fliegen.**
+Gemeldet von einem Tester des Nutzers am 11. Oktober 2026.
+
+Bisher war es so: Der SuperAdmin legt fest, welche Modelltypen es im Programm überhaupt gibt, und
+das gilt für alle Wettbewerbe ohne Ausnahme. Ein Verein, der nur Schlepp fliegen lässt, konnte
+den Elektrisch-Typ nicht aus der Liste nehmen.
+
+- **Unter Einstellungen → Modelltypen kann jeder Wettbewerb seine Typen wählen.** Stehen dort nur
+  die, die in diesem Wettbewerb fliegen, bietet die Startliste nur noch diese an – und das
+  **öffentliche Anmeldeformular** auch. Wer sich also für einen Typ anmeldet, kann einen Typ wählen,
+  den die Wettkampfleitung danach auch bestätigen kann.
+- **Ohne Auswahl sind alle zugelassen.** Das ist nach einer Neuinstallation so, und ein Wettbewerb
+  verhält sich damit genau wie vorher. Es ist **keine Datenbankänderung** dabei, deshalb muss
+  niemand eine Aktualisierung der Datenbank laufen lassen: die Auswahl wird als gewöhnliche
+  Wettbewerbseinstellungen gespeichert, und ein fehlender Eintrag bedeutet schlicht „alle“.
+- **Wer einen Piloten schon in der Startliste hat, verliert ihn nicht.** Die Auswahl wirkt beim
+  Eintragen, nicht auf die Rangliste, den Laufzettel und den Export. Wird der Typ eines Piloten
+  später gesperrt, bleibt er beim Bearbeiten im Feld stehen – mit einem Hinweis –, damit er beim
+  nächsten Speichern nicht stillschweigend wegfällt.
+- **Eine Anmeldung, die zwischenzeitlich einen gesperrten Typ bekommen hat, wird nicht mehr
+  einfach freigegeben**, sondern mit einem Hinweis zurückgewiesen. Sonst stünde ein Posten in der
+  Startliste, den es sonst nicht gibt.
+- **Ein neuer Wettbewerb erbt die Auswahl** des Wettbewerbs, aus dem er angelegt wurde.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.14
 
 **Kein scharfes s mehr in den Texten, die gelesen werden.** Auf Wunsch des Nutzers vom

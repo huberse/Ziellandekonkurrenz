@@ -94,6 +94,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash('Der Modelltyp dieser Anmeldung existiert nicht mehr.', 'err');
                 redirect('anmeldungen.php' . $listQS);
             }
+            // Seit die Anmeldung eingegangen ist, kann die Auswahl im Wettbewerb
+            // dazu gekommen oder weggefallen sein. Eine Anmeldung mit einem Typ,
+            // der jetzt gesperrt ist, wird deshalb nicht stillschweigend in die
+            // Startliste uebernommen: sie waere dort als einziger Posten
+            // ausgeschlossen, ohne dass jemand es bemerkt.
+            if (!competition_typ_erlaubt((int) $pilotCompetitionId, $modelTypeId)) {
+                flash('Der Modelltyp dieser Anmeldung ist für den Wettbewerb nicht zugelassen. '
+                    . 'Unter Einstellungen → Modelltypen nachsehen, oder die Anmeldung ablehnen.', 'err');
+                redirect('anmeldungen.php' . $listQS);
+            }
         }
 
         $pdo = db();

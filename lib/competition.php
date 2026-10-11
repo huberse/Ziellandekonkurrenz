@@ -928,6 +928,79 @@ function competition_nimmt_anmeldungen_an(array $competition): bool
 }
 
 /**
+ * Die Modelltypen, die dieser Wettbewerb zulaesst.
+ *
+ * Rueckgabe null heisst: alle sind erlaubt. Genau das ist der Fall, wenn im
+ * Wettbewerb keine Auswahl getroffen wurde - und deshalb braucht diese
+ * Einstellung keine Datenbankaenderung: der Schluessel fehlt dann einfach,
+ * und competition_setting() liefert den Vorgabewert. Ein Wettbewerb, an dem
+ * niemand etwas ausgewaehlt hat, verhaelt sich damit genau wie vorher.
+ *
+ * Eine Auswahl, die nur Unsinn ergibt, wird auch als "alle" gelesen. Sie darf
+ * keinen Wettbewerb stilllegen.
+ */
+function competition_erlaubte_typ_ids(int $competitionId): ?array
+{
+    if ($competitionId <= 0) {
+        return null;
+    }
+    $roh = (string) competition_setting($competitionId, 'model_types_ids', '');
+    if (trim($roh) === '') {
+        return null;
+    }
+    $ids = [];
+    foreach (explode(',', $roh) as $teil) {
+        $teil = trim($teil);
+        if ($teil !== '' && ctype_digit($teil)) {
+            $ids[(int) $teil] = true;
+        }
+    }
+    return $ids ? array_keys($ids) : null;
+}
+
+/**
+ * Die Modelltypen, die in einem Wettbewerb zur Wahl stehen.
+ *
+ * Ohne Auswahl kommt die Liste unveraendert zurueck. Ist ein Typ gesperrt,
+ * faellt er aus der Liste - ausser er wird gerade bearbeitet: stuende er
+ * nicht drin, zeigte das Feld "keiner", und beim Abspeichern waere der Typ
+ * fort, ohne dass jemand etwas getan haette. Fuer diesen Fall nimmt
+ * $behalten seine Nummer auf; die Seite weist darauf hin, statt es zu
+ * schweigen.
+ *
+ * Das betrifft nur das Auswaehlen und das Anmelden. Die Rangliste, der
+ * Laufzettel und der Export sehen weiterhin alle Piloten - wer einen Piloten
+ * einmal eingetragen hat, soll ihn nicht ueber eine geaenderte Einstellung
+ * hinweg verlieren.
+ */
+function competition_typauswahl(int $competitionId, array $typen, ?int $behalten = null): array
+{
+    $erlaubt = competition_erlaubte_typ_ids($competitionId);
+    if ($erlaubt === null) {
+        return array_values($typen);
+    }
+    $erlaubt = array_flip($erlaubt);
+    $raus = [];
+    foreach ($typen as $typ) {
+        $id = (int) $typ['id'];
+        if (isset($erlaubt[$id]) || ($behalten !== null && $behalten === $id)) {
+            $raus[] = $typ;
+        }
+    }
+    return $raus;
+}
+
+/** Darf dieser Modelltyp in diesem Wettbewerb gewaehlt werden? */
+function competition_typ_erlaubt(int $competitionId, ?int $typeId): bool
+{
+    if ($typeId === null || $typeId <= 0) {
+        return true;                                   // "keiner" bleibt immer moeglich
+    }
+    $erlaubt = competition_erlaubte_typ_ids($competitionId);
+    return $erlaubt === null || in_array($typeId, $erlaubt, true);
+}
+
+/**
  * Liest eine Anmeldung direkt nach dem Schreiben zurück. Erst dieser Treffer
  * belegt, dass die Zeile wirklich in der Datenbank steht; danach darf die
  * Anmeldebestätigung verschickt werden.

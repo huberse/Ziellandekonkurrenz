@@ -842,6 +842,17 @@ legend { font-weight: 600; padding: 0 6px; }
 .check input { width: 18px; height: 18px; flex: none; margin: 3px 0 0; }
 .check label { font-weight: 400; margin: 0; }
 
+/* Mehrere Ankreuzfelder nebeneinander statt untereinander - etwa die
+   zugelassenen Modelltypen in den Einstellungen. Auto-Fit, damit wenige
+   Typen links buendig stehen und viele in Zeilen umbrechen, ohne dass eine
+   feste Spaltenzahl auf dem iPad eine Luecke aufmacht. */
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 2px 16px;
+  margin-bottom: 10px;
+}
+
 /* Knöpfe */
 
 .btn {

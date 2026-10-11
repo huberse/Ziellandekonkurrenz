@@ -21,7 +21,14 @@ $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?compe
 $doneQS = ($competitionQS !== '' ? $competitionQS . '&' : '?');
 $completed = competition_is_completed((int) $competition['id']);
 $vergangen = competition_ist_vergangen($competition);
-$types = db()->query('SELECT * FROM model_types WHERE active = 1 ORDER BY sort_order, name')->fetchAll();
+// Nur die Modelltypen, die der SuperAdmin überhaupt freigeschaltet hat UND
+// die dieser Wettbewerb zulaesst. Das Formular sieht damit dieselbe Auswahl,
+// die die Startliste zeigt: ein Besucher kann keinen Typ waehlen, den die
+// Wettkampfleitung danach nicht bestaetigen koennte.
+$types = competition_typauswahl(
+    (int) $competition['id'],
+    db()->query('SELECT * FROM model_types WHERE active = 1 ORDER BY sort_order, name')->fetchAll()
+);
 $clubs = db()->query('SELECT * FROM clubs WHERE active = 1 ORDER BY sort_order, name')->fetchAll();
 $open   = competition_nimmt_anmeldungen_an($competition)
     && !$completed && setting_bool('registration_open', true);

@@ -5,7 +5,11 @@ require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
 
-$types = all_model_types();
+// Alle Modelltypen des Programms, ungefiltert. Welche in diesem Wettbewerb
+// zur Wahl stehen, entscheidet competition_typauswahl() - die Liste hier
+// bleibt unveraendert, weil der Import die Typen mit Namen nachschlaegt und
+// der Bearbeitungsfall den bisherigen Typ kennen muss.
+$alleTypen = all_model_types();
 $clubs = all_clubs();
 $competition = resolve_competition_param(competition_request_param(), true);
 // Startliste, Resultate und Einstellungen gehören genau diesem Wettbewerb.
@@ -13,6 +17,9 @@ $competition = resolve_competition_param(competition_request_param(), true);
 // wo sie auch die öffentlichen Seiten betroffen hätte.
 require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
+// Bequemlichkeit, weil competition_typauswahl() an mehreren Stellen gebraucht wird.
+$typenFuerDiesenWettbewerb = static fn(?int $behalten = null): array
+    => competition_typauswahl((int) $competition['id'], $alleTypen, $behalten);
 
 // Die Stammdaten der Piloten dieses Wettbewerbs. Sie werden fuer das Formular
 // gebraucht (Name und Nummer stehen dort nicht mehr am Eintrag) und fuer den
@@ -46,6 +53,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'save') {
             $id = (int) post('id');
+            // Der bisherige Typ, bevor die Pruefung kommt. Beim Bearbeiten eines
+            // Piloten, dessen Typ inzwischen gesperrt wurde, muss er weiterhin
+            // gueltig sein - sonst koennte niemand mehr etwas an diesem Piloten
+            // aendern, ohne den Typ zu verlieren.
+            $bestehenderTyp = null;
+            if ($id > 0) {
+                $typHolen = $pdo->prepare('SELECT model_type_id FROM pilots WHERE id = ? AND competition_id = ?');
+                $typHolen->execute([$id, $competition['id']]);
+                $rohTyp = $typHolen->fetchColumn();
+                if ($rohTyp !== false) {
+                    $bestehenderTyp = (int) $rohTyp;
+                }
+            }
             $data = [
                 'bib_number' => text_limit(post('bib_number'), 10) ?: null,
                 'club_id'    => post('club_id') !== '' ? (int) post('club_id') : club_id_for_name(text_limit(post('club_new'), 120)),
@@ -59,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nachname = text_limit(post('last_name'), 80);
             $rohNummer = post('smv_number');
             $validClubIds = array_map('intval', array_column($clubs, 'id'));
-            $validTypeIds = array_map('intval', array_column($types, 'id'));
+            $validTypeIds = array_map('intval', array_column($typenFuerDiesenWettbewerb($bestehenderTyp), 'id'));
             if ($vorname === '' || $nachname === '') {
                 throw new DomainException('Ohne Namen geht es nicht.');
             }
@@ -237,8 +257,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $lines = preg_split('/\r\n|\r|\n/', $raw);
             $st = $pdo->prepare('INSERT INTO pilots (profile_id, club_id, model_type_id, bib_number, competition_id) VALUES (?,?,?,?,?)');
             $typeByName = [];
-            foreach ($types as $g) { $typeByName[mb_strtolower($g['name'])] = (int) $g['id']; }
-            $n = 0; $skipped = 0;
+            // Nur die Typen, die in diesem Wettbewerb ueberhaupt zur Wahl
+            // stehen. Ein Typ, der hier fehlt, wird nicht geraten: der
+            // Pilot kommt ohne Typ herein, und die Zahl steht danach in der
+            // Meldung. Ein Typ, den es nicht gibt, und einer, den dieser
+            // Wettbewerb nicht zulaesst, sehen von aussen gleich aus - beide
+            // sind aber ein Fehler in der Datei, die jemand schreibt.
+            foreach ($typenFuerDiesenWettbewerb() as $g) { $typeByName[mb_strtolower($g['name'])] = (int) $g['id']; }
+            $n = 0; $skipped = 0; $ohneTyp = 0;
             foreach ($lines as $line) {
                 $line = trim($line);
                 if ($line === '') { continue; }
@@ -262,6 +288,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($first === '' || $last === '') { $skipped++; continue; }
                 $clubId = club_id_for_name(text_limit($cols[2] ?? '', 120));
                 $gid = isset($cols[3]) && $cols[3] !== '' ? ($typeByName[mb_strtolower($cols[3])] ?? null) : null;
+                  if (isset($cols[3]) && trim((string) $cols[3]) !== '' && $gid === null) {
+                      $ohneTyp++;
+                  }
                 $bib = text_limit($cols[4] ?? '', 10) ?: null;
                 if (competition_bib_number_exists((int) $competition['id'], $bib)) {
                     $skipped++;
@@ -276,7 +305,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $n++;
             }
             $successMessage = "$n Piloten für den Wettbewerb „{$competition['name']}“ importiert."
-                . ($skipped ? " $skipped Zeilen übersprungen." : '');
+                . ($skipped ? " $skipped Zeilen übersprungen." : '')
+                . ($ohneTyp ? " $ohneTyp Zeilen ohne Modelltyp übernommen – der Typ steht entweder gar nicht "
+                    . "in der Typenliste oder ist in diesem Wettbewerb nicht zugelassen; bitte in der "
+                    . "Startliste nachsehen." : '');
         }
 
         $pdo->commit();
@@ -432,12 +464,30 @@ page_start('Piloten', 'admin', 'piloten.php');
             </div>
             <div class="field">
                 <label for="gr">Modelltyp</label>
+                <?php // Beim Bearbeiten bleibt der bisherige Typ in der Liste, auch wenn er inzwischen
+                      // gesperrt wurde. Ohne das stuende er hier nicht, das Feld zeigte "keiner", und
+                      // beim Speichern waere der Typ fort, ohne dass jemand etwas getan haette.
+                      $typenAnzeige = $typenFuerDiesenWettbewerb($edit !== null ? (int) $edit['model_type_id'] : null);
+                      $gesperrtAngezeigt = null;
+                      if ($typenAnzeige !== []) {
+                          foreach ($typenAnzeige as $g) {
+                              if ((int) $g['id'] === (int) ($edit['model_type_id'] ?? 0)
+                                  && !competition_typ_erlaubt((int) $competition['id'], (int) $g['id'])) {
+                                  $gesperrtAngezeigt = (string) $g['name'];
+                              }
+                          }
+                      } ?>
                 <select id="gr" name="model_type_id">
                     <option value="">– keiner –</option>
-                    <?php foreach ($types as $g): ?>
+                    <?php foreach ($typenAnzeige as $g): ?>
                         <option value="<?= (int) $g['id'] ?>" <?= ($edit['model_type_id'] ?? '') == $g['id'] ? 'selected' : '' ?>><?= h($g['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($gesperrtAngezeigt !== null): ?>
+                    <p class="hint" style="margin:0">Dieser Typ ist für den Wettbewerb derzeit nicht zugelassen
+                        und steht nur deshalb noch drin, damit er beim Speichern nicht verloren geht. Er steht
+                        weiterhin in der Rangliste.</p>
+                <?php endif; ?>
             </div>
             <div class="field">
                 <label for="mo">Modell</label>

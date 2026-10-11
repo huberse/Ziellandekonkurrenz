@@ -109,6 +109,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setting_set('registration_open', isset($_POST['registration_open']) ? '1' : '0');
             setting_set('club_ranking_enabled', isset($_POST['club_ranking_enabled']) ? '1' : '0');
             setting_set('public_results', isset($_POST['public_results']) ? '1' : '0');
+            // Die zugelassenen Modelltypen. Achtung: post() gibt immer einen
+            // String zurueck und weist Nicht-Skalares ausdruecklich ab - ein
+            // Ankreuzfeld mit [] waere damit immer leer, ohne Fehlermeldung.
+            // Deshalb hier $_POST direkt, wie in admin/erfassung.php und
+            // admin/modelltypen.php auch.
+            //
+            // Zusaetzlich nur Nummern, die es wirklich gibt: das Formular laesst
+            // sich auch von Hand abschicken, und eine erfundene Nummer wuerde
+            // einen Wettbewerb stilllegen, an dem niemand etwas eingestellt hat.
+            $bekannt = array_map('intval', array_column(all_model_types(), 'id'));
+            $typenRoh = is_array($_POST['model_types_ids'] ?? null) ? $_POST['model_types_ids'] : [];
+            $typenIds = [];
+            foreach ($typenRoh as $rohtyp) {
+                if (!is_scalar($rohtyp)) {
+                    continue;
+                }
+                $rohtyp = (int) $rohtyp;
+                if ($rohtyp > 0 && in_array($rohtyp, $bekannt, true)) {
+                    $typenIds[$rohtyp] = true;
+                }
+            }
+            $typenIds = array_keys($typenIds);
+            sort($typenIds);
+            // Leer heisst "alle" - siehe competition_erlaubte_typ_ids().
+            setting_set('model_types_ids', $typenIds ? implode(',', $typenIds) : '');
             // region_club_id wird hier nicht mehr gesetzt: der Regiocup laeuft
             // ueber ein ganzes Jahr und gehoert darum an das Programm. Der
             // SuperAdmin stellt es unter seinem Profil ein.
@@ -283,6 +308,45 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
             <p class="hint">Die besten dieser Anzahl ergeben zusammen das Vereinsresultat. Vereine mit weniger
                 gewerteten Piloten erscheinen ausser Konkurrenz.</p>
         </div>
+    </fieldset>
+
+    <fieldset id="modeltypen">
+        <legend>Modelltypen</legend>
+        <?php
+        // Ohne Auswahl darf jeder Typ. Eine Anzeige mit lauter Haken waere
+        // eine Lüge, denn sie hiesse "das ist eingestellt".
+        $erlaubt = competition_erlaubte_typ_ids((int) $competition['id']);
+        $alleTypen = all_model_types();
+        ?>
+        <?php if (!$alleTypen): ?>
+            <p class="hint">Der SuperAdmin hat noch keinen Modelltyp angelegt. Unter <b>Modelltypen</b> im
+                Benutzermenü legt er die Typen fest, die es im Verein überhaupt gibt.</p>
+        <?php else: ?>
+            <?php if ($erlaubt === null): ?>
+                <p class="hint">Für diesen Wettbewerb ist nichts eingestellt: <b>alle Modelltypen sind
+                    zugelassen</b>. Wähle unten die Typen an, die hier fliegen, dann stehen in der Startliste
+                    und im Anmeldeformular nur noch diese zur Wahl.</p>
+            <?php else: ?>
+                <p class="hint">In der Startliste und im Anmeldeformular stehen nur diese Typen zur Wahl.</p>
+            <?php endif; ?>
+            <div class="check-grid">
+                <?php foreach ($alleTypen as $typ): ?>
+                    <div class="check">
+                        <input type="checkbox" id="mt<?= (int) $typ['id'] ?>" name="model_types_ids[]"
+                               value="<?= (int) $typ['id'] ?>"
+                               <?= $erlaubt !== null && in_array((int) $typ['id'], $erlaubt, true) ? 'checked' : '' ?>
+                               <?= empty($typ['active']) ? 'disabled' : '' ?>>
+                        <label for="mt<?= (int) $typ['id'] ?>"><?= h($typ['name']) ?></label>
+                        <?php if (empty($typ['active'])): ?>
+                            <span class="hint" style="margin:0">– vom SuperAdmin abgeschaltet</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <p class="hint">Nichts ankreuzen heisst: alle sind zugelassen. Wer einen Piloten schon in der
+                Startliste hat, bleibt dort – diese Auswahl wirkt nur beim Eintragen, nicht auf die Rangliste,
+                den Laufzettel und den Export.</p>
+        <?php endif; ?>
     </fieldset>
 
     <fieldset id="anmeldung">

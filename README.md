@@ -453,7 +453,7 @@ geändert wird, wirkt auf alle Vereine, nicht auf den eigenen.**
 | Seite | Was dort gilt |
 | --- | --- |
 | **Vereine** | Der Vereinsname steht auf den öffentlichen Seiten, in der Vereinswertung und in den Kopfzeilen aller Ergebnislisten. |
-| **Modelltypen** | Ein Modelltyp entscheidet, für welche Wertung ein Pilot gezählt wird – auch bei anderen Vereinen. |
+| **Modelltypen** | Ein Modelltyp entscheidet, für welche Wertung ein Pilot gezählt wird – auch bei anderen Vereinen. Der Verein selbst entscheidet, welche davon **in seinem Wettbewerb** zugelassen sind: siehe [Modelltypen je Wettbewerb](#modelltypen-je-wettbewerb). |
 | **Stammdaten** | Die Piloten aller Wettbewerbe, nicht nur die des eigenen. |
 | **Aktivieren** | Ein Klick schaltet **alle** anderen Wettbewerbe ab. |
 | **Benutzer verwalten** | Die Konten des ganzen Programms. |
@@ -508,8 +508,28 @@ Unter **Einstellungen** stehen die Einstellungen des ausgewählten Wettbewerbs:
 - **Rangliste** – Streichresultat, ab wie vielen Durchgängen, Ansicht der öffentlichen Liste, und
   ob die Resultate öffentlich sichtbar sind
 - **Vereinswertung** – ob sie angezeigt wird und wie viele Piloten je Verein zählen
+- **Modelltypen** – welche Typen in diesem Wettbewerb überhaupt vorkommen dürfen
 - **Anmeldung** – offen oder geschlossen, der Text über dem Formular, und die Absenderadresse der
   Bestätigung
+
+### Modelltypen je Wettbewerb
+
+Der SuperAdmin legt fest, **welche Modelltypen es im Programm gibt** – Elektro, Schlepp, was der
+Verein braucht. Welche davon **in einem bestimmten Wettbewerb** fliegen, entscheidet der Verein
+selbst unter **Einstellungen → Modelltypen**.
+
+Ohne Auswahl sind **alle zugelassen** – das ist auch der Zustand, den ein Wettbewerb nach der
+Ersteinrichtung hat. Kreuzt der Verein einen Typ an, steht in der Startliste und im
+**öffentlichen Anmeldeformular** nur noch dieser zur Wahl. So kann sich niemand für „Elektro“
+anmelden in einem Wettbewerb, in dem nur Schlepp geflogen wird.
+
+**Diese Auswahl wirkt beim Eintragen, nicht auf das, was schon da ist.** Ein Pilot, der schon in
+der Startliste steht, bleibt in der Rangliste, im Laufzettel und im Export – auch wenn man seinen
+Typ danach sperrt. Beim Bearbeiten bleibt sein Typ im Feld stehen, damit er beim nächsten
+Speichern nicht unbemerkt verloren geht.
+
+**Ein neuer Wettbewerb erbt die Auswahl** des Wettbewerbs, aus dem er angelegt wurde. Wer das
+anders will, stellt sie unter **Einstellungen → Modelltypen** um.
 
 Die Einstellungen gelten nur für den Wettbewerb, der oben ausgewählt ist. Beim Anlegen eines neuen
 Wettbewerbs werden die Einstellungen des gerade ausgewählten als Vorlage kopiert – so haben zwei
