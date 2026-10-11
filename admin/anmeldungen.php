@@ -5,6 +5,15 @@ require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
 $competition = resolve_competition_param(competition_request_param(), true);
+// Anmeldungen gehören genau diesem Wettbewerb. Diese Prüfung fehlte hier als
+// einzige auf allen Verwaltungsseiten - und genau hier ist sie aufgefallen:
+// Ein Konto ohne eigene Wettbewerbe bekam von resolve_competition_param() den
+// Wettbewerb des aktiven Vereins zurueck, weil es keinen eigenen gab, an dem
+// man stattdessen haette anzeigen koennen. Ohne diese Zeile standen dann die
+// Anmeldungen eines fremden Vereins auf der Seite, ohne jede Meldung.
+// require_competition_access() erkennt genau diesen Fall und sagt, dass fuer
+// das Konto noch kein Wettbewerb angelegt ist.
+require_competition_access((int) $competition['id']);
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $completedCompetitionIds = [];

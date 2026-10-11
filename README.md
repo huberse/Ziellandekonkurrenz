@@ -477,10 +477,11 @@ Sperre gilt auch dann, wenn ein Formular **ohne Klick** abgeschickt wird.
 
 **Ein Verein, für den noch kein Wettbewerb geplant ist, ist ein ganz normaler Zustand.** Ein
 Verein ist dem Wettkampfbüro beigetreten, hat aber noch keinen Termin. Solange das so ist, gibt es
-für dieses Konto nichts zu erfassen, keine Startliste und keine Durchgänge. Das Programm sagt das
-auf jeder betroffenen Seite, mit einem Knopf zu den Wettbewerben und einem Hinweis an den
-SuperAdmin. In der oberen Leiste steht **„Zur Zeit kein Wettbewerb“**. Sobald der SuperAdmin einen
-Wettbewerb anlegt, verschwindet der Hinweis von selbst – es ist nichts einzuschalten.
+für dieses Konto nichts zu erfassen, keine Startliste und keine Durchgänge – und **keine Anmeldung
+anderer Vereine**, auch nicht auf der Seite *Anmeldungen*. Das Programm sagt das auf jeder betroffenen
+Seite, mit einem Knopf zu den Wettbewerben und einem Hinweis an den SuperAdmin. In der oberen Leiste
+steht **„Zur Zeit kein Wettbewerb“**. Sobald der SuperAdmin einen Wettbewerb anlegt, verschwindet
+der Hinweis von selbst – es ist nichts einzuschalten.
 
 ### Benutzer verwalten
 

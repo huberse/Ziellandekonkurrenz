@@ -10,6 +10,35 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.17
+
+**Die Seite „Anmeldungen“ zeigte einem Verein ohne eigenen Wettbewerb die Anmeldungen eines
+anderen Vereins.** Nachgefunden am 11. Oktober 2026, nachdem 2.0.16 das gleiche Problem nicht
+behoben hatte.
+
+**Was wirklich passierte.** Die Seite nimmt ohne ausdrückliche Wahl den **aktiven** Wettbewerb.
+Gehört der einem anderen Verein, sucht das Programm einen eigenen zum Anzeigen. Ein Konto, dessen
+Verein **überhaupt keinen Wettbewerb hat**, hat keinen – und damit blieb der fremde Wettbewerb
+stehen. Das Programm meldete nichts, weil der gewünschte und der angezeigte Wettbewerb dieselbe
+Nummer hatten: „Angezeigt wird …“ wurde stillschweigend nicht ausgegeben. Die Seite stand da, als
+wäre sie die eigene.
+
+Alle anderen Verwaltungsseiten rufen eine Prüfung auf, die genau diesen Fall kennt und „Für deinen
+Verein ist noch kein Wettbewerb angelegt“ sagt. **Die Seite „Anmeldungen“ war die einzige, die
+sie nicht aufrief** – geprüft an allen zwölf Seiten, sie war die einzige Lücke.
+
+- **Die Seite „Anmeldungen“ prüft jetzt wie alle anderen.** Ein Verein ohne eigenen Wettbewerb
+  bekommt die Seite *Noch keine Wettbewerbe vorhanden* und im Kopf „Zur Zeit kein Wettbewerb“ – so
+  wie auf jeder anderen Seite des Wettkampfbüros.
+- **2.0.16 bleibt vollständig.** Wettbewerbe ohne Veranstalter gehören weiterhin allein dem
+  SuperAdmin; bei einer Installation, in der es keine gibt, ändert sich durch diese Fassung nichts.
+- **Der Knopf „Alle Wettbewerbe anzeigen“ bleibt dem SuperAdmin vorbehalten.**
+
+Für wen sich etwas ändert: nur für Konten, deren Verein bisher keinen Wettbewerb hatte und die
+deshalb in den eines fremden Vereins geschaut haben.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.16
 
 **Ein Verein kann nicht mehr in die Daten eines anderen Vereins sehen.** Gemeldet von einem
