@@ -1,0 +1,321 @@
+<?php
+/**
+ * Prüft, ob der Server alles mitbringt, was die App braucht.
+ *
+ * Nur der angemeldete SuperAdmin darf sie aufrufen. Sie nennt den Namen der
+ * Datenbank, alle Tabellen, Spalten, Indizes und Fremdschlüssel sowie - seit
+ * 2.0.16 - die Namen der Wettbewerbe ohne Veranstalter.
+ *
+ * Weil sie geschützt ist, darf sie auf dem Server bleiben.
+ *
+ * Bewusst ohne Ausweg: kein Schlüssel, kein Notfallzugang. Mit der
+ * Anmeldepflicht gilt das allerdings nicht mehr: ist der Login kaputt, hilft
+ * nur noch der Hoster. Das ist der Preis, und er ist gewollt.
+ *
+ * Auf der Kommandozeile gibt es keine Sitzung und deshalb auch keine Sperre:
+ * wer dort ist, hat ohnehin schon alles.
+ *
+ * Seit 2.0.19 liegt die Datei in admin/, weil sie etwas anzeigt, wofuer ein
+ * Konto nötig ist. Der Pfad diagnose.php im Hauptverzeichnis fuehrt als
+ * Kompatibilitaetspfad hierher.
+ */
+
+// Der Wurzelordner, nicht __DIR__: die Seite ist inzwischen in admin/.
+$wurzel = dirname(__DIR__);
+
+if (PHP_SAPI !== 'cli') {
+    $istSuperAdmin = false;
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    if (!empty($_SESSION['uid']) && is_file($wurzel . '/config.php')) {
+        try {
+            $cfgZugang = require $wurzel . '/config.php';
+            $dsnZugang = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+                $cfgZugang['db_host'], $cfgZugang['db_port'] ?? 3306, $cfgZugang['db_name']);
+            $pdoZugang = new PDO($dsnZugang, $cfgZugang['db_user'], $cfgZugang['db_pass'],
+                                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+            $stZugang = $pdoZugang->prepare('SELECT is_superadmin, active FROM users WHERE id = ?');
+            $stZugang->execute([(int) $_SESSION['uid']]);
+            $benutzerZugang = $stZugang->fetch();
+            $istSuperAdmin = $benutzerZugang
+                && (int) $benutzerZugang['is_superadmin'] === 1
+                && (int) $benutzerZugang['active'] === 1;
+        } catch (Throwable $e) {
+            // Keine Verbindung oder keine Tabelle: dann laesst sich die Rolle
+            // nicht feststellen, also kein Zutritt. Genau das ist der Fall, in
+            // dem diese Seite frueher ihr juengstes Werkzeug war.
+            $istSuperAdmin = false;
+        }
+    }
+    if (!$istSuperAdmin) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "NO ACCESS";
+        exit;
+    }
+}
+
+header('Content-Type: text/plain; charset=utf-8');
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+$ok = true;
+function check(string $label, bool $pass, string $hint = '', bool $critical = true): void
+{
+    global $ok;
+    echo ($pass ? 'OK   ' : 'FEHLT ') . $label . ($pass ? '' : '  <-- ' . $hint) . "\n";
+    if (!$pass && $critical) { $GLOBALS['ok'] = false; }
+}
+
+echo "== Segelflug-Wettbewerb: Diagnose ==\n\n";
+
+echo "PHP-Version: " . PHP_VERSION . "\n";
+check('PHP mindestens 7.3', version_compare(PHP_VERSION, '7.3.0', '>='),
+    'Zu alte PHP-Version. Im Hosting-Panel eine neuere PHP-Version einstellen.');
+echo "\n";
+
+echo "-- Erweiterungen --\n";
+check('PDO', extension_loaded('pdo'), 'PDO-Erweiterung fehlt.');
+check('PDO MySQL (pdo_mysql)', extension_loaded('pdo_mysql'),
+    'Ohne pdo_mysql kann die App keine Verbindung zur Datenbank aufbauen. Im Hosting-Panel aktivieren.');
+check('mbstring', extension_loaded('mbstring'),
+    'Fehlt, ist aber nicht zwingend: die App bringt einen Ersatz mit.', false);
+check('json', extension_loaded('json'), 'json-Erweiterung fehlt.');
+check('session', extension_loaded('session'), 'session-Erweiterung fehlt.');
+echo "\n";
+
+echo "-- Dateien und Rechte --\n";
+check('config.php vorhanden', is_file($wurzel . '/config.php'),
+    'config.sample.php nach config.php kopieren und ausfüllen.');
+check('lib/db.php lesbar', is_readable($wurzel . '/lib/db.php'), 'Datei fehlt oder falsche Rechte.');
+check('ZipArchive für die Aktualisierung', class_exists('ZipArchive'),
+    'Fehlt, ist aber nicht zwingend: nur der Aktualisierungs-Knopf braucht es.', false);
+
+// Nach einem Update kann eine Seite den alten Stand zeigen, obwohl die Datei
+// schon die neue ist: der Opcode-Cache des Servers haelt den Bytecode fest.
+// Bei ausgeschalteter Zeitpruefung merkt er das nie und laeuft endgueldig mit
+// dem Stand von vorher weiter. Das sieht aus wie ein Fehler im Update und
+// ist keiner. Steht hier ein "Fehlt", einmal den Cache leeren.
+if (function_exists('opcache_get_status') && ($opcache = @opcache_get_status()) !== false
+    && !empty($opcache['opcache_enabled'])) {
+    $prueftNach = (bool) ini_get('opcache.validate_timestamps');
+    check('Opcode-Cache prüft Dateiänderungen', $prueftNach,
+        'opcache.validate_timestamps ist aus, der Cache merkt neue Dateien nicht. Nach dem Aktualisieren '
+        . 'einmal opcache_reset() aufrufen oder den PHP-Dienst neu starten.', false);
+}
+
+// Fassung und Bestandsliste muessen zusammenpassen, sonst haelt der
+// Aktualisierungs-Knopf den Server fuer aelter als er ist oder umgekehrt.
+require_once $wurzel . '/lib/version.php';
+require_once $wurzel . '/lib/update.php';
+$bestand = update_bestand_installiert();
+check('Bestandsliste vorhanden', $bestand !== null,
+    'manifest.json fehlt. Beim Entwickeln: php tools/manifest.php.');
+check('Fassung passt zur Bestandsliste', $bestand !== null && $bestand['version'] === APP_VERSION,
+    'manifest.json nennt ' . ($bestand['version'] ?? '–') . ', der Code ist ' . APP_VERSION
+    . '. Beim Entwickeln: php tools/manifest.php.');
+if ($bestand !== null) {
+    // Geschuetzte Dateien zaehlen getrennt: der Aktualisierungs-Knopf liefert
+    // sie grundsaetzlich nicht, eine aeltere Kopie ist dort also der Normalfall
+    // und kein Fehler. Vorher standen sie in derselben Liste wie von Hand
+    // geaenderte Dateien - der SuperAdmin bekam dauerhaft einen roten Befund,
+    // den es gar nicht gab und den er nicht beheben konnte.
+    $abweichend = [];
+    $geschuetztAbweichend = [];
+    foreach ($bestand['files'] as $pfad => $summe) {
+        $da = is_file($wurzel . '/' . $pfad);
+        if ($da && hash_file('sha256', $wurzel . '/' . $pfad) === $summe) {
+            continue;
+        }
+        if (update_ist_geschuetzt($pfad)) {
+            $geschuetztAbweichend[] = $pfad;
+        } else {
+            $abweichend[] = $pfad;
+        }
+    }
+    check('Dateien passen zur Bestandsliste', !$abweichend,
+        count($abweichend) . ' Datei(en) weichen ab: ' . implode(', ', array_slice($abweichend, 0, 5))
+        . (count($abweichend) > 5 ? ' …' : '')
+        . '. Von Hand geaenderte Dateien bleiben beim Update stehen.', false);
+    if ($geschuetztAbweichend) {
+        $gruende = [];
+        foreach ($geschuetztAbweichend as $p) {
+            $gruende[] = $p . ' (' . (update_geschuetzt()[$p] ?? '') . ')';
+        }
+        check('Geschuetzte Dateien ohne Update', true,
+            count($geschuetztAbweichend) . ' geschuetzte Datei(en) sind aelter als im Repository: '
+            . implode(', ', $gruende) . '. Sie werden vom Update nie mitgeliefert, das ist so vorgesehen. '
+            . 'Wer sie braucht, nimmt sie aus dem Archiv der Fassung.', false);
+    }
+}
+echo "\n";
+
+if (is_file($wurzel . '/config.php')) {
+    echo "-- Datenbankverbindung --\n";
+    $cfg = require $wurzel . '/config.php';
+    try {
+        $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+            $cfg['db_host'], $cfg['db_port'] ?? 3306, $cfg['db_name']);
+        $pdo = new PDO($dsn, $cfg['db_user'], $cfg['db_pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        check('Verbindung zur Datenbank', true);
+        $ver = $pdo->query('SELECT VERSION()')->fetchColumn();
+        echo "     Datenbankversion: $ver\n";
+
+        $tables = ['settings', 'schema_migrations', 'competitions', 'competition_settings', 'model_types', 'clubs', 'pilots', 'rounds', 'scores', 'registrations', 'users'];
+        foreach ($tables as $t) {
+            try {
+                $pdo->query("SELECT 1 FROM `$t` LIMIT 1");
+                check("Tabelle $t", true);
+            } catch (PDOException $e) {
+                check("Tabelle $t", false, 'install.php noch nicht ausgeführt, oder alte Tabellen (admin/upgrade.php nötig).');
+            }
+        }
+        try {
+            $version = (int) $pdo->query('SELECT COALESCE(MAX(version), 0) FROM schema_migrations')->fetchColumn();
+            // Ab 12 gehoert die Stammliste der Piloten dazu. Wer auf 2.0.0 geht,
+            // ohne admin/upgrade.php zu rufen, bekommt das hier gesagt - und wer
+            // nicht SuperAdmin ist, kann das nicht.
+            check('Versionierte Migrationen', $version >= 4, 'admin/upgrade.php aufrufen (SuperAdmin).');
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'completed_at'");
+            $st->execute();
+            check('Spalte competitions.completed_at', (int) $st->fetchColumn() > 0, 'admin/upgrade.php aufrufen (SuperAdmin).');
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE()
+                                   AND ((TABLE_NAME = 'pilots' AND COLUMN_NAME = 'active')
+                                     OR (TABLE_NAME = 'rounds' AND COLUMN_NAME = 'is_included')
+                                     OR (TABLE_NAME = 'scores' AND COLUMN_NAME = 'not_started'))");
+            $st->execute();
+            check('Resultatfelder für Abschlussprüfung', (int) $st->fetchColumn() === 3, 'admin/upgrade.php aufrufen (SuperAdmin).');
+            $st = $pdo->prepare("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores'
+                                   AND COLUMN_NAME IN ('not_started', 'outlanding', 'crash', 'motor')");
+            $st->execute();
+            $kaestchen = [];
+            $kaestchenOk = true;
+            foreach ($st as $k) {
+                $kaestchen[(string) $k['COLUMN_NAME']] = $k;
+                if (strtolower((string) $k['COLUMN_TYPE']) !== 'tinyint(1)'
+                    || (string) $k['IS_NULLABLE'] !== 'NO') {
+                    $kaestchenOk = false;
+                }
+            }
+            $kaestchenOk = $kaestchenOk && count($kaestchen) === 4;
+            check('scores mit den vier Kästchenspalten', $kaestchenOk,
+                'admin/upgrade.php aufrufen (SuperAdmin). Bis 1.9.6 stand dort ein einzelnes Statusfeld.');
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'scores' AND COLUMN_NAME = 'status'");
+            $st->execute();
+            check('scores.status ist entfernt', (int) $st->fetchColumn() === 0, 'admin/upgrade.php aufrufen (SuperAdmin).');
+            $st = $pdo->prepare("SELECT skey FROM competition_settings
+                                 WHERE skey IN ('penalty_per_second', 'penalty_outlanding', 'penalty_not_started', 'penalty_motor')
+                                 GROUP BY competition_id HAVING COUNT(DISTINCT skey) < 4 LIMIT 1");
+            $st->execute();
+            check('Strafpunktregeln je Wettbewerb', $st->fetchColumn() === false,
+                'Mindestens einem Wettbewerb fehlen die neuen Strafpunktregeln; admin/upgrade.php aufrufen.');
+            $st = $pdo->prepare("SELECT skey FROM competition_settings
+                                 WHERE skey IN ('penalty_per_second_over', 'penalty_per_second_under', 'penalty_not_flown',
+                                                'max_time_penalty', 'max_landing_penalty') LIMIT 1");
+            $st->execute();
+            check('Keine abgelösten Strafpunktschlüssel mehr', $st->fetchColumn() === false,
+                'admin/upgrade.php aufrufen; das räumt die alten Schlüssel auf.');
+            $st = $pdo->prepare("SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+                                   AND COLUMN_NAME IN ('is_superadmin','active')");
+            $st->execute();
+            check('Benutzerrechte (SuperAdmin, Sperre)', count($st->fetchAll(PDO::FETCH_COLUMN)) === 2,
+                'admin/upgrade.php aufrufen (SuperAdmin).');
+            // Stand hier bis 1.9.11 eine 0, obwohl schema.sql eine 1 vorsieht. Dann
+            // war jedes neu angelegte Konto sofort gesperrt, ohne dass am Passwort
+            // etwas kaputt war - der Grund dafür, dass sich ein Konto erst nach
+            // einem zweiten Durchgang anmelden liess.
+            $st = $pdo->prepare("SELECT COLUMN_DEFAULT FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'active'");
+            $st->execute();
+            check('users.active ist standardmässig aktiv', (string) $st->fetchColumn() === '1',
+                'admin/upgrade.php aufrufen. Neue Konten wären sonst sofort gesperrt.');
+            $st = $pdo->prepare('SELECT COUNT(*) FROM users WHERE is_superadmin = 1 AND active = 1');
+            $st->execute();
+            $admins = (int) $st->fetchColumn();
+            check('Mindestens ein SuperAdmin aktiv', $admins > 0,
+                'Sonst kann niemand die Benutzerverwaltung erreichen. Konto unter admin/benutzer.php prüfen.');
+
+            // Wettbewerbe ohne Veranstalter. Seit 2.0.16 gehört ein solcher
+            // Wettbewerb allein dem SuperAdmin: kein Verein sieht ihn und kann
+            // ihn nicht bearbeiten. Vorher galt "gehört allen", und damit
+            // konnte jeder Verein im Netz die Startliste, die Resultate und die
+            // Anmeldungen eines fremden Wettbewerbs lesen und veraendern. Das
+            // ist nur dann harmlos, wenn keiner existiert - deshalb steht es
+            // hier beim Namen und nicht nur als Zahl.
+            $st = $pdo->prepare('SELECT id, name FROM competitions WHERE club_id IS NULL ORDER BY id');
+            $st->execute();
+            $ohneVeranstalter = $st->fetchAll();
+            check('Jeder Wettbewerb hat einen Veranstalter', count($ohneVeranstalter) === 0,
+                count($ohneVeranstalter) === 0 ? '' :
+                    'Diese Wettbewerbe kann ausser dem SuperAdmin niemand mehr bedienen. '
+                    . 'Unter Wettbewerbe den Veranstalter zuweisen: '
+                    . implode(', ', array_map(static fn($z) => '#' . (int) $z['id'] . ' ' . (string) $z['name'],
+                                                   $ohneVeranstalter)));
+            $st = $pdo->prepare("SELECT COUNT(DISTINCT CONCAT(TABLE_NAME, ':', INDEX_NAME)) FROM information_schema.STATISTICS
+                                 WHERE TABLE_SCHEMA = DATABASE()
+                                 AND ((TABLE_NAME = 'competitions' AND INDEX_NAME = 'uq_competition_name')
+                                   OR (TABLE_NAME = 'pilots' AND INDEX_NAME IN ('uq_pilot_id_competition', 'uq_pilot_competition_bib'))
+                                   OR (TABLE_NAME = 'rounds' AND INDEX_NAME = 'uq_round_id_competition')
+                                   OR (TABLE_NAME = 'scores' AND INDEX_NAME IN ('idx_score_competition', 'idx_score_pilot_competition', 'idx_score_round_competition'))
+                                   OR (TABLE_NAME = 'registrations' AND INDEX_NAME IN ('idx_registration_competition', 'idx_registration_pilot')))");
+            $st->execute();
+            $indexCount = (int) $st->fetchColumn();
+            $st = $pdo->prepare("SELECT COUNT(DISTINCT CONCAT(TABLE_NAME, ':', CONSTRAINT_NAME)) FROM information_schema.REFERENTIAL_CONSTRAINTS
+                                 WHERE CONSTRAINT_SCHEMA = DATABASE()
+                                   AND ((TABLE_NAME = 'scores' AND CONSTRAINT_NAME IN ('fk_score_pilot_competition', 'fk_score_round_competition'))
+                                     OR (TABLE_NAME = 'registrations' AND CONSTRAINT_NAME = 'fk_registration_pilot'))");
+            $st->execute();
+            $fkCount = (int) $st->fetchColumn();
+            check('Wettbewerb-Constraints', $indexCount >= 9 && $fkCount >= 3, 'admin/upgrade.php aufrufen (SuperAdmin).');
+
+            // Seit 2.0.0 stehen die Stammdaten der Piloten in pilot_profiles.
+            // Ohne diese Tabelle liefert jede Seite mit einer Pilotenliste einen
+            // SQL-Fehler - das merkt man dann, wenn man etwas anklickt.
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.TABLES
+                                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'pilot_profiles'");
+            $st->execute();
+            $hatProfile = (int) $st->fetchColumn() > 0;
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE()
+                                   AND ((TABLE_NAME = 'pilots' AND COLUMN_NAME = 'profile_id')
+                                     OR (TABLE_NAME = 'pilots' AND COLUMN_NAME = 'first_name')
+                                     OR (TABLE_NAME = 'registrations' AND COLUMN_NAME = 'smv_number'))");
+            $st->execute();
+            $spalten = (int) $st->fetchColumn();
+            check('Stammdaten der Piloten (2.0.0)', $hatProfile && $spalten === 2, 'admin/upgrade.php aufrufen (SuperAdmin).');
+
+            // Ab 2.0.0 kann ein Wettbewerb als abgesagt markiert werden. Ohne die
+            // Spalte meldet die Karte zwar "abgesagt", gespeichert wird es nicht -
+            // und niemand merkt es, bis jemand einen Wettbewerb sucht, der
+            // eigentlich ausgefallen ist.
+            $st = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS
+                                 WHERE TABLE_SCHEMA = DATABASE()
+                                   AND TABLE_NAME = 'competitions' AND COLUMN_NAME = 'cancelled_at'");
+            $st->execute();
+            check('Absage von Wettbewerben (2.0.0)', (int) $st->fetchColumn() > 0, 'admin/upgrade.php aufrufen (SuperAdmin).');
+        } catch (PDOException $e) {
+            check('Versionierte Migrationen', false, 'admin/upgrade.php aufrufen (SuperAdmin).');
+        }
+    } catch (PDOException $e) {
+        check('Verbindung zur Datenbank', false, $e->getMessage());
+    }
+    echo "\n";
+}
+
+echo "-- PHP-Sprachmerkmale, die die App braucht --\n";
+check('Anonyme Funktionen', function_exists('array_filter'));
+check('Namespaces/declare(strict_types)', true); // wird beim Parsen dieser Datei implizit geprüft
+echo "\n";
+
+echo $ok
+    ? "Alles in Ordnung. Wenn trotzdem Seiten mit 500 antworten, im Hosting-Panel das PHP-Fehlerprotokoll ansehen\n"
+      . "(oder den Hoster danach fragen) - dort steht die genaue Fehlermeldung und Zeile.\n"
+    : "Mindestens ein Punkt oben fehlt oder ist zu alt. Das ist die wahrscheinliche Ursache für die 500-Fehler.\n";
+
+echo "\nDie Datei darf auf dem Server bleiben: sie zeigt nur der angemeldete SuperAdmin.\n";

@@ -122,7 +122,7 @@ Wettbewerb, die Durchgänge und das erste Konto an.
 | Datei | danach |
 | --- | --- |
 | `install.php` | **löschen** – sie gehört nicht auf einen Server im Internet |
-| `diagnose.php` | **darf liegen bleiben** – sie zeigt seit 2.0.18 nur dem angemeldeten SuperAdmin |
+| `admin/diagnose.php` | **darf liegen bleiben** – sie zeigt seit 2.0.18 nur dem angemeldeten SuperAdmin |
 | `admin/upgrade.php` | darf liegen bleiben, siehe [Aktualisieren](#aktualisieren) |
 
 Antwortet eine Seite mit einem 500-Fehler, hilft [`diagnose.php`](#fehlersuche).
@@ -677,10 +677,10 @@ und Modelltypen bleiben.** Siehe [Wettbewerbe](#wettbewerbe).
 ## Fehlersuche
 
 Antwortet eine Seite mit einem 500-Fehler, **als SuperAdmin anmelden** und dann `diagnose.php`
-aufrufen:
+aufrufen. Seit 2.0.19 liegt die Seite in `admin/`, neben den anderen Seiten des Wettkampfbüros:
 
 ```
-https://ihre-domain/diagnose.php
+https://ihre-domain/admin/diagnose.php
 ```
 
 Die Datei prüft PHP-Version, benötigte Erweiterungen, Dateirechte, die Datenbankverbindung, alle
@@ -689,8 +689,9 @@ Datei und Zeile hilft meist nur das PHP-Fehlerprotokoll des Hosters.
 
 **Die Datei darf auf dem Server bleiben.** Sie nennt den Namen der Datenbank, alle Tabellen und
 Spalten sowie die Wettbewerbe ohne Veranstalter – deshalb zeigt sie seit 2.0.18 **nur dem
-angemeldeten SuperAdmin** etwas. Wer nicht angemeldet ist, bekommt denselben kurzen Hinweis wie
-jemand ohne SuperAdmin-Rechte; es gibt also nichts zu erraten.
+angemeldeten SuperAdmin** etwas. Wer nicht angemeldet ist oder kein SuperAdmin ist, bekommt
+**„NO ACCESS“** und sonst nichts. Der alte Pfad `diagnose.php` im Hauptverzeichnis funktioniert
+weiter und führt hierher, damit alte Lesezeichen nicht ins Leere laufen.
 
 **Der Preis dafür:** Läuft die Anwendung so weit, dass sich niemand anmelden kann, hilft
 `diagnose.php` nicht mehr. Dann bleibt nur das PHP-Fehlerprotokoll des Hosters.

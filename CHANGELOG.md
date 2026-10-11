@@ -10,6 +10,25 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.19
+
+**Die Diagnose ist nach `admin/` umgezogen und sagt bei fehlendem Zugriff nur noch „NO ACCESS“.**
+Auf Wunsch des Nutzers am 11. Oktober 2026.
+
+- **`diagnose.php` liegt jetzt in `admin/`**, bei den anderen Seiten des Wettkampfbüros. Der Pfad im
+  Hauptverzeichnis bleibt als Kompatibilitätspfad und führt dorthin – alte Lesezeichen laufen
+  nicht ins Leere.
+- **Ohne Zugriff steht dort nur noch „NO ACCESS“.** Vorher stand ein Absatz, der erklärte, was die
+  Seite sonst zeigen würde und wie man an sie herankommt. Davon stand in einem Absatz ausgerechnet
+  „Datenbank“, „Tabellen“ und „Spalten“ – also das, was die Seite eigentlich verschweigen soll.
+  Eine Sperre, die sich selbst erklärt, ist keine.
+
+**Unverändert:** Die Sperre gilt weiterhin für alle, die nicht der angemeldete SuperAdmin sind,
+und beide Fälle sagen dasselbe, damit nichts über vorhandene Konten verraten wird. Auf der
+Kommandozeile gibt es weiterhin keine Sperre.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.18
 
 **`diagnose.php` darf jetzt auf dem Server bleiben – sie ist dem SuperAdmin vorbehalten.** Auf
