@@ -723,9 +723,18 @@ Einstellung darin.
 
 **Der Schalter.** Der SuperAdmin stellt unter **Profil → Ausgehende E-Mails** ein, ob der Absender
 auch als Umschlag gesetzt wird. **Aus ist die Voreinstellung**, weil viele Hoster das aus
-Sicherheitsgründen sperren – dann käme gar nichts mehr an. Neben dem Schalter steht ein Knopf, der
-eine Testmail an die Absenderadresse schickt. **Die Testmail sagt mehr als jede Meldung im Programm:**
-kommt sie an, ist der Weg frei; kommt sie nicht an, liegt es am Hoster.
+Sicherheitsgründen sperren – dann käme gar nichts mehr an.
+
+**Die Testmail.** Direkt darunter steht ein Feld und ein Knopf. Trägt der SuperAdmin eine Adresse
+ein, geht die Testmail **von dieser Adresse an sie selbst** – der SuperAdmin hat selbst keinen
+Wettbewerb und damit auch keine Absenderadresse, deshalb ist das ein Feld und kein fest eingetragener
+Wert. Steht links eine Absenderadresse aus dem gerade gewählten Wettbewerb, geht die Testmail von
+dort an die eingetragene Adresse. Lässt sich das Feld leer, wird die Absenderadresse des Wettbewerbs
+genommen.
+
+**Die Testmail sagt mehr als jede Meldung im Programm:** kommt sie an, ist der Weg frei; kommt sie
+nicht an, liegt es am Hoster. Das Programm kann einen abgewiesenen Versand melden, eine Mail, die
+unterwegs verschwindet, kann es nicht.
 
 Ein Hinweis, dass eine Tabelle oder Spalte fehlt, bedeutet: `admin/upgrade.php` wurde noch nicht
 gelaufen.

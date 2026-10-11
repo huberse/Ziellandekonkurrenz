@@ -10,6 +10,26 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.21
+
+**Beim Testmail-Knopf steht jetzt ein Feld, in das eine Adresse eingetragen werden kann.** Auf
+Wunsch des Nutzers am 11. Oktober 2026.
+
+In 2.0.20 war der Knopf tot bei genau dem Benutzer, für den er gedacht war: der SuperAdmin hat
+selbst keinen Wettbewerb und damit auch keine Absenderadresse, der Knopf ging also an eine leere
+Adresse und meldete *„Es ist keine Absenderadresse eingestellt“* – eine Meldung, die nur sagen
+konnte, dass es nicht funktioniert.
+
+- **Unter Profil → Ausgehende E-Mails** steht jetzt ein Feld **„Testmail an diese Adresse“**. Trägt
+  der SuperAdmin eine ein, geht die Testmail **von dieser Adresse an sie selbst** – genau der Fall,
+  den man wissen will. Steht links eine Absenderadresse aus dem gewählten Wettbewerb, geht sie von
+  dort an die eingetragene Adresse; leeres Feld nimmt die Absenderadresse des Wettbewerbs.
+- **Das Feld behält den Wert**, auch über das Neuladen hinweg. Wer zweimal testet, muss die Adresse
+  nicht zweimal eintippen – gerade dann, wenn die erste Mail ausbleibt.
+- **Eine unbrauchbare Adresse wird abgewiesen**, statt stillschweigend irgendwohin zu gehen.
+
+Am Programm ändert sich sonst nichts.
+
 ## 2.0.20
 
 **Der SuperAdmin kann jetzt einstellen, ob der Absender auch als Umschlag gesetzt wird – und sich

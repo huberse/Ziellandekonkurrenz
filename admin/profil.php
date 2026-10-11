@@ -79,17 +79,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('Das ist eine Einstellung für den SuperAdmin.', 'err');
             redirect('profil.php');
         }
-        $ziel = competition_sender_email();
-        if ($ziel === '') {
-            flash('Es ist keine Absenderadresse eingestellt. Erst unter Einstellungen → Anmeldung '
-                . 'des gewählten Wettbewerbs eine eintragen.', 'err');
-            redirect('profil.php');
+        // Die Adresse kommt aus dem Formular, nicht aus dem Wettbewerb. Der
+        // SuperAdmin hat selbst keinen Wettbewerb und damit auch keine
+        // Absenderadresse - und soll die Testmail gerade an eine Adresse
+        // schicken koennen, die er gar nicht eingetragen hat, sondern erst
+        // ausprobieren will. Die eingestellte Absenderadresse steht deshalb nur
+        // als Vorschlag im Feld.
+        $ziel = trim(post('test_email'));
+        if (!is_valid_email($ziel)) {
+            // Leer ist hier erlaubt: dann nimmt es die Absenderadresse des
+            // gerade gewaehlten Wettbewerbs. Sonst waere die Meldung eine
+            // Sackgasse, denn genau an der fehlt dem SuperAdmin die Adresse.
+            $vorschlag = competition_sender_email();
+            if (!is_valid_email($vorschlag)) {
+                flash('Keine gültige Adresse zum Testen. Oben eine eintragen.', 'err');
+                redirect('profil.php');
+            }
+            $ziel = $vorschlag;
         }
+        // Das Feld soll den Wert behalten: wer zweimal testet, muss ihn nicht
+        // jedes Mal neu eintippen - gerade dann, wenn die erste Mail ausbleibt.
+        start_session();
+        $_SESSION['mailtest_ziel'] = $ziel;
+
+        // Als Absender dient die eingestellte Adresse des Wettbewerbs; gibt es
+        // keine, die des Testziels. Sonst waere die Testmail eine Adresse ohne
+        // Absender, und genau das wollte man ja gerade prüfen.
+        $absender = competition_sender_email();
+        $absender = is_valid_email($absender) ? $absender : $ziel;
         $ok = send_mail($ziel, 'Testmail aus dem Wettkampfbüro',
             "Das ist eine Testmail.\n\nWenn du sie liest, darf der Hoster den Absender als Umschlag setzen.\n"
             . "Kommt sie nicht an, obwohl hier nichts gemeldet wurde, liegt es am Hoster oder an SPF, DKIM\n"
             . "und DMARC seiner Domain – nicht am Programm.\n",
-            $ziel, competition_sender_name());
+            $absender, competition_sender_name());
         flash($ok ? 'Die Testmail wurde dem Mailserver übergeben. Jetzt das Postfach prüfen, '
                  . 'auch den Spam-Ordner – kommt sie dort an, ist sie angekommen.'
                  : 'Der Mailserver hat die Testmail abgewiesen. Häufigste Ursache: der Hoster erlaubt '
@@ -104,6 +126,13 @@ $me = current_user() ?: $me;
 $rolle = (int) ($me['is_superadmin'] ?? 0) === 1
     ? 'SuperAdmin – darf die Konten verwalten'
     : 'Wettkampfleitung';
+
+// Vorschlag fuer das Testfeld: die zuletzt getippte Adresse, sonst die des
+// gerade gewaehlten Wettbewerbs. Leer ist ausdruecklich erlaubt.
+$mailtestZiel = (string) ($_SESSION['mailtest_ziel'] ?? '');
+if ($mailtestZiel === '') {
+    $mailtestZiel = competition_sender_email();
+}
 
 page_start('Profil', 'admin', 'profil.php');
 ?>
@@ -193,10 +222,20 @@ page_start('Profil', 'admin', 'profil.php');
     <form method="post" style="margin-top:12px">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="mailtest">
-        <button class="btn ghost" type="submit">Testmail an die Absenderadresse</button>
+        <div class="field">
+            <label for="mtz">Testmail an diese Adresse</label>
+            <input type="email" id="mtz" name="test_email" maxlength="160"
+                   value="<?= h($mailtestZiel) ?>" placeholder="name@beispiel.ch" autocomplete="off">
+            <p class="hint">Feld selbst ausfüllen – der SuperAdmin hat selbst keinen Wettbewerb
+                und damit auch keine Absenderadresse. Steht links eine Absenderadresse aus dem
+                gewählten Wettbewerb, geht die Testmail von dort an diese hier. Steht keine, geht
+                sie <b>von dieser Adresse an sie selbst</b>; genau das ist ja der Fall, den man
+                prüfen will. Lässt man das Feld leer, wird die Absenderadresse des gewählten
+                Wettbewerbs genommen. Die Testmail sagt mehr als jede Meldung im Programm: kommt
+                sie an, ist der Weg frei; kommt sie nicht an, liegt es am Hoster – oder an SPF,
+                DKIM und DMARC seiner Domain.</p>
+        </div>
+        <button class="btn ghost" type="submit">Testmail schicken</button>
     </form>
-    <p class="hint">Die Testmail geht an die Absenderadresse des gerade gewählten Wettbewerbs. Sie
-        sagt mehr als jede Meldung hier: kommt sie an, ist der Weg frei; kommt sie nicht an, liegt es
-        am Hoster – oder an SPF, DKIM und DMARC seiner Domain.</p>
 </div>
 <?php endif; ?>
