@@ -5,6 +5,7 @@ require_once __DIR__ . '/lib/scoring.php';
 require_once __DIR__ . '/lib/layout.php';
 require_once __DIR__ . '/lib/mail.php';
 require_once __DIR__ . '/lib/profiles.php';
+require_once __DIR__ . '/lib/ratelimit.php';
 
 if (!schema_has_competitions()) {
     redirect(upgrade_url());
@@ -184,6 +185,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $open) {
             flash('Diese Anmeldung wurde schon einmal abgeschickt. Sie steht in der Teilnehmerliste,'
                 . ' sobald die Wettkampfleitung sie freigibt.', 'info');
             redirect('anmeldung.php' . $doneQS . 'eingegangen=1');
+        }
+
+        // Die Bremse kommt hier und nicht früher. Wer einen Tippfehler
+        // korrigiert, ist keine Gefahr und soll nicht mitgezählt werden -
+        // erst eine Anmeldung, die alle Prüfungen besteht, zählt.
+        if (!ratelimit_registrierung_pruefen(ratelimit_ip())) {
+            $warte = ratelimit_wartezeit(ratelimit_ip());
+            $minuten = max(1, (int) ceil($warte / 60));
+            flash('Von dieser Verbindung aus wurden gerade mehrere Anmeldungen abgeschickt. '
+                . 'Bitte warte ' . $minuten . ' Minute'
+                . ($minuten === 1 ? '' : 'n') . ' und melde dich dann an.', 'info');
+            redirect('anmeldung.php' . $doneQS);
         }
 
         foreach ($lengths as $field => $max) {

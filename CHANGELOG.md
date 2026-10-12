@@ -10,6 +10,36 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.0.22
+
+**Die Anmeldung ist jetzt begrenzt: von einem Anschluss kommen zwei Anmeldungen in fünf Minuten
+durch.** Auf Wunsch des Nutzers am 12. Oktober 2026, nach einem Code-Review.
+
+- **Ohne Bremse konnte jede Anmeldung eine Bestätigungsmail an eine frei gewählte Adresse auslösen.**
+  Damit ließ sich das Postfach eines Menschen fluten, und der Mailserver des Vereins trug die
+  Last, obwohl er nicht beteiligt war.
+- **Gezählt wird erst eine Anmeldung, die das Formular vollständig und richtig verlässt.** Wer
+  einen Tippfehler korrigiert, verbraucht nichts – das ist der Fall, der sonst im Stillen passiert
+  und Piloten ohne ihr Verschulden aussperrt.
+- **Gegählt wird nach der Adresse, nicht nach der Person.** Vater und Sohn am selben Anschluss
+  kommen beide durch.
+- **Bei der Abweisung steht die Wartezeit.** Wer mit offener Seite danebensteht, soll nicht raten
+  müssen.
+- **Der SuperAdmin kann die Bremse unter Profil → Bremse bei der Anmeldung ausschalten**, am besten
+  nur zum Ausprobieren. Eingeschaltet ist sie von Anfang an; eine Bremse, die man erst einschalten
+  müsste, wäre nach der Installation eines Vereins aus und bliebe es.
+- **Die `diagnose.php` warnt, wenn die Bremse aus ist.** Es steht dort nicht als Fehler, sondern
+  als Hinweis: das Programm läuft einwandfrei, und genau deshalb merkt es sonst niemand.
+
+**Ohne neue Tabelle.** Der Zähler ist eine kleine Datei im Temporärverzeichnis des Servers; für zwei
+Zahlen je Anschluss wäre eine Datenbankänderung zu viel gewesen. Steht das Verzeichnis nicht zur
+Verfügung, lässt die Bremse durch – sie darf eine Anmeldung im schlimmsten Fall durchlassen, aber
+niemals verhindern.
+
+**Was sich nicht geändert hat:** Die SMV-Nummer bleibt als Platzhalter im Link und die Namensabfrage
+dabei. Sie gibt nichts preis, was nicht ohnehin öffentlich ist: Namen und Vereine stehen auf der
+Teilnehmerliste offen im Netz.
+
 ## 2.0.21
 
 **Beim Testmail-Knopf steht jetzt ein Feld, in das eine Adresse eingetragen werden kann.** Auf

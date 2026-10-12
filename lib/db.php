@@ -174,5 +174,6 @@ function setting_defaults(): array
         'public_results'           => '1',
         'region_club_id'           => '0',  // 0 = keiner; sonst der Verein, der die Regioliste sieht
         'mail_absender_setzen'     => '0',  // 1 = Absender auch als Umschlag setzen (sendmail -f)
+        'ratelimit_an'             => '1',  // 1 = Bremse auf der oeffentlichen Anmeldung
     ];
 }

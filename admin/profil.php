@@ -60,6 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('profil.php');
     }
 
+    if ($action === 'bremse') {
+        if (!is_superadmin()) {
+            flash('Das ist eine Einstellung für den SuperAdmin.', 'err');
+            redirect('profil.php');
+        }
+        // Nicht ankreuzen heisst aus. Das ist die gefaehrlichere Richtung,
+        // deshalb steht sie im Satz der Meldung und nicht nur im Kasten.
+        $an = isset($_POST['ratelimit_an']);
+        global_setting_set('ratelimit_an', $an ? '1' : '0');
+        flash($an
+            ? 'Die Bremse ist eingeschaltet. Von einem Anschluss sind zwei Anmeldungen in fünf Minuten möglich.'
+            : 'Die Bremse ist aus. Jetzt kann jeder ohne Beschränkung anmelden und Mails auslösen – bitte nach dem Ausprobieren wieder einschalten.',
+            $an ? 'ok' : 'err');
+        redirect('profil.php');
+    }
+
     if ($action === 'mail') {
         // Nur der SuperAdmin stellt das ein: es wirkt auf alle Vereine.
         if (!is_superadmin()) {
@@ -194,6 +210,31 @@ page_start('Profil', 'admin', 'profil.php');
         zum Beispiel, welche Vereine und Wettbewerbe du ohne Umweg sehen möchtest. Sobald es etwas
         gibt, steht es hier und nicht in den Wettbewerbseinstellungen.</p>
 </div>
+
+<?php if (is_superadmin()): ?>
+<div class="panel">
+    <h3 style="margin-top:0">Bremse bei der Anmeldung</h3>
+    <p class="lead">Von einem Anschluss kommen <b>zwei Anmeldungen in fünf Minuten</b> durch. Erst eine
+        Anmeldung, die das Formular vollständig und richtig verlässt, wird gezählt – wer einen
+        Tippfehler korrigiert, verbraucht nichts. Getrennt wird nur nach der Adresse, nicht nach der
+        Person: Vater und Sohn am selben Anschluss kommen beide durch.</p>
+
+    <form method="post">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="bremse">
+        <div class="check">
+            <input type="checkbox" id="rla" name="ratelimit_an" <?= setting_bool('ratelimit_an', true) ? 'checked' : '' ?>>
+            <label for="rla">Bremse eingeschaltet lassen</label>
+        </div>
+        <p class="hint">Ausschalten lohnt sich nur beim Ausprobieren. Ohne Bremse kann jeder ohne
+            Beschränkung anmelden, und <b>jede</b> Anmeldung löst eine Mail an eine frei gewählte
+            Adresse aus – damit lässt sich das Postfach eines Menschen fluten. Die Bremse ist
+            eingeschaltet, solange niemand etwas ändert. Die <a href="diagnose.php">Diagnose</a>
+            sagt Bescheid, wenn sie aus ist.</p>
+        <button class="btn" type="submit">Speichern</button>
+    </form>
+</div>
+<?php endif; ?>
 
 <?php if (is_superadmin()): ?>
 <div class="panel">

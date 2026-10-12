@@ -313,6 +313,43 @@ check('Anonyme Funktionen', function_exists('array_filter'));
 check('Namespaces/declare(strict_types)', true); // wird beim Parsen dieser Datei implizit geprüft
 echo "\n";
 
+// Eine Bremse, die zum Ausprobieren ausgeschaltet und dann vergessen wurde,
+// sieht man sonst niemandem an: Das Programm laeuft, die Seiten sind schnell,
+// nur das Postfach eines Menschen laeuft ueber. Deshalb steht es hier.
+//
+// Ohne setting_bool() und ohne lib/db.php: diese Datei soll auch dann laufen,
+// wenn das Programm selbst kaputt ist. Ein Aufruf einer Funktion, die es
+// gerade nicht gibt, waere das Gegenteil - siehe den Fatal error, den es
+// hier vorher gegeben hat.
+echo "-- Schutz der oeffentlichen Anmeldung --\n";
+$bremseAn = null;
+if (isset($pdo)) {
+    try {
+        $stBremse = $pdo->prepare('SELECT svalue FROM settings WHERE skey = ?');
+        $stBremse->execute(['ratelimit_an']);
+        $wertBremse = $stBremse->fetchColumn();
+        // Kein Eintrag heisst: nie abgeschaltet, also an.
+        $bremseAn = $wertBremse === false ? '1' : (string) $wertBremse;
+    } catch (PDOException $e) {
+        $bremseAn = null;
+    }
+}
+if ($bremseAn === null) {
+    echo "INFO  Bremse bei der Anmeldung: nicht pruefbar, die Einstellungen sind nicht lesbar.\n";
+} elseif ($bremseAn !== '1') {
+    // Bewusst keine Pruefung und kein "FEHLT": eine abgeschaltete Bremse ist
+    // kein Installationsfehler, und darunter steht "Alles in Ordnung". Beides
+    // zugleich zu zeigen waere widerspruechlich - es geht dabei um einen
+    // Schalter, nicht um einen Defekt.
+    echo "WARNUNG  Bremse bei der Anmeldung ist ausgeschaltet. Von einem Anschluss kommen dann\n"
+       . "beliebig viele Anmeldungen durch, und jede loest eine Mail an eine frei gewaehlte\n"
+       . "Adresse aus. Nach dem Ausprobieren unter Profil -> Bremse bei der Anmeldung wieder\n"
+       . "einschalten. Fuer den Normalbetrieb ist die Bremse richtig.\n";
+} else {
+    check('Bremse bei der Anmeldung', true);
+}
+echo "\n";
+
 echo $ok
     ? "Alles in Ordnung. Wenn trotzdem Seiten mit 500 antworten, im Hosting-Panel das PHP-Fehlerprotokoll ansehen\n"
       . "(oder den Hoster danach fragen) - dort steht die genaue Fehlermeldung und Zeile.\n"

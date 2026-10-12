@@ -514,6 +514,12 @@ Wettbewerbseinstellungen durchgehen.
 Was den **Wettbewerb** betrifft, steht unter **Einstellungen**. Was **fremde Konten** betrifft,
 nur unter **Benutzer verwalten**.
 
+Zwei Dinge unter **Profil** sind nicht persönlich, sondern gelten für das ganze Programm. Sie sieht
+nur der SuperAdmin, weil sie sonst niemand braucht:
+
+- **Ausgehende E-Mails** – siehe *Die Anmeldebestätigung kommt nicht an*.
+- **Bremse bei der Anmeldung** – siehe *Wenn sich zu viele anmelden wollen*.
+
 ## Einstellungen
 
 Unter **Einstellungen** stehen die Einstellungen des ausgewählten Wettbewerbs:
@@ -695,6 +701,22 @@ weg – wer ihn im Lesezeichen hat, muss die Adresse auf `admin/diagnose.php` ä
 
 **Der Preis dafür:** Läuft die Anwendung so weit, dass sich niemand anmelden kann, hilft
 `admin/diagnose.php` nicht mehr. Dann bleibt nur das PHP-Fehlerprotokoll des Hosters.
+
+### Wenn sich zu viele anmelden wollen
+
+Von einem Anschluss kommen **zwei Anmeldungen in fünf Minuten** durch. Danach weist das Programm
+für weitere fünf Minuten ab und nennt die Wartezeit. Gezählt wird **erst eine Anmeldung, die das
+Formular vollständig und richtig verlässt** – wer einen Tippfehler korrigiert, verbraucht nichts.
+Gegählt wird nach der **Adresse, nicht nach der Person**: Vater und Sohn am selben Anschluss kommen
+beide durch.
+
+Warum es die Bremse gibt: jede Anmeldung löst eine Bestätigungsmail an eine Adresse aus, die der
+Absender frei wählt. Ohne Bremse lässt sich damit das Postfach eines Menschen fluten – und der
+Mailserver des Vereins trägt die Last, obwohl er nicht beteiligt ist.
+
+**Der SuperAdmin schaltet sie unter Profil → Bremse bei der Anmeldung ab**, am besten nur zum
+Ausprobieren. **Die `diagnose.php` sagt Bescheid, wenn sie aus ist** – eine ausgeschaltete Bremse
+sieht man sonst niemandem an, weil das Programm einwandfrei läuft.
 
 ### Die Anmeldebestätigung kommt nicht an
 
