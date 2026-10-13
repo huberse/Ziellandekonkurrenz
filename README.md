@@ -718,6 +718,37 @@ Mailserver des Vereins trägt die Last, obwohl er nicht beteiligt ist.
 Ausprobieren. **Die `diagnose.php` sagt Bescheid, wenn sie aus ist** – eine ausgeschaltete Bremse
 sieht man sonst niemandem an, weil das Programm einwandfrei läuft.
 
+### Niemand kommt mehr ins Wettkampfbüro hinein
+
+Nach **zehn Fehlversuchen mit demselben Benutzernamen** bleibt das Konto gesperrt, bis ein
+SuperAdmin es wieder freigibt. Gezählt wird die letzte halbe Stunde, und **nicht nach Groß- und
+Kleinschreibung** – `SUPERADMIN` ist dasselbe Konto wie `superadmin`. Nach fünf Fehlversuchen ist
+nichts gesperrt, ein Versuch nach der richtigen Eingabe setzt den Zähler zurück.
+
+**Warum nach dem Benutzernamen und nicht nach der Netzwerkadresse:** ein Versuch kommt von vielen
+Adressen. Der Name ist das, was sich dabei nicht ändert.
+
+**Freigeben:** Unter **Benutzer verwalten** trägt ein gesperrtes Konto die Marke *Anmeldung
+gesperrt* und hat daneben den Knopf **Sperre aufheben**. Für wen es gerade angegriffen wird,
+stehen dort keine Namen.
+
+**Die Diagnose sagt Bescheid**, wenn überhaupt etwas gesperrt ist – und ob ein SuperAdmin-Konto
+darunter ist. Das ist ein **Hinweis, kein Fehler**: das Programm läuft dabei einwandfrei.
+
+> **Falls ausgerechnet alle SuperAdmin-Konten gesperrt sind**, hilft nur der Weg an der
+> Wettkampfleitung vorbei. In der Datenbank (phpMyAdmin oder das Werkzeug des Hosters) öffnen und
+> ausführen:
+>
+> ```sql
+> DELETE FROM login_versuche;
+> ```
+>
+> Danach ist jede Sperre weg und man kann sich wieder anmelden. Die Tabelle enthält nur die
+> Fehlversuche, **sonst nichts** – sie wird ohnehin nach einer halben Stunde selbst geleert.
+>
+> Wer sich selbst aussperrt, hat dazu übrigens den einfachen Weg: fünfmal das falsche Passwort
+> tippen ist noch keine Sperre, der zehnte Versuch erst.
+
 ### Die Anmeldebestätigung kommt nicht an
 
 Das ist die häufigste Eigenheit beim Betrieb, und sie liegt **nicht am Programm**. Drei Dinge

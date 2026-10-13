@@ -82,6 +82,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('benutzer.php');
     }
 
+    if ($action === 'entsperren') {
+        // Die Sperre nach zehn Fehlversuchen aufheben. Bewusst ohne weitere
+        // Pruefung des Passworts: wer hier sitzt, ist angemeldet, und es geht
+        // nur darum, wieder hereinzukommen.
+        login_sperre_heben($name);
+        flash('Die Sperre fuer ' . $name . ' ist aufgehoben.', 'ok');
+        redirect('benutzer.php');
+    }
+
     if ($action !== 'update') {
         flash('Unbekannte Aktion.', 'err');
         redirect('benutzer.php');
@@ -226,6 +235,12 @@ page_start('Benutzer', 'admin', 'benutzer.php');
             $active = (int) $u['active'] === 1;
             $soleAdmin = $super && $active && $adminCount <= 1;
             $clubId = $u['club_id'] !== null ? (int) $u['club_id'] : 0;
+            // Zwei verschiedene Sperren: eine deaktivierte Spalte in der
+            // Kontoverwaltung, und die hier - eine Anmeldung, die nach zehn
+            // Fehlversuchen gesperrt wurde. Beide heissen "gesperrt", tun aber
+            // etwas anderes, und die zweite loescht man nicht ueber den
+            // Spaltenhaken.
+            $gesperrt = login_ist_gesperrt((string) $u['username']);
         ?>
             <tr<?= $active ? '' : ' class="cell-missing"' ?>>
                 <td class="nowrap">
@@ -233,6 +248,7 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                     <?php if ($isSelf): ?><span class="tag on">du</span><?php endif; ?>
                     <?php if ($super && !$isSelf): ?><span class="tag live">SuperAdmin</span><?php endif; ?>
                     <?php if (!$active): ?><span class="tag off">gesperrt</span><?php endif; ?>
+                    <?php if ($gesperrt): ?><span class="tag off" title="Nach zehn Fehlversuchen gesperrt">Anmeldung gesperrt</span><?php endif; ?>
                 </td>
                 <td>
                     <input type="text" form="<?= $fid ?>" name="display_name" maxlength="120"
@@ -272,6 +288,10 @@ page_start('Benutzer', 'admin', 'benutzer.php');
                            aria-label="Neues Passwort für <?= h($u['username']) ?>">
                 </td>
                 <td class="nowrap no-print">
+                    <?php if ($gesperrt): ?>
+                        <button class="btn ghost" type="submit" form="<?= $fid ?>" name="action" value="entsperren"
+                                title="Nach zehn Fehlversuchen gesperrt">Sperre aufheben</button>
+                    <?php endif; ?>
                     <button class="btn ghost" type="submit" form="<?= $fid ?>" name="action" value="update">Übernehmen</button>
                     <button class="btn danger" type="submit" form="<?= $fid ?>" name="action" value="delete"
                             formnovalidate

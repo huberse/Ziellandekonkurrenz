@@ -10,6 +10,57 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.1.0
+
+**Nach zehn Fehlversuchen mit demselben Namen bleibt das Konto gesperrt, bis ein SuperAdmin es
+freigibt. Und die Anmeldeseite verrät nicht mehr, welche Benutzernamen es gibt.**
+
+Auf Wunsch des Nutzers am 13. Oktober 2026, nach einem Code-Review. Erste Fassung mit
+Datenbankänderung.
+
+**Die Sperre**
+
+- Bisher war nur eine Wartezeit von 0,4 Sekunden je Fehlversuch eingebaut. Die wirkt auf **eine**
+  Verbindung – nachgemessen: dieselben sechs Fehlversuche kosteten nacheinander 2,80 Sekunden,
+  gleichzeitig auf acht Arbeitern 0,97.
+- Gezählt wird **nach dem Benutzernamen, nicht nach der Netzwerkadresse**, weil ein Versuch von
+  vielen Adressen kommt und der Name das ist, was sich dabei nicht ändert.
+- **Nicht nach Groß- und Kleinschreibung:** `SUPERADMIN` ist dasselbe Konto wie `superadmin`.
+  Sonst wäre die Sperre mit einem einzigen Buchstaben zu umgehen.
+- **Für jeden Namen, ob es das Konto gibt oder nicht.** Würde nur für vorhandene Konten gezählt,
+  verriete schon die Sperre selbst, welche Benutzernamen es geben.
+- Gezählt wird die letzte **halbe Stunde**. Nach der richtigen Eingabe ist der Zähler leer.
+- **Freigabe:** Unter *Benutzer verwalten* trägt ein gesperrtes Konto die Marke *Anmeldung
+  gesperrt* und einen Knopf **Sperre aufheben**. Für wen es gerade angegriffen wird, stehen dort
+  keine Namen. Die Sperrmeldung nennt nur, dass ein SuperAdmin sie aufheben kann.
+- **Die Diagnose weist auf gesperrte Namen hin** und warnt gesondert, wenn ein SuperAdmin-Konto
+  darunter ist – als Hinweis, nicht als Fehler.
+- **Falls ausgerechnet alle SuperAdmin-Konten gesperrt sind**, hilft `DELETE FROM login_versuche;`
+  in der Datenbank. Das steht so auch im Handbuch, weil man genau dann nicht mehr hereinkommt und
+  die Anleitung nicht lesen kann.
+
+**Das Zeitgefälle**
+
+In `login()` lief `password_verify` nur, wenn es den Benutzer überhaupt gab. Ein erfundener Name
+antwortete deshalb um die Hashdauer schneller als ein richtiger – **gemessen 43 Millisekunden bei
+gleicher Fehlermeldung**. Damit ließen sich vorhandene Benutzernamen herausfinden. Jetzt wird auch
+für einen erfundenen Namen gehasht; gemessen sind es danach **0 Millisekunden** Unterschied.
+
+**Datenbank:** eine neue Tabelle `login_versuche`, eine Zeile je Fehlversuch. Deshalb 2.1.0 und
+nicht 2.0.23.
+
+**Zwei Fehler, die beide stillschweigend nichts getan hätten**
+
+- Die Migration wurde auf einer bestehenden Anlage **als erledigt markiert, ohne die Tabelle
+  anzulegen**. `migration_mark_current()` trägt alle Stufen ein und führt nur die bedingten
+  Schritte aus – eine nummerierte Migration, die eine Tabelle anlegt, läuft dort nie. Der Schutz
+  wäre ausgefallen, ohne dass irgendetwas einen Fehler gemeldet hätte. Das Muster ist im Projekt
+  bereits beschrieben, deshalb hängt die Arbeit jetzt zusätzlich an den bedingten Schritten.
+- Der Zähler verglich **zwei verschiedene Uhren**: MySQL schrieb `CURRENT_TIMESTAMP` in UTC, PHP
+  rechnete in `Europe/Zurich`. Zwei Stunden Unterschied – jede Zeile sah sofort alt aus, wurde nie
+  gezählt und sofort wieder gelöscht. Auch das wäre stillschweigend durchgegangen: Das Fenster
+  rechnet jetzt vollständig die Datenbank.
+
 ## 2.0.22
 
 **Die Anmeldung ist jetzt begrenzt: von einem Anschluss kommen zwei Anmeldungen in fünf Minuten

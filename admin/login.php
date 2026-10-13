@@ -13,11 +13,25 @@ if (current_user()) {
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    if (login(post('username'), post('password'))) {
+    $benutzer = trim(post('username'));
+
+    if (login_ist_gesperrt($benutzer)) {
+        // Wortgleich fuer jeden Namen, ob es das Konto gibt oder nicht. Ein
+        // eigener Satz nur fuer gesperrte Konten wuerde an der Antwort selbst
+        // verraten, welche Benutzernamen es gibt.
+        // Ohne Namen: hier steht nicht, wer gerade angegriffen wird.
+        $error = 'Dieses Konto ist gesperrt. Nach zehn Fehlversuchen greift eine Sperre, damit '
+            . 'niemand ein Passwort erraten kann. Ein SuperAdmin kann sie wieder aufheben.';
+    } elseif (login($benutzer, post('password'))) {
+        // Ein Erfolg loescht den Zaehler: wer nach fuenf Fehlversuchen die
+        // richtige Kombination hat, startet danach sauber.
+        login_sperre_heben($benutzer);
         redirect(login_landing_page(get('next')));
+    } else {
+        login_fehlversuch_verzeichnen($benutzer);
+        $error = 'Benutzername oder Passwort stimmt nicht.';
+        usleep(400000);
     }
-    $error = 'Benutzername oder Passwort stimmt nicht.';
-    usleep(400000);
 }
 
 page_start('Anmelden', 'admin', '', false, false);

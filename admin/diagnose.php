@@ -350,6 +350,52 @@ if ($bremseAn === null) {
 }
 echo "\n";
 
+// Gesperrte Anmeldungen sind ein Angriff, kein Fehler. Deshalb wird nur
+// berichtet, wenn etwas anliegt - und ohne Namen, wenn es eine Meldung bleiben
+// soll. Steht ein SuperAdmin-Konto darunter, kann es sich selbst nicht mehr
+// anmelden.
+//
+// Wieder eine eigene Abfrage statt login_gesperrte_namen(): diese Datei laedt
+// absichtlich nur version.php und update.php und soll auch dann laufen, wenn
+// das Programm selbst kaputt ist. Ein Aufruf einer Funktion, die es gerade
+// nicht gibt, waere das Gegenteil.
+//
+// Die Zahl 30 steht hier im Klartext und nicht als Konstante: dieselbe Zahl
+// steht in lib/auth.php als LOGIN_SPERR_FENSTER_MINUTEN. Bei einem Aendern
+// dort muss sie hier mitgeaendert werden - sonst meldet die Diagnose etwas
+// Falsches, und zwar lange nach dem Fehler.
+if (isset($pdo)) {
+    try {
+        $stGesperrt = $pdo->query(
+            'SELECT v.benutzername, COUNT(*) AS anzahl,
+                    MAX(u.is_superadmin) AS ist_super, MAX(u.active) AS ist_aktiv
+             FROM login_versuche v
+             LEFT JOIN users u ON u.username = v.benutzername
+             WHERE v.versuch_am > (NOW() - INTERVAL 30 MINUTE)
+             GROUP BY v.benutzername HAVING anzahl >= 10
+             ORDER BY anzahl DESC');
+        $gesperrt = $stGesperrt->fetchAll();
+        if ($gesperrt) {
+            $superTreffer = 0;
+            foreach ($gesperrt as $z) {
+                if ((int) ($z['ist_super'] ?? 0) === 1 && (int) ($z['ist_aktiv'] ?? 0) === 1) {
+                    $superTreffer++;
+                }
+            }
+            echo "HINWEIS  " . count($gesperrt) . " Benutzername"
+                . (count($gesperrt) === 1 ? '' : 'n') . " mit je zehn Fehlversuchen im letzten halben Stunde gesperrt.\n";
+            if ($superTreffer > 0) {
+                echo "WARNUNG  Ein SuperAdmin-Konto ist darunter. Bis ein SuperAdmin die Sperre aufhebt,\n"
+                   . "        kommt niemand mehr hinein. Falls ausgerechnet alle betroffen sind: in der\n"
+                   . "        Datenbank die Tabelle login_versuche leeren.\n";
+            }
+            echo "        Unter Benutzer verwalten steht neben betroffenen Konten ein Knopf.\n\n";
+        }
+    } catch (PDOException $e) {
+        // Die Tabelle fehlt noch (vor dem Upgrade). Dann gibt es nichts zu melden.
+    }
+}
+
 echo $ok
     ? "Alles in Ordnung. Wenn trotzdem Seiten mit 500 antworten, im Hosting-Panel das PHP-Fehlerprotokoll ansehen\n"
       . "(oder den Hoster danach fragen) - dort steht die genaue Fehlermeldung und Zeile.\n"

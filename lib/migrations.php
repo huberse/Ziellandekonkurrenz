@@ -1117,6 +1117,17 @@ function migration_pending_column_steps(PDO $pdo): array
     // Bedingt, nicht nummeriert. Siehe migration_legacy_penalty_keys(): eine
     // eigene Nummer liefe auf einer Anlage mit kanonischer Struktur nie, weil
     // migration_mark_current() sie als erledigt eintragen wuerde.
+    //
+    // Das trifft jede Migration, die eine Tabelle anlegt, und nicht nur
+    // Spalten. Der Weg ueber run_pending_migrations() nimmt alle Definitionen
+    // nach - der Weg fuer eine bestehende Anlage mit kanonischer Struktur
+    // dagegen nur diese Liste und markiert danach alles als erledigt. Ohne
+    // diesen Eintrag entstuende die Tabelle auf jeder bestehenden Anlage nie,
+    // die Sperre bliebe dort aus und niemand wuerde es merken: das Programm
+    // laeuft, es meldet keinen Fehler, und der Schutz fehlt trotzdem.
+    if (!migration_table_exists($pdo, 'login_versuche')) {
+        $steps[] = static function (PDO $pdo): array { return migration_login_versuche($pdo); };
+    }
     if (migration_legacy_penalty_vorhanden($pdo)) {
         $steps[] = static function (PDO $pdo): array { return migration_legacy_penalty_keys($pdo); };
     }
@@ -1175,6 +1186,41 @@ function migration_pending_column_steps(PDO $pdo): array
     return $steps;
 }
 
+/**
+ * Die Fehlversuche beim Anmelden.
+ *
+ * Zehn Fehlversuche für denselben Namen sperren das Konto, bis ein SuperAdmin
+ * es wieder freigibt. Nach dieser Meldung aus einem Code-Review vom
+ * 13. Oktober 2026.
+ *
+ * Der Zähler lag vorher nur als Wartezeit im Programm. Die wirkt auf eine
+ * Verbindung und wird umgangen, sobald mehrere gleichzeitig kommen: sechs
+ * Fehlversuche kosteten nacheinander 2,8 Sekunden, gleichzeitig 0,97.
+ *
+ * Eine Sperre nur je Netzwerkadresse hätte das Problem nicht gelöst, weil ein
+ * Versuch von vielen Adressen kommt. Der Name ist das, was sich nicht ändern
+ * lässt - deshalb wird nach ihm gezählt und nicht nach der Herkunft.
+ *
+ * Gespeichert wird in der Datenbank und nicht in einer Datei: eine Sperre, die
+ * beim Neustart des Servers verschwindet, ist keine. Und die Tabelle ist
+ * zugleich der Fluchtweg, wenn ausgerechnet alle SuperAdmin-Konten gesperrt
+ * sind - dann löscht man die Zeilen direkt, ohne sich anmelden zu können.
+ */
+function migration_login_versuche(PDO $pdo): array
+{
+    $log = [];
+    if (!migration_table_exists($pdo, 'login_versuche')) {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS login_versuche (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            benutzername VARCHAR(64) NOT NULL,
+            versuch_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_login_versuche (benutzername, versuch_am)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $log[] = 'Tabelle login_versuche wurde angelegt; sie zaehlt die Fehlversuche je Benutzername.';
+    }
+    return $log;
+}
+
 function migration_definitions(): array
 {
     return [
@@ -1229,6 +1275,10 @@ function migration_definitions(): array
         13 => [
             'description' => 'Wettbewerbe koennen als abgesagt markiert werden',
             'run' => function (PDO $pdo): array { return migration_competition_cancelled($pdo); },
+        ],
+        14 => [
+            'description' => 'Fehlversuche beim Anmelden zaehlen und ein Konto nach zehn Versuchen sperren',
+            'run' => function (PDO $pdo): array { return migration_login_versuche($pdo); },
         ],
     ];
 }

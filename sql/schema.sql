@@ -207,3 +207,24 @@ CREATE TABLE IF NOT EXISTS registrations (
   CONSTRAINT fk_registration_competition FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE SET NULL,
   CONSTRAINT fk_registration_pilot FOREIGN KEY (pilot_id) REFERENCES pilots(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Die Fehlversuche beim Anmelden, je Benutzername.
+--
+-- Bewusst eine Zeile je Versuch und nicht ein Zähler je Konto: so altert ein
+-- Fehlversuch von selbst aus, und der SuperAdmin hebt eine Sperre durch das
+-- Löschen der Zeilen auf. Das ist auch der Fluchtweg für den Fall, dass
+-- ausgerechnet alle SuperAdmin-Konten gesperrt sind - dann geht es in der
+-- Datenbank direkt an die Tabelle, ohne dass man sich anmelden können muss.
+--
+-- Für jeden Namen, ob es ihn gibt oder nicht. Würde nur für vorhandene
+-- Konten gezählt, verriete schon die Sperre selbst, welche Namen es gibt.
+CREATE TABLE IF NOT EXISTS login_versuche (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  -- Kleinbuchstaben, weil MySQL Benutzernamen ohne Beachtung der
+  -- Gross- und Kleinschreibung vergleicht. Der Zähler muss es genauso tun:
+  -- sonst wäre "SUPERADMIN" etwas anderes als "superadmin" und die Sperre
+  -- mit einem einzigen Buchstaben umgangen.
+  benutzername  VARCHAR(64) NOT NULL,
+  versuch_am    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_login_versuche (benutzername, versuch_am)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

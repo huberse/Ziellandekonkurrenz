@@ -251,11 +251,176 @@ function require_competition_access(int $competitionId): void
     redirect('index.php');
 }
 
+/** Fehlversuche, ab denen ein Konto bis zum Freigeben gesperrt bleibt. */
+const LOGIN_SPERR_NACH = 10;
+
+/**
+ * Wie lange ein Fehlversuch gezaehlt wird.
+ *
+ * Zwei aehnlich uebliche Werte: nach fuenf Minuten oder nach einer halben
+ * Stunde. Kurz genug, damit sich die Sperre von selbst erledigt, wer
+ * zehnmal hintereinander danebenliegt; lang genug, damit ein Versuch, der
+ * absichtlich ist, nicht ausfaellt, nur weil das Programm eine Pause macht.
+ */
+const LOGIN_SPERR_FENSTER_MINUTEN = 30;
+
+/**
+ * Ein Hash, gegen den verglichen wird, wenn es den Namen gar nicht gibt.
+ *
+ * Feste Zeichenkette, nicht jedes Mal neu erzeugen: der Hash wird beim Lesen
+ * einmal berechnet und danach nur noch verglichen, und ein fester Wert ist
+ * leichter zu pruefen.
+ */
+const LOGIN_UNRELEVANTER_HASH = '$2y$10$Y82WFwSqgWxJ2Owj9Nmql.ef6/vswAIlwqmTamEqDuishNfMkH5CO';
+
+/**
+ * Der Zaehlname zum Benutzernamen.
+ *
+ * Kleinbuchstaben, weil die Datenbank die Benutzernamen ohne Beachtung der
+ * Gross- und Kleinschreibung vergleicht: "SUPERADMIN" und "superadmin" sind
+ * dasselbe Konto. Der Zaehler muss es genauso behandeln, sonst waere die
+ * Sperre mit einem einzigen Buchstaben zu umgehen.
+ */
+function login_schluessel(string $name): string
+{
+    return mb_strtolower(trim($name));
+}
+
+/**
+ * Ist die Tabelle der Fehlversuche da?
+ *
+ * Sie kommt mit der Aktualisierung. Bis dahin darf sich nichts weigern, nur
+ * weil die Tabelle fehlt - sonst waere nach einem Update nichts mehr
+ * erreichbar.
+ */
+function login_zaehler_bereit(): bool
+{
+    static $bereit = null;
+    if ($bereit === null) {
+        try {
+            db()->query('SELECT 1 FROM login_versuche LIMIT 1');
+            $bereit = true;
+        } catch (PDOException $e) {
+            if (!settings_table_missing($e)) {
+                throw $e;
+            }
+            $bereit = false;
+        }
+    }
+    return $bereit;
+}
+
+/**
+ * Wie viele Fehlversuche liegen im Fenster fuer diesen Namen.
+ *
+ * Das Fenster rechnet die Datenbank selbst, nicht PHP. Grund: der Zeitstempel
+ * entsteht in der Datenbank (CURRENT_TIMESTAMP), und die beiden Uhren gehen
+ * auseinander - die Datenbank schrieb hier UTC, PHP rechnete in
+ * Europe/Zurich, zwei Stunden Unterschied. Verglich man beide, sah jede Zeile
+ * sofort zwei Stunden alt aus, wurde nie gezaehlt und sofort wieder geloescht:
+ * Die Sperre waere nie angegangen, ohne dass irgendetwas einen Fehler gemeldet
+ * haette. Zwei Uhren zu mischen ist hier die schlimmere Variante von zwei
+ * Uhren - man sieht es nicht, man sieht nur, dass es nicht wirkt.
+ */
+function login_fehlversuche(string $name): int
+{
+    if (!login_zaehler_bereit()) {
+        return 0;
+    }
+    $st = db()->prepare('SELECT COUNT(*) FROM login_versuche
+                         WHERE benutzername = ? AND versuch_am > (NOW() - INTERVAL ' . (int) LOGIN_SPERR_FENSTER_MINUTEN . ' MINUTE)');
+    $st->execute([login_schluessel($name)]);
+    return (int) $st->fetchColumn();
+}
+
+/**
+ * Ist der Name gesperrt?
+ *
+ * Fuer jeden Namen, ob es das Konto gibt oder nicht. Andernfalls verriete
+ * schon die Sperre, welche Benutzernamen es gibt.
+ */
+function login_ist_gesperrt(string $name): bool
+{
+    $name = trim($name);
+    if ($name === '' || !login_zaehler_bereit()) {
+        return false;
+    }
+    return login_fehlversuche($name) >= LOGIN_SPERR_NACH;
+}
+
+/**
+ * Einen Fehlversuch festhalten und melden, ob das Konto dadurch gesperrt ist.
+ *
+ * Vor dem Sperren wird aufgeraeumt, sonst muesste man nur warten und nicht
+ * koennen.
+ */
+function login_fehlversuch_verzeichnen(string $name): bool
+{
+    $name = trim($name);
+    if ($name === '' || !login_zaehler_bereit()) {
+        return false;
+    }
+    // Auch das Aufraeumen rechnet die Datenbank - dieselbe Uhr wie beim Zaehlen.
+    db()->prepare('DELETE FROM login_versuche
+                   WHERE versuch_am <= (NOW() - INTERVAL ' . (int) LOGIN_SPERR_FENSTER_MINUTEN . ' MINUTE)')->execute();
+    $st = db()->prepare('INSERT INTO login_versuche (benutzername) VALUES (?)');
+    $st->execute([login_schluessel($name)]);
+    return login_fehlversuche($name) >= LOGIN_SPERR_NACH;
+}
+
+/** Die Sperre eines Namens aufheben; zugleich der Weg nach einem Erfolg. */
+function login_sperre_heben(string $name): void
+{
+    if (!login_zaehler_bereit()) {
+        return;
+    }
+    $st = db()->prepare('DELETE FROM login_versuche WHERE benutzername = ?');
+    $st->execute([login_schluessel($name)]);
+}
+
+/** Alle gesperrten Namen - fuer die Liste im Kontoverwaltung und die Diagnose. */
+function login_gesperrte_namen(int $minimum = LOGIN_SPERR_NACH): array
+{
+    if (!login_zaehler_bereit()) {
+        return [];
+    }
+    $st = db()->prepare('SELECT benutzername, COUNT(*) AS anzahl FROM login_versuche
+                         WHERE versuch_am > (NOW() - INTERVAL ' . (int) LOGIN_SPERR_FENSTER_MINUTEN . ' MINUTE)
+                         GROUP BY benutzername HAVING anzahl >= ?
+                         ORDER BY anzahl DESC');
+    $st->execute([max(1, $minimum)]);
+    $namen = [];
+    foreach ($st as $zeile) {
+        $namen[] = ['benutzername' => (string) $zeile['benutzername'],
+                    'anzahl' => (int) $zeile['anzahl']];
+    }
+    return $namen;
+}
+
+/** Alte Zeilen weg, damit die Tabelle nicht unbegrenzt waechst. */
+function login_versuche_aufraeumen(): void
+{
+    if (!login_zaehler_bereit()) {
+        return;
+    }
+    db()->prepare('DELETE FROM login_versuche
+                   WHERE versuch_am <= (NOW() - INTERVAL ' . (int) LOGIN_SPERR_FENSTER_MINUTEN . ' MINUTE)')->execute();
+}
+
 function login(string $username, string $password): bool
 {
     $st = db()->prepare('SELECT * FROM users WHERE username = ?');
     $st->execute([$username]);
     $u = $st->fetch();
+    if (!$u) {
+        // Auch ein Name, den es nicht gibt, wird gehasht. Ohne diesen Schritt
+        // antwortet die Seite fuer einen erfundenen Namen rund 40 Millisekunden
+        // schneller als fuer einen richtigen - genau um die Dauer des Hashens -
+        // und verrät damit, welche Konten es überhaupt gibt. Gemessen: 0,4122
+        // gegen 0,4553 Sekunden bei gleicher Fehlermeldung.
+        password_verify($password, LOGIN_UNRELEVANTER_HASH);
+        return false;
+    }
     if ($u && (int) ($u['active'] ?? 1) === 1 && password_verify($password, $u['password_hash'])) {
         start_session();
         session_regenerate_id(true);
