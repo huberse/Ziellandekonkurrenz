@@ -80,17 +80,33 @@ function current_competition(): array
             if (!$row && $hasCompletedColumn) {
                 $row = db()->query('SELECT * FROM competitions ORDER BY id DESC LIMIT 1')->fetch();
             }
-            // Nur der SuperAdmin repariert hier etwas. Sonst macht diese Zeile
-            // genau das zurueck, was das Beenden gerade bewusst entschieden hat:
-            // ein Verein beendet seinen aktiven Wettbewerb, es bleibt keiner
-            // aktiv - und der naechste Seitenaufruf macht wieder irgendeinen zum
-            // aktiven, vielleicht einen eines anderen Vereins.
-            if ($row && (!$hasCompletedColumn || $row['completed_at'] === null)
-                && wettbewerb_stufe_waehlt_nachfolger()) {
-                db()->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$row['id']]);
-                db()->prepare("UPDATE competitions SET status = 'aktiv' WHERE id = ?")->execute([$row['id']]);
-                $row['is_current'] = 1;
-            }
+            // Der Notweg bleibt, aber er schreibt nichts mehr.
+            //
+            // Bis hierher hat diese Stelle zwei Anweisungen ausgefuehrt: sie hat
+            // is_current auf 1 gesetzt und den Status auf "aktiv". Beim ersten
+            // Seitenaufruf, nachdem jemand den aktiven Wettbewerb abgeschaltet
+            // hatte, war damit von selbst wieder einer aktiv - und zwar der
+            // neueste, das heisst oft derselbe, den man gerade abgeschaltet
+            // hatte.
+            //
+            // Gemeldet vom Nutzer am 18. Oktober 2026: "es wird immer ein
+            // Wettbewerb aktiv, wenn man einen anderen von Aktiv auf Anmeldung
+            // offen setzt". Nachgestellt: einen Wettbewerb auf "Anmeldung
+            // offen" gestellt, Seite neu geladen, und er stand wieder auf
+            // "aktiv".
+            //
+            // Dasselbe gilt fuer "beendet": ein Verein beendet seinen aktiven
+            // Wettbewerb, es bleibt keiner aktiv - und der naechste
+            // Seitenaufruf machte trotzdem wieder einen zum aktiven.
+            //
+            // Die Auswahl von $row bleibt, weil der SuperAdmin sonst auf vielen
+            // Seiten gar nichts mehr zu sehen bekommt. Sie gilt aber nur fuer
+            // die Anzeige. is_current wird nicht mehr behauptet, und geschrieben
+            // wird hier nichts mehr: ob ein Wettbewerb laeuft, entscheidet
+            // allein die Datenbank.
+            //
+            // Das ist derselbe Notweg, der beim Anlegen schon in 2.2.0
+            // entfernt wurde - nur an der zweiten Stelle.
         }
     } catch (PDOException $e) {
         if (function_exists('competition_schema_table_exists')

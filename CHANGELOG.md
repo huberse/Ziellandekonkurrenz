@@ -10,6 +10,35 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.4
+
+**Wer einen Wettbewerb abschaltet, schaltet ihn ab. Er bleibt abgeschaltet.**
+
+Meldung des Testers am 18. Oktober 2026: *„Es wird immer ein Wettbewerb aktiv, wenn man einen
+anderen von Aktiv auf Anmeldung offen setzt.“*
+
+**Nachgestellt auf dem Livesystem.** Ein Wettbewerb stand auf *aktiv*. Auf *Anmeldung offen*
+gestellt. Seite neu geladen – und er stand **wieder auf aktiv**. Beim nächsten Mal war es nicht
+derselbe, sondern ein anderer, obwohl niemand inzwischen etwas getan hatte.
+
+**Die Ursache.** Beim ersten Seitenaufruf, nachdem der letzte aktive Wettbewerb abgeschaltet war,
+hatte sich das Programm von selbst einen neuen gesucht und ihn wieder aktiv geschaltet. Und zwar
+immer den neuesten – das heisst oft genau den, den man gerade abgeschaltet hatte.
+
+Das ist **derselbe Notweg, der beim Anlegen schon in 2.2.0 entfernt wurde – nur an der zweiten
+Stelle.** Beim Anlegen habe ich darauf geachtet, an dieser Stelle nicht. Das war der Fehler.
+
+**Was jetzt gilt.** Der SuperAdmin sieht weiterhin einen Wettbewerb, mit dem er arbeiten kann, aber
+es wird **nichts mehr gespeichert**. Ob ein Wettbewerb läuft, entscheidet allein das, was Sie
+eingestellt haben. Wenn Sie einen abschalten, ist danach **keiner** aktiv – die Startseite sagt
+dann *„Zur Zeit kein Wettbewerb“*.
+
+Das gilt auch fürs Beenden. Auch dort war es bisher so, dass beim nächsten Seitenaufruf wieder
+irgendeiner aktiv wurde, obwohl der Verein seinen eigenen gerade bewusst beendet hatte.
+
+**Test:** zwei Prüfungen. Nach drei Seitenaufrufen steht der Wettbewerb immer noch auf *Anmeldung
+offen* – und es ist **keiner** dazugekommen. `wettbewerb_status.sh` damit auf 32 Prüfungen.
+
 ## 2.2.3
 
 **Wer einen aktiven Wettbewerb auf einen anderen Status stellt, der ist danach auch wirklich nicht
