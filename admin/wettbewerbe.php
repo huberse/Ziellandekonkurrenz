@@ -127,6 +127,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             flash($e->getMessage(), 'err');
         }
+    } elseif ($action === 'status') {
+        // Die eine Stelle fuer den Zustand. competition_status_setzen() prueft
+        // selbst, ob das Konto den Wettbewerb ueberhaupt steuern darf - ein
+        // fremder bleibt dem SuperAdmin vorbehalten.
+        try {
+            $ergebnis = competition_status_setzen((int) post('id'), post('status'), is_superadmin());
+            if ($ergebnis['geaendert']) {
+                flash('Status: ' . wettbewerb_status_text($ergebnis['status']) . '.', 'ok');
+            }
+        } catch (Throwable $e) {
+            flash($e instanceof DomainException
+                ? $e->getMessage()
+                : 'Der Status konnte nicht geaendert werden.', 'err');
+        }
     } elseif ($action === 'reopen') {
         try {
             require_competition_access((int) post('id'));
@@ -476,6 +490,23 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                     <?php endif; ?></p>
                 </div>
             <?php endif; ?>
+
+            <div class="card-status no-print">
+                <form method="post" class="status-form">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="status">
+                    <input type="hidden" name="id" value="<?= $sid ?>">
+                    <input type="hidden" name="competition" value="<?= $sid ?>">
+                    <label for="st<?= $sid ?>">Status</label>
+                    <select id="st<?= $sid ?>" name="status" data-auto-submit
+                            data-confirm="Status von <?= h($s['name']) ?> aendern? Ein beendeter Wettbewerb ist fuer Ergebnisse und Anmeldungen gesperrt.">
+                        <?php foreach (wettbewerb_status_auswahl() as $wert => $text): ?>
+                            <option value="<?= h($wert) ?>"<?= competition_status($s) === $wert ? ' selected' : '' ?>><?= h($text) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <noscript><button class="btn small" type="submit">Übernehmen</button></noscript>
+                </form>
+            </div>
 
             <div class="card-actions no-print">
                 <a class="btn ghost small" href="erfassung.php?competition=<?= $sid ?>">✎ Erfassen</a>

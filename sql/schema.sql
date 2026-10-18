@@ -75,8 +75,23 @@ CREATE TABLE IF NOT EXISTS competitions (
     -- waere an dreissig Stellen zu pflegen, und an der ersten, die man
     -- vergisst, waere ein abgesagter Wettbewerb wieder bearbeitbar.
     cancelled_at DATETIME   NULL, -- gesetzt = fand nicht statt
+    -- Der Lebenslauf eines Wettbewerbs in einem Wort.
+    --
+    -- Seit 2.2.0. Der Status ist das, wonach der Verein und das Programm
+    -- entscheiden; is_current, completed_at, cancelled_at und die Einstellung
+    -- registration_open sind die ältere Fassung desselben Zustands und werden
+    -- von competition_status_setzen() in derselben Transaktion mitgeschrieben.
+    --
+    -- Bewusst eine eigene Spalte und keine Berechnung aus dem Datum: Fristen,
+    -- die von selbst ablaufen, hat der Nutzer ausdrücklich abgelehnt - die
+    -- Handlungsfähigen sind keine Spezialisten. Der Status wird von Hand
+    -- gesetzt und steht damit auch da, wo man danach sucht.
+    --
+    -- Sechs Werte: neu, offen, geschlossen, aktiv, beendet, abgesagt.
+    status        VARCHAR(16) NOT NULL DEFAULT 'neu',
   UNIQUE KEY uq_competition_name (name),
   KEY idx_competition_club (club_id),
+  KEY idx_competition_status (status),
   CONSTRAINT fk_competition_club FOREIGN KEY (club_id)
     REFERENCES clubs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

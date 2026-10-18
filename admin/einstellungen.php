@@ -106,7 +106,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setting_set('registration_sender_email', $senderEmail);
             setting_set('club_scoring_count', (string) ((int) $clubCount));
             setting_set('drop_enabled', isset($_POST['drop_enabled']) ? '1' : '0');
-            setting_set('registration_open', isset($_POST['registration_open']) ? '1' : '0');
+            // registration_open wird hier NICHT mehr gesetzt. Seit 2.2.0 gehoert
+            // die Anmeldung zum Status des Wettbewerbs, und der wird unter
+            // Wettbewerbe -> Status gesetzt. Bleibt diese Zeile stehen, wuerde
+            // jedes Speichern dieser Seite die Anmeldung schliessen - ein Feld,
+            // das niemand mehr sieht.
             setting_set('club_ranking_enabled', isset($_POST['club_ranking_enabled']) ? '1' : '0');
             setting_set('public_results', isset($_POST['public_results']) ? '1' : '0');
             // Die zugelassenen Modelltypen. Achtung: post() gibt immer einen
@@ -350,11 +354,9 @@ page_start('Einstellungen', 'admin', 'einstellungen.php');
     </fieldset>
 
     <fieldset id="anmeldung">
-        <legend>Anmeldung</legend>
-        <div class="check">
-            <input type="checkbox" id="ro" name="registration_open" <?= setting_bool('registration_open') ? 'checked' : '' ?>>
-            <label for="ro">Anmeldeformular ist offen</label>
-        </div>
+        <legend>Anmeldung</legend>            <p class="hint">Ob das Anmeldeformular offen ist, steht im <b>Status</b> des Wettbewerbs –
+                unter <a href="wettbewerbe.php?competition=<?= (int) $competition['id'] ?>">Wettbewerbe</a>.
+                Zur Zeit: <b><?= h(wettbewerb_status_text(competition_status($competition))) ?></b>.</p>
         <div class="field">
             <label for="ri">Text über dem Formular</label>
             <textarea id="ri" name="registration_info" placeholder="Startgeld, Anmeldeschluss, Treffpunkt"><?= h(setting('registration_info')) ?></textarea>

@@ -10,6 +10,50 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.0
+
+**Der Wettbewerb hat jetzt einen Status: eine Auswahl mit sechs Werten, und die entscheidet, was
+mit ihm passiert.** Auf Wunsch des Nutzers am 18. Oktober 2026. Zweite Fassung mit
+Datenbankänderung.
+
+**Die sechs Stationen:** Neu, Anmeldung offen, Anmeldung geschlossen, Aktiv, Beendet, Abgesagt. Als
+Auswahl auf der Karte unter *Wettbewerbe* – dort steht auch, wie weit der Wettbewerb ist.
+
+**Der Status wirkt wirklich.** *Anmeldung offen* macht das Anmeldeformular auf, alle anderen
+machen es zu. *Aktiv* bestimmt, welcher Wettbewerb in der Erfassung steht. *Beendet* sperrt
+Ergebnisse und Einstellungen. *Abgesagt* sperrt ebenso, lässt aber die Regiowertung stehen.
+
+**Nichts wechselt von selbst.** Der Nutzer hat automatische Fristen ausdrücklich abgelehnt: die
+Vereine sind keine Spezialisten, und der SuperAdmin ist ohnehin bei jedem Wettbewerb dabei. Der
+Status wird von Hand gesetzt und bleibt stehen.
+
+**Ein neuer Wettbewerb wird nicht mehr automatisch aktiv.** Er startet als *Neu* mit geschlossener
+Anmeldung. Vorher gab es einen Notweg: war kein Wettbewerb aktiv, zeigte jede Seite ins Leere, also
+machte der neue automatisch mit. Der Nutzer hat das abgelehnt – *immer einer muss aktiv sein* war
+nie seine Vorgabe, sondern meine Absicherung.
+
+**Ein Verein darf seinen eigenen Wettbewerb auf *Aktiv* stellen, aber nur wenn keiner läuft.**
+Bisher lag das Aktivieren beim SuperAdmin allein. Diese Grenze bleibt aus genau dem Grund: ein
+Verein könnte sonst einem anderen Verein mitten im Wettbewerbstag die Erfassung wegnehmen, ohne
+dass dieser etwas bemerkt. Der SuperAdmin darf weiterhin jeden ablösen.
+
+**Der Zustand stand vorher an drei Stellen** – `is_current`, `completed_at` und die Einstellung
+`registration_open`. Daraus las das Programm an über hundert Stellen, und wer einen Wettbewerb
+übergab, musste drei Dinge richtig machen. Ab jetzt schreibt **eine einzige Funktion**
+(`competition_status_setzen()`) die Spalte *und* die drei alten Felder, in derselben Transaktion.
+Deshalb musste keine der hundert Lesestellen angefasst werden, und deshalb kann der Zustand nicht
+auseinanderlaufen.
+
+**Der Kasten *Anmeldeformular ist offen* in den Wettbewerbseinstellungen ist weg.** Er wäre die
+zweite Stelle für denselben Zustand gewesen – und weil dort ein Feld verschwindet, das nicht
+abgeschickt wird, hätte **jedes Speichern dieser Seite die Anmeldung geschlossen**. An seiner Stelle
+steht ein Satz, der auf den Status verweist.
+
+**Der Altbestand hat seinen bisherigen Zustand bekommen**, sichtbar ist dabei nichts: abgesagt →
+*Abgesagt*, beendet → *Beendet*, aktiv → *Aktiv*, sonst nach dem Anmeldeschalter.
+
+Am Programm sonst nichts.
+
 ## 2.1.0
 
 **Nach zehn Fehlversuchen mit demselben Namen bleibt das Konto gesperrt, bis ein SuperAdmin es

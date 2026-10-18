@@ -88,6 +88,7 @@ function current_competition(): array
             if ($row && (!$hasCompletedColumn || $row['completed_at'] === null)
                 && wettbewerb_stufe_waehlt_nachfolger()) {
                 db()->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$row['id']]);
+                db()->prepare("UPDATE competitions SET status = 'aktiv' WHERE id = ?")->execute([$row['id']]);
                 $row['is_current'] = 1;
             }
         }
@@ -361,6 +362,163 @@ function competition_request_param(): string
 }
 
 /** Aktiviert einen Wettbewerb transaktional. */
+/**
+ * Die sechs Stationen im Leben eines Wettbewerbs.
+ *
+ * Reihenfolge wie im Ablauf: angelegt, Anmeldung offen, Anmeldung geschlossen,
+ * am Wettbewerbstag aktiv, danach beendet. "Abgesagt" steht daneben und ist
+ * kein Schritt der Reihe, sondern der Ausweg: der Wettbewerb fand nicht statt.
+ */
+const WETTBEWERB_STATUS = ['neu', 'offen', 'geschlossen', 'aktiv', 'beendet', 'abgesagt'];
+
+/** Was hinter dem Wert steht - die Auswahl zeigt diese Woerter, nicht die Werte. */
+function wettbewerb_status_text(?string $status): string
+{
+    $texte = [
+        'neu'         => 'Neu',
+        'offen'       => 'Anmeldung offen',
+        'geschlossen' => 'Anmeldung geschlossen',
+        'aktiv'       => 'Aktiv',
+        'beendet'     => 'Beendet',
+        'abgesagt'    => 'Abgesagt',
+    ];
+    $status = strtolower(trim((string) $status));
+    return $texte[$status] ?? 'Neu';
+}
+
+/**
+ * Der Status eines Wettbewerbs.
+ *
+ * Nimmt eine Zeile oder eine Kennung. Vor dem Update gibt es die Spalte noch
+ * nicht, dann wird aus den alten Feldern abgeleitet - sonst waere jede Seite
+ * kaputt, bis admin/upgrade.php gelaufen ist.
+ */
+function competition_status($competition): string
+{
+    if (is_array($competition)) {
+        $id = (int) ($competition['id'] ?? 0);
+        if (array_key_exists('status', $competition) && $competition['status'] !== null) {
+            $s = strtolower(trim((string) $competition['status']));
+            if (in_array($s, WETTBEWERB_STATUS, true)) {
+                return $s;
+            }
+        }
+    } else {
+        $id = (int) $competition;
+    }
+    if ($id <= 0) {
+        return 'neu';
+    }
+    try {
+        $st = db()->prepare('SELECT status, is_current, completed_at, cancelled_at FROM competitions WHERE id = ?');
+        $st->execute([$id]);
+        $row = $st->fetch();
+    } catch (PDOException $e) {
+        return 'neu';
+    }
+    if (!$row) {
+        return 'neu';
+    }
+    $s = strtolower(trim((string) ($row['status'] ?? '')));
+    if (in_array($s, WETTBEWERB_STATUS, true)) {
+        return $s;
+    }
+    // Altdatenbestand ohne die Spalte: aus den Feldern ableiten.
+    if ($row['cancelled_at'] !== null) {
+        return 'abgesagt';
+    }
+    if ($row['completed_at'] !== null) {
+        return 'beendet';
+    }
+    if ((int) ($row['is_current'] ?? 0) === 1) {
+        return 'aktiv';
+    }
+    return (string) competition_setting($id, 'registration_open', '1') === '0' ? 'geschlossen' : 'offen';
+}
+
+/**
+ * Die eine Stelle, die den Zustand aendert.
+ *
+ * Sie schreibt die Spalte status UND die drei aelteren Felder, in einer
+ * Transaktion. Dadurch gilt beides immer zugleich, und die ueber hundert
+ * Lesestellen auf is_current, completed_at und registration_open muessen
+ * nicht angefasst werden.
+ *
+ * Das Anlegen, Aktivieren, Beenden, Absagen und Wiederoeffnen laufen hier
+ * hindurch - entweder direkt oder ueber die vorhandenen Funktionen, weil dort
+ * noch Regeln stehen, die man nicht versehentlich umgehen will (fehlende
+ * Ergebnisse, Nachfolger beim Beenden).
+ */
+function competition_status_setzen(int $id, string $status, bool $darfFremd = false): array
+{
+    $status = strtolower(trim($status));
+    if (!in_array($status, WETTBEWERB_STATUS, true)) {
+        throw new DomainException('Unbekannter Wettbewerbsstatus.');
+    }
+    $alt = competition_status($id);
+    if ($alt === $status) {
+        return ['status' => $alt, 'geaendert' => false];
+    }
+
+    // Fremde Wettbewerbe bleiben dem SuperAdmin vorbehalten. Ein Verein, der
+    // den Status eines Wettbewerbs aendern kann, den er nicht veranstaltet,
+    // waende den Betrieb anderer Vereine.
+    if (!$darfFremd && function_exists('can_manage_competition') && !can_manage_competition($id)) {
+        throw new DomainException('Das ist nicht dein Wettbewerb.');
+    }
+
+    switch ($status) {
+        case 'aktiv':
+            // set_current_competition() weist ab, wenn dieser Wettbewerb
+            // beendet oder abgesagt ist, und macht alle anderen zurueck.
+            set_current_competition($id);
+            break;
+
+        case 'beendet':
+            // Ohne "trotzdem": fehlen Ergebnisse, soll das der Vereinskürzere
+            // sagen und nicht verschwinden. Wer es trotzdem will, nimmt den
+            // Knopf "Trotzdem beenden" - der schreibt den Status jetzt auch.
+            complete_competition($id, false);
+            break;
+
+        case 'abgesagt':
+            cancel_competition($id);
+            break;
+
+        case 'neu':
+        case 'offen':
+        case 'geschlossen':
+            // Der Wieder-Öffnen-Weg loest die Sperren mit, falls der
+            // Wettbewerb schon beendet war - sonst bliebe eine gesperrte
+            // Seite stehen, die niemand mehr aufbekommt.
+            if (in_array($alt, ['beendet', 'abgesagt'], true)) {
+                reopen_competition($id);
+            }
+            $pdo = db();
+            $st = $pdo->prepare('SELECT svalue FROM competition_settings WHERE competition_id = ? AND skey = ?');
+            $st->execute([$id, 'registration_open']);
+            $offen = $status === 'offen' ? '1' : '0';
+            $schreiben = $pdo->prepare('INSERT INTO competition_settings (competition_id, skey, svalue) VALUES (?, ?, ?)
+                                        ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)');
+            $schreiben->execute([$id, 'registration_open', $offen]);
+            break;
+    }
+
+    db()->prepare('UPDATE competitions SET status = ? WHERE id = ?')->execute([$status, $id]);
+    unset($GLOBALS['current_competition_cache'], $GLOBALS['settings_cache']);
+    return ['status' => $status, 'geaendert' => true, 'vorher' => $alt];
+}
+
+/** Alle Status, die eine Liste zeigen kann - fuer die Auswahl. */
+function wettbewerb_status_auswahl(): array
+{
+    $auswahl = [];
+    foreach (WETTBEWERB_STATUS as $wert) {
+        $auswahl[$wert] = wettbewerb_status_text($wert);
+    }
+    return $auswahl;
+}
+
 function set_current_competition(int $id): void
 {
     $pdo = db();
@@ -383,8 +541,20 @@ function set_current_competition(int $id): void
         if ($row['completed_at'] !== null) {
             throw new DomainException('Abgeschlossene Wettbewerbe können nicht aktiviert werden.');
         }
+        // Wenn schon ein anderer laeuft, darf ihn nur der SuperAdmin abloesen.
+        // Ein Verein, der seinen eigenen Wettbewerb aktiviert, waende sonst den
+        // Betrieb eines anderen Vereins mitten im Wettbewerbstag - das war der
+        // Grund, warum das Aktivieren bis 2.2.0 ausschliesslich beim SuperAdmin
+        // lag. Er darf es weiterhin; ein Verein darf es nur, wenn keiner laeuft.
+        $anderer = (int) $pdo->query('SELECT COUNT(*) FROM competitions WHERE is_current = 1 AND id <> '
+                                     . (int) $id . ' AND completed_at IS NULL AND cancelled_at IS NULL')->fetchColumn();
+        if ($anderer > 0 && !wettbewerb_stufe_waehlt_nachfolger()) {
+            throw new DomainException('Es laeuft bereits ein anderer Wettbewerb. Aktivieren ist dem SuperAdmin '
+                . 'vorbehalten, solange einer laeuft - frag ihn, oder beende deinen Wettbewerb zuerst.');
+        }
         $pdo->exec('UPDATE competitions SET is_current = 0');
         $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$id]);
+        $pdo->prepare("UPDATE competitions SET status = 'aktiv' WHERE id = ?")->execute([$id]);
         $pdo->commit();
         $GLOBALS['current_competition_cache'] = $row;
         $GLOBALS['current_competition_cache']['is_current'] = 1;
@@ -564,17 +734,18 @@ function create_competition(string $name, int $roundsCount, int $targetTime, boo
             $ins->execute([$competitionId, $i, $targetTime, $i === 1 ? 1 : 0]);
         }
 
-        // Ohne aktiven Wettbewerb zeigt jede Seite ins Leere, dann muss einer
-        // her - der neue. Sonst bleibt er offen, auch wenn $makeCurrent true
-        // sagt: das Anlegen soll den gerade laufenden Wettbewerb nicht
-        // verdrängen.
-        $hatAktiven = (int) $pdo->query('SELECT COUNT(*) FROM competitions WHERE is_current = 1')->fetchColumn() > 0;
-        if (!$hatAktiven) {
-            $pdo->prepare('UPDATE competitions SET is_current = 1 WHERE id = ?')->execute([$competitionId]);
-            $aktiviert = true;
-        } else {
-            $aktiviert = false;
-        }
+        // Seit 2.2.0 wird beim Anlegen NICHTS mehr automatisch aktiviert.
+        //
+        // Vorher stand hier ein Notweg: ohne aktiven Wettbewerb zeigt jede
+        // Seite ins Leere, also machte der neue automatisch mit. Der Nutzer
+        // hat das am 18. Oktober 2026 abgelehnt - eine neue Fassung soll nicht
+        // nebenbei den Betrieb uebernehmen. Er aktiviert selbst, und nur den
+        // eigenen Wettbewerb.
+        $aktiviert = false;
+        // Ein neuer Wettbewerb startet als "Neu": angelegt, Anmeldung noch zu.
+        $pdo->prepare("UPDATE competitions SET status = 'neu' WHERE id = ?")->execute([$competitionId]);
+        $pdo->prepare("INSERT INTO competition_settings (competition_id, skey, svalue) VALUES (?, 'registration_open', '0')
+                       ON DUPLICATE KEY UPDATE svalue = '0'")->execute([$competitionId]);
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) { $pdo->rollBack(); }
@@ -1191,9 +1362,13 @@ function complete_competition(int $competitionId, bool $erzwingen = false): arra
             ));
         }
         if (!$alreadyCompleted) {
-            $update = $pdo->prepare('UPDATE competitions SET completed_at = NOW() WHERE id = ? AND completed_at IS NULL');
+            $update = $pdo->prepare("UPDATE competitions SET completed_at = NOW(), status = 'beendet'
+                                    WHERE id = ? AND completed_at IS NULL");
             $update->execute([$competitionId]);
         }
+        // Auch wenn completed_at schon gesetzt war, muss der Status dazu passen:
+        // sonst steht ein beendeter Wettbewerb in der Liste als "aktiv".
+        $pdo->prepare("UPDATE competitions SET status = 'beendet' WHERE id = ?")->execute([$competitionId]);
 
         // Ein beendeter Wettbewerb darf nicht aktiv bleiben. Sonst zeigt der
         // Kopf weiter seinen Namen, die Verwaltung bearbeitet ein Archiv, und
@@ -1269,9 +1444,9 @@ function cancel_competition(int $competitionId): array
                 . 'Soll er trotzdem nicht zählen, bitte „Beenden“ verwenden.');
         }
 
-        $pdo->prepare('UPDATE competitions SET completed_at = COALESCE(completed_at, NOW()),
-                       cancelled_at = COALESCE(cancelled_at, NOW())
-                       WHERE id = ?')->execute([$competitionId]);
+        $pdo->prepare("UPDATE competitions SET completed_at = COALESCE(completed_at, NOW()),
+                       cancelled_at = COALESCE(cancelled_at, NOW()), status = 'abgesagt'
+                       WHERE id = ?")->execute([$competitionId]);
 
         // Ein abgesagter Wettbewerb darf nicht aktiv bleiben - am Saisonende
         // darf keiner aktiv sein.
@@ -1335,6 +1510,9 @@ function reopen_competition(int $competitionId): void
     // Auch die Absage mitnehmen. Sonst waere ein abgesagter Wettbewerb wieder
     // offen, aber weiter als abgesagt gemeldet - und die Anzeige widersprache
     // sich selbst.
+    // Der Status wandert mit: nach dem Wiederoeffnen ist der Wettbewerb weder
+    // beendet noch abgesagt. Wohin er zurueckfaellt, entscheidet der Aufrufer
+    // danach - competition_status_setzen() setzt ihn gleich.
     $st = db()->prepare('UPDATE competitions SET completed_at = NULL, cancelled_at = NULL WHERE id = ?');
     $st->execute([$competitionId]);
     if ($st->rowCount() === 0) {

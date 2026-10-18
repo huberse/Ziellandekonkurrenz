@@ -533,6 +533,35 @@ Unter **Einstellungen** stehen die Einstellungen des ausgewählten Wettbewerbs:
 - **Anmeldung** – offen oder geschlossen, der Text über dem Formular, und die Absenderadresse der
   Bestätigung
 
+### Der Status eines Wettbewerbs
+
+Jeder Wettbewerb steht an einer von sechs Stationen. Sie steht als **Auswahl auf der Karte**
+unter **Wettbewerbe** – dort steht auch, wie weit er ist.
+
+| Status | Was das bedeutet |
+|---|---|
+| **Neu** | gerade angelegt, die Anmeldung ist noch zu |
+| **Anmeldung offen** | Piloten können sich melden |
+| **Anmeldung geschlossen** | die Startliste steht, es meldet sich niemand mehr |
+| **Aktiv** | heute ist Wettbewerbstag: Erfassung, Durchgänge, Rangliste |
+| **Beendet** | vorbei; Ergebnisse, Startliste und Einstellungen sind gesperrt |
+| **Abgesagt** | er fand nicht statt. Was schon geflogen ist, zählt in der Regiowertung weiter |
+
+**Nichts wechselt von selbst.** Keine Frist läuft ab, kein Datum ändert den Status. Das ist
+Absicht: die Handlungsfähigen sind keine Spezialisten, und der SuperAdmin ist ohnehin bei jedem
+Wettbewerb dabei. Der Status wird von Hand gesetzt und bleibt stehen, bis ihn jemand ändert.
+
+**Wer ihn setzen darf:** Ein Verein alle sechs – aber **nur an eigenen Wettbewerben**. Bei *Aktiv*
+gibt es eine Grenze: **Läuft bereits ein anderer Wettbewerb, darf nur der SuperAdmin ablösen.** Ein
+Verein darf also seinen eigenen starten, solange keiner läuft, aber nie den eines anderen Vereins
+mitten im Wettbewerbstag wegschalten.
+
+**Wichtig:** Ein Wettbewerb wird beim Anlegen **nicht mehr automatisch aktiv**. Er startet als
+*Neu*; wer ihn verwenden will, stellt ihn selbst auf *Aktiv*.
+
+**Beenden** verlangt wie bisher, dass alle Ergebnisse vorliegen. Fehlen welche, sagt das Programm
+wie viele – *Trotzdem beenden* bleibt der bewusste Weg daran vorbei.
+
 ### Modelltypen je Wettbewerb
 
 Der SuperAdmin legt fest, **welche Modelltypen es im Programm gibt** – Elektro, Schlepp, was der

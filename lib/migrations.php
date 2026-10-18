@@ -1125,6 +1125,10 @@ function migration_pending_column_steps(PDO $pdo): array
     // diesen Eintrag entstuende die Tabelle auf jeder bestehenden Anlage nie,
     // die Sperre bliebe dort aus und niemand wuerde es merken: das Programm
     // laeuft, es meldet keinen Fehler, und der Schutz fehlt trotzdem.
+    if (migration_table_exists($pdo, 'competitions')
+        && !migration_column_exists($pdo, 'competitions', 'status')) {
+        $steps[] = static function (PDO $pdo): array { return migration_competition_status($pdo); };
+    }
     if (!migration_table_exists($pdo, 'login_versuche')) {
         $steps[] = static function (PDO $pdo): array { return migration_login_versuche($pdo); };
     }
@@ -1221,6 +1225,64 @@ function migration_login_versuche(PDO $pdo): array
     return $log;
 }
 
+/**
+ * Der Lebenslauf des Wettbewerbs als eine Spalte.
+ *
+ * Bis hierher stand der Zustand in drei Feldern verteilt: is_current fuer
+ * "laeuft gerade", completed_at fuer "beendet", und die Einstellung
+ * registration_open fuer "nimmt Anmeldungen an". Daraus liest das Programm an
+ * ueber hundert Stellen, jeden fuer sich. Die Folge war, dass man beim
+ * Uebergeben eines Wettbewerbs drei Dinge richtig machen musste und jedes
+ * einzelne davon seinen eigenen Knopf hatte.
+ *
+ * Ab hier ist es eine Spalte mit sechs Werten. Die drei alten Felder bleiben
+ * bestehen und werden von competition_status_setzen() in derselben
+ * Transaktion mitgeschrieben - deshalb muessen die hundert Lesestellen nicht
+ * angefasst werden, und deshalb kann der Zustand nicht auseinanderlaufen.
+ *
+ * Fristen laufen hier keine ab. Der Nutzer hat das am 18. Oktober 2026
+ * ausdruecklich abgelehnt: die Vereine sind keine Spezialisten, und der
+ * SuperAdmin ist ohnehin bei jedem Wettbewerb dabei. Der Status wird gesetzt
+ * und bleibt stehen, bis jemand ihn aendert.
+ */
+function migration_competition_status(PDO $pdo): array
+{
+    $log = [];
+    if (!migration_column_exists($pdo, 'competitions', 'status')) {
+        $pdo->exec("ALTER TABLE competitions
+            ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'neu' AFTER cancelled_at,
+            ADD KEY idx_competition_status (status)");
+        $log[] = 'Spalte competitions.status ergaenzt: neu, offen, geschlossen, aktiv, beendet, abgesagt.';
+    }
+
+    // Der Altbestand bekommt nicht ueberall dasselbe: ein abgeschlossener
+    // Wettbewerb ist nicht "neu". Sonst zeigte die Karte nach dem Update das
+    // Archiv und behauptete, es sei frisch angelegt.
+    $st = $pdo->query('SELECT id, is_current, completed_at, cancelled_at FROM competitions');
+    foreach ($st as $zeile) {
+        $s2 = $pdo->prepare('SELECT svalue FROM competition_settings WHERE competition_id = ? AND skey = ?');
+        $s2->execute([(int) $zeile['id'], 'registration_open']);
+        $roh = $s2->fetchColumn();
+        $offen = $roh === false ? true : (string) $roh === '1';
+
+        if ($zeile['cancelled_at'] !== null) {
+            $neu = 'abgesagt';
+        } elseif ($zeile['completed_at'] !== null) {
+            $neu = 'beendet';
+        } elseif ((int) $zeile['is_current'] === 1) {
+            $neu = 'aktiv';
+        } elseif (!$offen) {
+            $neu = 'geschlossen';
+        } else {
+            $neu = 'offen';
+        }
+        $schreiben = $pdo->prepare("UPDATE competitions SET status = ? WHERE id = ? AND status = 'neu'");
+        $schreiben->execute([$neu, (int) $zeile['id']]);
+    }
+    $log[] = 'Der Altbestand hat seinen bisherigen Zustand in die neue Spalte bekommen; sichtbar geaendert wurde dabei nichts.';
+    return $log;
+}
+
 function migration_definitions(): array
 {
     return [
@@ -1280,7 +1342,10 @@ function migration_definitions(): array
             'description' => 'Fehlversuche beim Anmelden zaehlen und ein Konto nach zehn Versuchen sperren',
             'run' => function (PDO $pdo): array { return migration_login_versuche($pdo); },
         ],
-    ];
+        15 => [
+            'description' => 'Lebenslauf des Wettbewerbs in einer Spalte statt in drei Feldern',
+            'run' => function (PDO $pdo): array { return migration_competition_status($pdo); },
+        ],    ];
 }
 
 /**
