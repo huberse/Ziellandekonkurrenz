@@ -509,6 +509,33 @@ function competition_status_setzen(int $id, string $status, bool $darfFremd = fa
     return ['status' => $status, 'geaendert' => true, 'vorher' => $alt];
 }
 
+/**
+ * Ist das Datum schon belegt?
+ *
+ * Gibt den Namen des anderen Wettbewerbs zurueck, sonst null. Fuer das Anlegen
+ * und fuer die Wettbewerbseinstellungen.
+ *
+ * Gewarnt, nicht verhindert. Zwei Vereine koennen an einem Tag fliegen - beim
+ * Regiocup ohnehin, wenn mehrere Clubs gemeinsam starten. Ein zweiter
+ * Wettbewerb am selben Tag ist also kein Fehler, nur etwas, das man wissen
+ * sollte. Verhindern wuerde einen Vereinsbetrieb behindern, der genau so
+ * vorkommt.
+ */
+function competition_datum_belegt(string $datum, int $ausserId = 0): ?string
+{
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($datum))) {
+        return null;
+    }
+    $st = db()->prepare(
+        'SELECT c.name FROM competitions c
+           JOIN competition_settings s ON s.competition_id = c.id AND s.skey = ?
+          WHERE s.svalue = ? AND c.id <> ? AND c.cancelled_at IS NULL
+          ORDER BY c.id DESC LIMIT 1');
+    $st->execute(['competition_date', $datum, $ausserId]);
+    $name = $st->fetchColumn();
+    return $name === false ? null : (string) $name;
+}
+
 /** Alle Status, die eine Liste zeigen kann - fuer die Auswahl. */
 function wettbewerb_status_auswahl(): array
 {

@@ -142,7 +142,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // ueber ein ganzes Jahr und gehoert darum an das Programm. Der
             // SuperAdmin stellt es unter seinem Profil ein.
             $pdo->commit();
-            flash('Einstellungen gespeichert. Bereits erfasste Punkte bleiben stehen – bei geänderten Regeln unter Durchgänge neu berechnen.', 'ok');
+            // Ein Datum in der Vergangenheit ist hier erlaubt - ein Wettbewerb
+            // darf nach dem Flug nachgetragen werden, und das Datum darf nicht
+            // nachtraeglich geaendert werden muessen, nur weil die Vergangenheit
+            // weitergeht. Nur: der Wettbewerb nimmt dann keine Anmeldungen mehr
+            // an. Das ist sonst der zweite Weg, auf dem jemand ohne erkennbare
+            // Ursache vor einer geschlossenen Anmeldung steht.
+            $vergangen = $datum !== ''
+                && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum) === 1
+                && strtotime($datum . ' 23:59:59') < time()
+                && empty($competition['completed_at'])
+                && empty($competition['cancelled_at']);
+            flash('Einstellungen gespeichert. Bereits erfasste Punkte bleiben stehen – bei geänderten Regeln unter Durchgänge neu berechnen.'
+                . ($vergangen
+                    ? ' Achtung: Das Wettbewerbsdatum liegt in der Vergangenheit, deshalb nimmt dieser Wettbewerb keine Anmeldungen mehr an.'
+                    : ''), $vergangen ? 'info' : 'ok');
+                // Und derselbe zweite Weg wie beim Anlegen: ein Tag, der schon
+                // einem anderen Wettbewerb gehoert. Gewarnt, nicht verhindert -
+                // zwei Vereine koennen am selben Tag fliegen.
+                $belegt = competition_datum_belegt($date, (int) $competition['id']);
+                if ($belegt !== null) {
+                    flash('Der ' . date('d.m.Y', strtotime($date)) . ' ist bereits für „' . $belegt
+                        . '“ belegt.', 'info');
+                }
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) { $pdo->rollBack(); }
             settings(true);

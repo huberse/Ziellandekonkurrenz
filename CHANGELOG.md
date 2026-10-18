@@ -10,6 +10,37 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.2
+
+**Das Wettbewerbsdatum wird beim Anlegen verlangt, ein Datum in der Vergangenheit wird abgewiesen,
+und ein bereits belegter Tag wird gemeldet. Und die Startseite sagt wieder, wenn kein Wettbewerb
+läuft.** Auf Wunsch des Nutzers am 18. Oktober 2026, während der Tester prüfte.
+
+**Das Datum**
+
+- **Ohne Datum geht kein neuer Wettbewerb mehr.** Bisher war das Datum nirgends beim Anlegen zu
+  erfragen; es kam später unter Wettbewerbseinstellungen dazu. Wer eines setzte und es dann in die
+  Vergangenheit legte, bekam einen Wettbewerb, der **ohne erkennbare Ursage keine Anmeldungen mehr
+  annimmt** – genau daran ist der Tester hängen geblieben.
+- **Ein Datum in der Vergangenheit wird abgewiesen**, mit dem Hinweis, dass ein neuer Wettbewerb in
+  der Zukunft stattfindet und ein bereits gelaufener unter *Anmeldungen* nachzutragen ist. *Heute*
+  ist ein gültiges Datum.
+- **Das Datum kommt sofort in die Einstellungen des neuen Wettbewerbs.**
+- **Ist der Tag schon belegt, steht das dabei.** *Gewarnt, nicht verhindert* – zwei Vereine können
+  an einem Tag fliegen, beim Regiocup ohnehin, wenn mehrere Clubs gemeinsam starten. Ein zweiter
+  Wettbewerb am selben Tag ist kein Fehler, nur etwas, das man wissen sollte. Dieselbe Warnung
+  steht beim Ändern des Datums unter den Wettbewerbseinstellungen.
+
+**Die Kopfzeile der Startseite**
+
+- Auf der Startseite nennt das Abzeichen seit 1.9.10 keinen Wettbewerb – dort soll man ihn ja erst
+  wählen. Das bleibt so.
+- **„Zur Zeit kein Wettbewerb“ fehlte dort aber.** Das war ein Fehler, der erst durch 2.2.0
+  entstanden ist: vorher stand im Kopf immer ein aktiver Wettbewerb, weil das Anlegen notfalls
+  automatisch aktivierte. Jetzt nicht mehr. Ein neuer Verein legt seinen ersten Wettbewerb an, es
+  passiert absichtlich nichts – und die erste Seite, die jemand sieht, schweigt dazu und zeigt
+  einen Ordner, in dem sich nichts öffnen lässt.
+
 ## 2.2.1
 
 **Die Wettbewerbskarte hat drei Knöpfe weniger, und die Meldung nach dem Anlegen einen Satz

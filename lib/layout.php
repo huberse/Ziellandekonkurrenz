@@ -156,7 +156,34 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     echo '<header class="top"><div class="top-inner">';
     echo '<h1><a href="' . $base . '/index.php' . $contextQS . '"><img src="' . h($logo) . '" alt="" class="brand-logo">' . h(site_name()) . '</a></h1>';
     echo '<div class="meta">';
-    if (!$ohneAbzeichen) {
+    // Auf der Startseite bleibt der NAME weg - dort wird der Wettbewerb ja
+    // gerade erst gewaehlt, und einen vorzunehmen waere anmassend. Das ist seit
+    // 1.9.10 so und daran hat sich nichts geaendert.
+    //
+    // "Zur Zeit kein Wettbewerb" aber ist eine andere Sache, und genau die fehlte
+    // hier seit 2.2.0. Vorher stand immer ein aktiver Wettbewerb in der
+    // Kopfzeile, weil das Anlegen notfalls automatisch aktivierte. Jetzt nicht
+    // mehr: ein frischer Verein legt seinen ersten Wettbewerb an, und es
+    // passiertAbsichtlich nichts. Die Startseite - also die erste Seite, die
+    // jemand sieht - schweigt dazu und zeigt einen competition-Ordner, in dem
+    // sich nichts oeffnen laesst. Genau der Nutzer hat das am 18. Oktober 2026
+    // gemeldet.
+    //
+    // Geprueft wird auf is_current, nicht auf die Kennung: current_competition()
+    // faellt auf den neuesten offenen Wettbewerb zurueck, gibt also auch dann
+    // einen zurueck, wenn gar keiner aktiv ist. Die Kennung ist damit nie leer
+    // und die Abfrage waere immer "da ist einer" - der Hinweis kaeme nie.
+    $einAktiver = (int) ($activeCompetition['is_current'] ?? 0) === 1;
+    $zeigeAbzeichen = !$ohneAbzeichen || !$einAktiver;
+    if ($ohneAbzeichen && !$einAktiver) {
+        // Der Name wird ausdruecklich verworfen. selected_competition() faellt
+        // auf den neuesten zurueck, und dessen Name stuende hier - also waere
+        // genau das wieder zurueck, was diese Seite seit 1.9.10 vermeiden will:
+        // einen Wettbewerb vorzunehmen, den man hier doch erst waehlt. Ohne
+        // Namen greift weiter unten der Satz "Zur Zeit kein Wettbewerb".
+        $competitionName = '';
+    }
+    if ($zeigeAbzeichen) {
         // Ohne Wettbewerb stand hier vorher eine leere Kapsel. Sie sah aus wie
         // ein Fehler im Programm und liess offen, ob gerade etwas fehlt oder
         // nichts los ist. Jetzt steht der Zustand drin.

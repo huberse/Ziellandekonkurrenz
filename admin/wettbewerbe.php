@@ -15,12 +15,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = text_limit(post('name'), 160);
         $count = (int) post('rounds_count', '5');
         $targetValue = parse_time(post('target_time'));
+        // Das Datum gehoert beim Anlegen dazu. Ohne es nimmt der Wettbewerb
+        // zwar Anmeldungen an - sobald es aber gesetzt ist und in der
+        // Vergangenheit liegt, sperrt es sie kommentarlos. Genau daran ist der
+        // Nutzer am 18. Oktober 2026 haengen geblieben: erst angelegt, dann war
+        // die Anmeldung zu, und es stand nirgends warum.
+        //
+        // "Zukunft" heisst hier ab heute, nicht morgen: ein Wettbewerb, der
+        // heute stattfindet, ist ein gueltiges Datum fuer "anlegen".
+        $datum = trim(post('competition_date'));
+        $datumOk = $datum !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum) === 1;
+        $datumVergangen = $datumOk && strtotime($datum . ' 23:59:59') < time();
         if (!is_superadmin() && user_club_id() === null) {
             flash('Deinem Konto ist noch kein Verein zugeordnet. Bitte wende dich an den SuperAdmin.', 'err');
         } elseif ($name === '') {
             flash('Der Wettbewerb braucht einen Namen, zum Beispiel das Jahr.', 'err');
         } elseif ($targetValue === null || !is_finite($targetValue) || $targetValue <= 0 || $targetValue > 999999.9) {
             flash('Die Zielzeit muss zwischen 0 und 999999.9 Sekunden liegen.', 'err');
+        } elseif (!$datumOk) {
+            flash('Der Wettbewerb braucht ein Datum. Ohne es laesst sich spaeter nicht sagen, '
+                . 'ob die Anmeldung noch offen ist.', 'err');
+        } elseif ($datumVergangen) {
+            flash('Das Datum liegt in der Vergangenheit. Ein neuer Wettbewerb findet in der '
+                . 'Zukunft statt. Fuer einen bereits gelaufenen bitte die Ergebnisse unter '
+                . 'Anmeldungen nachtragen.', 'err');
         } else {
             $target = (int) round($targetValue);
             // Nur der SuperAdmin waehlt den Veranstalter; -1 bedeutet
@@ -34,6 +52,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $id = create_competition($name, $count, $target > 0 ? $target : 180, true, $clubId,
                                         isset($_POST['region']));
+                // Das Datum ausdruecklich an den neuen Wettbewerb, nicht ueber
+                // setting_set(). Das sieht nach dem richtigen Weg aus und ist es
+                // nicht: setting_set() schreibt in den gerade gesetzten Kontext,
+                // und der war hier nicht die neue Kennung - der neue Wettbewerb
+                // erbielt stattdessen das Datum des vorherigen. Nachgestellt:
+                // der neue Wettbewerb bekam 2027-08-15, das Datum des Vorgängers,
+                // und der Vorgänger bekam das des neuen.
+                //
+                // Eine Ausnahme von der Regel waere hier falsch: der Kontext ist
+                // genau das, was man an dieser Stelle nicht traut.
+                $datumSchreiben = db()->prepare('INSERT INTO competition_settings (competition_id, skey, svalue)
+                                                 VALUES (?, ?, ?)
+                                                 ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)');
+                $datumSchreiben->execute([$id, 'competition_date', $datum]);
+                settings(true);
                 $competitionQS = '';
                 // Nur der Satz, was geschehen ist. Vorher stand hier ein
                 // Absatz: ob er aktiv wurde, wer ihn aktiviert, der
@@ -42,7 +75,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // beantwortete - die naechsten Schritte stehen ohnehin auf
                 // derselben Karte. Der Nutzer hat die Kuerzung selbst
                 // verlangt, am 18. Oktober 2026.
-                flash("Wettbewerb \u{201E}{$name}\u{201C} angelegt.", 'ok');
+                // Der Satz bleibt kurz, wie am 18. Oktober verlangt - aber ein
+                // bereits belegter Tag gehoert dazu. Sonst steht spaeter ein
+                // zweiter Wettbewerb am selben Tag da und niemand weiss, ob
+                // das Absicht war.
+                $belegt = competition_datum_belegt($datum, $id);
+                flash("Wettbewerb \u{201E}{$name}\u{201C} angelegt."
+                    . ($belegt !== null
+                        ? ' Achtung: der ' . date('d.m.Y', strtotime($datum))
+                          . ' ist bereits für „' . $belegt . '“ belegt.'
+                        : ''),
+                    $belegt !== null ? 'info' : 'ok');
             } catch (Throwable $e) {
                 flash($e instanceof DomainException
                     ? $e->getMessage()
@@ -332,11 +375,10 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
 
 <div class="panel">
     <h3 style="margin-top:0">Neuen Wettbewerb anlegen</h3>
-    <p class="lead">Der neue Wettbewerb ist zuerst <b>offen</b>, nicht aktiv: der bisher aktive Wettbewerb
-        läuft unterbrechungsfrei weiter. <?= is_superadmin()
-            ? 'Aktivieren Sie den neuen erst in der Liste unten, wenn er an der Reihe ist'
-            : 'Der SuperAdmin aktiviert den neuen in der Liste unten, wenn er an der Reihe ist' ?>
-        – dann zeigen Erfassung, Durchgänge und Rangliste ihn.</p>
+    <p class="lead">Der neue Wettbewerb startet als <b>Neu</b>: angelegt, aber nicht aktiv und
+        die Anmeldung noch zu. Der bisher aktive Wettbewerb läuft unterbrechungsfrei weiter.
+        Oben auf der Karte steht danach die Statusauswahl – dort wird er geöffnet und, wenn er
+        an der Reihe ist, auch aktiv.</p>
     <form method="post">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="create">
@@ -354,6 +396,13 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
             <div class="field">
                 <label for="tt">Standard-Zielzeit</label>
                 <input type="text" id="tt" name="target_time" value="<?= h(fmt_time(setting_num('default_target_time', 180))) ?>">
+            </div>
+            <div class="field">
+                <label for="wd">Wettbewerbsdatum</label>
+                <input type="date" id="wd" name="competition_date" required
+                       value="<?= h(date('Y-m-d', strtotime('+30 days'))) ?>"
+                <p class="hint">Der Tag, an dem geflogen wird. Ein Datum in der Vergangenheit
+                    schließt die Anmeldung – deshalb wird es hier schon abgewiesen.</p>
             </div>
             <?php if (is_superadmin()): ?>
             <div class="field">
