@@ -5,7 +5,11 @@ require_once __DIR__ . '/../lib/scoring.php';
 require_once __DIR__ . '/../lib/layout.php';
 require_login();
 $competition = resolve_competition_param(competition_request_param(), true);
-$competitionQS = (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '';
+// Diese Seite braucht keinen Wettbewerb - im Gegenteil: sie ist die, ueber
+// die der erste angelegt wird. resolve_competition_param() liefert hier also
+// leer, wenn das Konto noch keinen hat, und das ist richtig so.
+$competitionQS = (int) ($competition['id'] ?? 0) !== current_competition_id() && ($competition['id'] ?? 0) > 0
+    ? '?competition=' . (int) $competition['id'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();

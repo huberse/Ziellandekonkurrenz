@@ -10,6 +10,50 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.5
+
+**Wer nichts angefordert hat, wird nicht mehr beschuldigt. Und niemand landet in einem Archiv.**
+
+Zwei Meldungen des Testers am 18. Oktober 2026, beide am Livesystem nachgebaut.
+
+**1. Die Meldung erschien ohne dass gefragt wurde.** Ein Verein, der selbst keinen aktiven
+Wettbewerb hat, ruft eine Verwaltungsseite auf – ohne irgendetwas anzugeben – und bekommt:
+
+> *Der Wettbewerb „X“ gehört einem anderen Verein. Angezeigt wird „Y“.*
+
+**X hat er nie angefordert, und sehen konnte er ihn nicht.** Bei diesem Verein stand der Satz auf
+**fünf von sechs** Verwaltungsseiten, bei jedem einzelnen Aufruf.
+
+Der Grund ist derselbe wie beim Ausweichen: Das Programm nimmt den **aktuellen** Wettbewerb, und
+der gehörte halt einem anderen Verein.
+
+Jetzt gilt: **Wird nach einem fremden Wettbewerb gefragt, steht der Grund da – weil danach gefragt
+wurde.** Beim blossen Aufrufen einer Seite wird nichts mehr gesagt; der eigene Wettbewerb wird
+einfach verwendet.
+
+**2. Ausweichen konnte ins Archiv führen.** Stand früher ein beendeter Wettbewerb weiter hinten in
+der Liste, wurde genau der gezeigt – und dort ist alles gesperrt. Nachgestellt: eigener offener
+Wettbewerb vorhanden, dazu ein später angelegtes, beendetes Archiv. Nach einem fremden Wettbewerb
+gefragt, geantwortet wurde mit *„Angezeigt wird Archiv 2024“*.
+
+Jetzt wird **zuerst der offene eigene Wettbewerb** genommen, und das Archiv nur, wenn es keinen
+offenen gibt. Ein Archiv ist zum Nachsehen da, nicht zum Arbeiten.
+
+**3. Hat ein Verein gar keinen Wettbewerb, steht das jetzt überall gleich.** Vorher gab es zwei
+Worte für einen Fall: *„Noch keine Wettbewerbe vorhanden“* auf den einen Seiten, *„Dein Verein hat
+noch keinen Wettbewerb“* auf der anderen. Jetzt überall dasselbe, mit dem Knopf zu den
+Wettbewerben.
+
+**Test:** sechs neue Prüfungen – mit und ohne Angabe, offener Wettbewerb statt Archiv, und die
+Meldung nur bei echter Frage. `fremder_wettbewerb.sh` damit auf 27, `ohne_wettbewerb.sh` auf 34.
+
+**Und ein Fehler, den ich dabei selbst eingebaut habe:** Die erste Fassung brachte die Seite zum
+Anlegen mit, weil dort schon vorher nach einem Wettbewerb gefragt wird. **Ein Verein hätte seinen
+ersten Wettbewerb nie mehr anlegen können.** Die vorhandene Prüfung hat das nicht gemerkt – sie
+fragte eine Nummer ab, die es auch ohne Erfolg gab. Beides ist behoben: Die Seite lässt den Zustand
+zu, und die Prüfung fragt jetzt, **ob der Wettbewerb wirklich dasteht** – nachgewiesen, indem ich
+den Fehler wieder eingebaut habe und die Prüfung anschlagen sah.
+
 ## 2.2.4
 
 **Wer einen Wettbewerb abschaltet, schaltet ihn ab. Er bleibt abgeschaltet.**

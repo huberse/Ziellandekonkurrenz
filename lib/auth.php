@@ -221,13 +221,12 @@ function kein_wettbewerb_ausgeben(): void
     seite_weiterleitung(3, 'wettbewerbe.php');
     page_start('Kein Wettbewerb', 'admin', 'wettbewerbe.php');
     echo '<div class="panel" style="max-width:720px">';
-    echo '<h2 style="margin-top:0">Noch keine Wettbewerbe vorhanden</h2>';
-    echo '<p class="lead">Für deinen Verein ist noch kein Wettbewerb angelegt. Die Seiten des '
-        . 'Wettkampfbüros zeigen Startliste, Durchgänge und Einstellungen genau eines Wettbewerbs – '
-        . 'und einen gibt es für dein Konto nicht.</p>';
-    echo '<p class="small muted">In drei Sekunden geht es von selbst zu den Wettbewerben. Sag dem '
-        . 'SuperAdmin Bescheid, damit er einen für deinen Verein anlegt.</p>';
-    echo '<p><a class="btn" href="wettbewerbe.php">Jetzt zu den Wettbewerben</a></p>';
+    echo '<h2 style="margin-top:0">Dein Verein hat noch keinen Wettbewerb.</h2>';
+    echo '<p class="lead">Solange keiner da ist, gibt es für dich nichts zu erfassen, keine '
+        . 'Startliste und keine Durchgänge. Der SuperAdmin legt unter <em>Wettbewerbe</em> einen an '
+        . 'und setzt ihn auf deinen Verein; danach erscheint er hier.</p>';
+    echo '<p class="small muted">In drei Sekunden geht es von selbst zu den Wettbewerben.</p>';
+    echo '<p><a class="btn" href="wettbewerbe.php">Wettbewerbe ansehen</a></p>';
     echo '</div>';
     page_end();
     exit;

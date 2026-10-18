@@ -33,7 +33,7 @@ if ($keinZugang) {
     // Die Seite zeigt Startliste, Fortschritt und Resultate genau dieses
     // Wettbewerbs. Die Verwaltungsprüfung steht deshalb hier und nicht versteckt in
     // resolve_competition_param(), wo sie auch die öffentlichen Seiten betroffen hätte.
-    require_competition_access((int) $competition['id']);
+    require_competition_access((int) ($competition['id'] ?? 0));
     $competitionCompleted = competition_is_completed((int) $competition['id']);
     $resultProgress = competition_result_progress((int) $competition['id']);
     $competitionQS = (int) $competition['id'] !== current_competition_id() ? '&competition=' . (int) $competition['id'] : '';

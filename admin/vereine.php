@@ -9,7 +9,9 @@ require_once __DIR__ . '/../lib/layout.php';
 // die oeffentlichen Seiten, auf die Vereinswertung und auf alle Konten.
 require_superadmin('Die Vereinsverwaltung');
 $competition = resolve_competition_param(competition_request_param(), true);
-$notCurrent = (int) $competition['id'] !== current_competition_id();
+// Nur der SuperAdmin kommt hierher, und dem gehoert jeder Wettbewerb. Trotzdem
+// nullsicher: bei einer frischen Anlage gibt es noch gar keinen.
+$notCurrent = (int) ($competition['id'] ?? 0) !== current_competition_id();
 $competitionQS = $notCurrent ? '?competition=' . (int) $competition['id'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -251,18 +251,50 @@ function resolve_competition_param(string $raw, bool $verwaltung = false): array
 {
     if ($raw !== '' && ($competition = find_competition((int) $raw))) {
         if ($verwaltung && !competition_darf_verwalten($competition)) {
-            $ersatz = accessible_competitions()[0] ?? current_competition();
-            competition_ausweichen_melden($competition, $ersatz);
-            $competition = $ersatz;
+            $ersatz = accessible_competition_waehlen();
+            if ($ersatz !== []) {
+                // Hier wurde wirklich gefragt, also ist die Meldung richtig und
+                // auch nuetzlich: Es steht drin, wonach gefragt wurde und was
+                // stattdessen kommt.
+                competition_ausweichen_melden($competition, $ersatz);
+                $competition = $ersatz;
+            }
+            // Bleibt $ersatz leer, laeuft es weiter mit dem fremden Wettbewerb
+            // - und require_competition_access() sagt dann klar, dass er nicht
+            // erreichbar ist. Das ist ehrlicher als eine leere Seite.
         }
         set_competition_context((int) $competition['id']);
         return $competition;
     }
     $competition = current_competition();
     if ($verwaltung && !competition_darf_verwalten($competition)) {
-        $ersatz = accessible_competitions()[0] ?? $competition;
-        competition_ausweichen_melden($competition, $ersatz);
-        $competition = $ersatz;
+        // Ohne Frage keine Anschuldigung.
+        //
+        // Gemeldet am 18. Oktober 2026 und am Livesystem nachgebaut: In diesem
+        // Zweig wurde nie nach einem Wettbewerb gefragt, trotzdem nannte die
+        // Meldung einen - den aktiven, der einem anderen Verein gehoert. Bei
+        // einem Verein, der selbst keinen aktiven Wettbewerb hat, erschien der
+        // Satz auf fuenf von sechs Verwaltungsseiten, bei jedem Aufruf.
+        //
+        // Also: still auf den eigenen Wettbewerb ausweichen. Wer den Grund
+        // wissen will, der hat gefragt - der erste Zweig.
+        $ersatz = accessible_competition_waehlen();
+        if ($ersatz !== []) {
+            $competition = $ersatz;
+        }
+        // Bleibt $ersatz leer, hat das Konto ueberhaupt keinen Wettbewerb.
+        // Hier wird deshalb ausdruecklich nichts ausgegeben und nichts
+        // beendet: admin/wettbewerbe.php braucht genau diesen Zustand, um den
+        // ersten Wettbewerb eines Vereins anlegen zu koennen, und dort steht
+        // diese Zeile vor dem Anlegen-Handler.
+        //
+        // Die Seiten, die einen Wettbewerb wirklich brauchen, fragen gleich
+        // danach mit require_competition_access((int) ($competition['id'] ?? 0)).
+        // Bei der Nummer 0 lautet die Antwort "nein", und genau dort steht die
+        // Erklaerung "Dein Verein hat noch keinen Wettbewerb".
+    }
+    if ($competition === []) {
+        return [];
     }
     set_competition_context((int) $competition['id']);
     return $competition;
@@ -353,6 +385,31 @@ function accessible_open_competitions(): array
     } catch (PDOException $e) {
         return [];
     }
+}
+
+/**
+ * Der beste Wettbewerb, den dieses Konto steuern darf.
+ *
+ * Zuerst die offenen, und erst wenn es keine gibt, die uebrigen. Bis hierher
+ * wurde immer accessible_competitions()[0] genommen - der erste nach Nummer,
+ * und bei gleichem Verein der juengste. Das ist genau dann falsch, wenn der
+ * juengste ein beendeter ist: nachgestellt am Livesystem, ein Verein mit einem
+ * offenen Wettbewerb (Nr. 3) und einem aelter angelegten, beendeten Archiv
+ * (Nr. 4). Nach einem fremden Wettbewerb gefragt, geantwortet wurde mit
+ * "Angezeigt wird Archiv 2024" - und dort ist alles gesperrt.
+ *
+ * Ein Archiv ist zum Nachsehen da, nicht zum Arbeiten.
+ *
+ * Leer, wenn das Konto ueberhaupt keinen Wettbewerb hat.
+ */
+function accessible_competition_waehlen(): array
+{
+    $offen = accessible_open_competitions();
+    if ($offen !== []) {
+        return $offen[0];
+    }
+    $alle = accessible_competitions();
+    return $alle === [] ? [] : $alle[0];
 }
 
 /** Liest competition aus GET/POST und akzeptiert die alte season-URL als Kompatibilität. */

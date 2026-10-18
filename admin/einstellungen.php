@@ -8,7 +8,7 @@ $competition = resolve_competition_param(competition_request_param(), true);
 // Startliste, Resultate und Einstellungen gehören genau diesem Wettbewerb.
 // Die Prüfung steht hier und nicht versteckt in resolve_competition_param(),
 // wo sie auch die öffentlichen Seiten betroffen hätte.
-require_competition_access((int) $competition['id']);
+require_competition_access((int) ($competition['id'] ?? 0));
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?competition=' . (int) $competition['id'] : '';

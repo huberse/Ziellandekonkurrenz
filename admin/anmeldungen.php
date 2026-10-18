@@ -13,7 +13,7 @@ $competition = resolve_competition_param(competition_request_param(), true);
 // Anmeldungen eines fremden Vereins auf der Seite, ohne jede Meldung.
 // require_competition_access() erkennt genau diesen Fall und sagt, dass fuer
 // das Konto noch kein Wettbewerb angelegt ist.
-require_competition_access((int) $competition['id']);
+require_competition_access((int) ($competition['id'] ?? 0));
 $competitionCompleted = competition_is_completed((int) $competition['id']);
 $competitions = function_exists('accessible_competitions') ? accessible_competitions() : all_competitions();
 $completedCompetitionIds = [];

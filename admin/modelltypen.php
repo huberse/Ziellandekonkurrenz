@@ -8,7 +8,11 @@ require_once __DIR__ . '/../lib/layout.php';
 // damit die Auswertung eines fremden Wettbewerbs verschieben.
 require_superadmin('Die Modelltypen', true);
 $competition = resolve_competition_param(competition_request_param(), true);
-$notCurrent = (int) $competition['id'] !== current_competition_id();
+// Modelltypen sind ein Wettbewerbs-Thema, aber es ist auch die Seite, ueber
+// die ein Verein seinen ersten Wettbewerb sieht. Die Zugriffsfrage steht
+// deshalb erst nach der Anlegen-Ecke - genau wie in wettbewerbe.php.
+require_competition_access((int) ($competition['id'] ?? 0));
+$notCurrent = (int) ($competition['id'] ?? 0) !== current_competition_id();
 $competitionQS = $notCurrent ? '?competition=' . (int) $competition['id'] : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
