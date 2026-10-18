@@ -10,6 +10,35 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.3
+
+**Wer einen aktiven Wettbewerb auf einen anderen Status stellt, der ist danach auch wirklich nicht
+mehr aktiv. Und das Label an der Karte sagt jetzt dasselbe wie die Auswahl darüber.**
+
+Zwei Meldungen des Testers am 18. Oktober 2026.
+
+- **Die beiden Angaben widersprachen sich.** Nachgestellt: Ein Wettbewerb stand auf `aktiv`. Status
+  auf *Anmeldung geschlossen* gestellt – und in der Datenbank stand danach `status=geschlossen`
+  neben `is_current=1`. Zwei Angaben, die sich widersprechen, und **die Kopfzeile rechnet nach
+  `is_current`**. Ein Verein sah deshalb weiter *„Du bearbeitest den Wettbewerb X, nicht den
+  aktiven Wettbewerb“*, obwohl der SuperAdmin gerade alles auf *Anmeldung offen* gestellt hatte.
+  Genau das hat der Nutzer gemeldet.
+- **Das Label an der Karte kam aus `is_current`, nicht aus dem Status.** „Neu“, *Anmeldung offen* und
+  *Anmeldung geschlossen* zeigten alle dasselbe Wort: *offen*. Wer die Auswahl änderte, sah keine
+  Wirkung. Das Label kommt jetzt aus derselben Quelle wie die Auswahl.
+
+**Ein Nachfolger wird dabei nicht bestimmt.** Wer einen aktiven Wettbewerb auf *offen* stellt, will
+ihn aus dem Betrieb nehmen und später wieder an den Anfang – nicht stillschweigend einen anderen
+übernehmen lassen. Dass dann niemand aktiv ist, ist erlaubt: die Startseite sagt seit 2.2.2 *„Zur
+Zeit kein Wettbewerb“*.
+
+**Dieser Fehler ist derselbe, den 2.2.0 hätte vermeiden sollen.** Die Spalte wurde als einzige
+Wahrheit eingeführt, und genau diese eine Wahrheit fehlte beim Umschalten – nicht beim Anlegen, beim
+Beenden oder beim Absagen. Diese drei galten, der vierte wurde vergessen.
+
+**Test:** fünf Vergleiche, die nach jedem Übergang **beide** Angaben prüfen, plus die sechs Labels
+auf der Karte. `wettbewerb_status.sh` damit auf 30 Prüfungen.
+
 ## 2.2.2
 
 **Das Wettbewerbsdatum wird beim Anlegen verlangt, ein Datum in der Vergangenheit wird abgewiesen,

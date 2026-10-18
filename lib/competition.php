@@ -504,6 +504,25 @@ function competition_status_setzen(int $id, string $status, bool $darfFremd = fa
             break;
     }
 
+    // Wer nicht mehr "aktiv" ist, darf auch nicht mehr der aktive Wettbewerb
+    // sein.
+    //
+    // Das stand hier nicht, und das war ein Fehler von mir, nicht nur ein
+    // Anzeigefehler: die Spalte stand dann auf "geschlossen", is_current auf 1.
+    // Zwei Angaben, die sich widersprechen. Die Kopfzeile rechnet nach
+    // is_current - ein Verein sah deshalb weiter "Du bearbeitest den
+    // Wettbewerb X, nicht den aktiven Wettbewerb", obwohl der SuperAdmin
+    // gerade alles auf "Anmeldung offen" gestellt hatte. Genau das hat der
+    // Nutzer am 18. Oktober 2026 gemeldet.
+    //
+    // Ein Nachfolger wird dabei nicht bestimmt. Wer einen aktiven Wettbewerb
+    // auf "offen" stellt, will ihn aus dem Betrieb nehmen und spaeter wieder
+    // an den Anfang stellen - nicht stillschweigend einen anderen uebernehmen
+    // lassen. Dass dann niemand aktiv ist, ist erlaubt: die Startseite sagt
+    // seit 2.2.2 "Zur Zeit kein Wettbewerb".
+    if ($status !== 'aktiv') {
+        db()->prepare('UPDATE competitions SET is_current = 0 WHERE id = ?')->execute([$id]);
+    }
     db()->prepare('UPDATE competitions SET status = ? WHERE id = ?')->execute([$status, $id]);
     unset($GLOBALS['current_competition_cache'], $GLOBALS['settings_cache']);
     return ['status' => $status, 'geaendert' => true, 'vorher' => $alt];

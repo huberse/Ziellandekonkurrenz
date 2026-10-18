@@ -474,14 +474,26 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                           // nicht als aktiv dastehen, auch wenn is_current noch
                           // so dasteht. Genau diese Reihenfolge hat den Eindruck
                           // "beendet, aber trotzdem aktiv" erzeugt. ?>
-                    <?php if ($abgesagt): ?>
+                    <?php // Das Label kommt aus derselben Quelle wie die Auswahl
+                          // oben. Vorher stand hier is_current - und damit zeigten
+                          // "Neu", "Anmeldung offen" und "Anmeldung geschlossen"
+                          // alle dasselbe Wort, "offen". Man stellte den Status auf
+                          // geschlossen, das Label blieb, und wer das fuer eine
+                          // tote Auswahl hielt, hatte nicht unrecht: gemeldet vom
+                          // Nutzer am 18. Oktober 2026.
+                          $kartenStatus = competition_status($s); ?>
+                    <?php if ($kartenStatus === 'abgesagt'): ?>
                         <span class="tag off">abgesagt</span>
-                    <?php elseif ($completed): ?>
+                    <?php elseif ($kartenStatus === 'beendet'): ?>
                         <span class="tag off">beendet</span>
-                    <?php elseif ($s['is_current']): ?>
+                    <?php elseif ($kartenStatus === 'aktiv'): ?>
                         <span class="tag on">aktiv</span>
+                    <?php elseif ($kartenStatus === 'geschlossen'): ?>
+                        <span class="tag">Anmeldung geschlossen</span>
+                    <?php elseif ($kartenStatus === 'offen'): ?>
+                        <span class="tag live">Anmeldung offen</span>
                     <?php else: ?>
-                        <span class="tag live">offen</span>
+                        <span class="tag">Neu</span>
                     <?php endif; ?>
                     <?php if ($imRegiocup): ?>
                         <span class="tag trophy" title="Zählt zum Regiocup seines Jahres">🏆 Regiocup</span>
