@@ -35,24 +35,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id = create_competition($name, $count, $target > 0 ? $target : 180, true, $clubId,
                                         isset($_POST['region']));
                 $competitionQS = '';
-                // create_competition() aktiviert nur, wenn es sonst keinen
-                // aktiven Wettbewerb gibt. Die Meldung sagt, was wirklich
-                // eingetreten ist - und wie man weitermacht, wenn er offen
-                // blieb. Jedes Stück bringt seinen eigenen Punkt mit, sonst
-                // klebt der nächste Satz mitten dran.
-                $st = db()->prepare('SELECT is_current FROM competitions WHERE id = ?');
-                $st->execute([$id]);
-                $aktiv = (int) $st->fetchColumn() === 1;
-                $wie = $aktiv
-                    ? 'und aktiv gesetzt. Erfassung und Rangliste zeigen jetzt diesen Wettbewerb.'
-                    : 'und bleibt offen: der bisher aktive Wettbewerb läuft weiter. '
-                      . (is_superadmin()
-                          ? 'Aktivieren Sie ihn in der Liste unten, wenn er an der Reihe ist.'
-                          : 'Der SuperAdmin aktiviert ihn in der Liste unten, wenn er an der Reihe ist.');
-                $wer = $clubId !== null && $clubId > 0 ? 'Veranstalter: ' . club_name($clubId) . '. ' : '';
-                $auch = isset($_POST['region']) ? 'Zählt zum Regiocup des Jahres. ' : '';
-                flash("Wettbewerb „{$name}“ angelegt {$wie} {$wer}{$auch}"
-                    . 'Die Startliste ist leer, bis sich Piloten für diesen Wettbewerb anmelden.', 'ok');
+                // Nur der Satz, was geschehen ist. Vorher stand hier ein
+                // Absatz: ob er aktiv wurde, wer ihn aktiviert, der
+                // Veranstalter, der Regiocup und die Startliste. Fuenf
+                // Saetze, von denen nach dem Anlegen keiner eine Frage
+                // beantwortete - die naechsten Schritte stehen ohnehin auf
+                // derselben Karte. Der Nutzer hat die Kuerzung selbst
+                // verlangt, am 18. Oktober 2026.
+                flash("Wettbewerb \u{201E}{$name}\u{201C} angelegt.", 'ok');
             } catch (Throwable $e) {
                 flash($e instanceof DomainException
                     ? $e->getMessage()
@@ -545,32 +535,7 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                         <button class="btn ghost small" type="submit"
                                 data-confirm-click="Wettbewerb <?= h($s['name']) ?> wieder öffnen? Danach sind Ergebnisse und Anmeldungen wieder bearbeitbar.">↺ Wieder öffnen</button>
                     </form>
-                <?php elseif ($progress['complete']): ?>
-                    <?php // Alle Ergebnisse liegen vor. Der Wettbewerb hat
-                          // stattgefunden; "Abgesagt" gibt es hier bewusst
-                          // nicht. ?>
-                    <form method="post" style="display:inline">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="complete">
-                        <input type="hidden" name="id" value="<?= $sid ?>">
-                        <input type="hidden" name="competition" value="<?= $sid ?>">
-                        <button class="btn small" type="submit"
-                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> wirklich beenden? Danach sind Ergebnisse und Anmeldungen gesperrt.">✓ Beenden</button>
-                    </form>
-                <?php elseif ($nichtsOffen): ?>
-                    <?php // Nichts fehlt, es gibt nur nichts zu tun - etwa eine
-                          // Startliste ohne aktiven Piloten. Das ist der
-                          // normale Fall am Saisonende und darf nicht als
-                          // "unvollstaendig" dastehen. ?>
-                    <form method="post" style="display:inline">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="complete">
-                        <input type="hidden" name="id" value="<?= $sid ?>">
-                        <input type="hidden" name="competition" value="<?= $sid ?>">
-                        <button class="btn small" type="submit"
-                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> beenden? Es sind keine Ergebnisse offen, danach ist er gesperrt.">✓ Beenden</button>
-                    </form>
-                <?php else: ?>
+                <?php elseif (!$progress['complete'] && !$nichtsOffen): ?>
                     <?php // Hier fehlt etwas, also ist "Beenden" ohne
                           // Einschraenkung nicht an der Reihe. Der Ausweg
                           // heisst "Trotzdem beenden" - ohne den waere genau
@@ -584,23 +549,15 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                                 data-confirm-click="Wettbewerb <?= h($s['name']) ?> jetzt schon beenden? Es fehlen <?= (int) $progress['missing'] ?> Ergebnis(se). Die bleiben unausgewertet und lassen sich danach nicht mehr nachtragen. Nur wenn das so gewollt ist.">✓ Trotzdem beenden</button>
                     </form>
                 <?php endif; ?>
-                <?php // "Abgesagt" steht bei jedem offenen Wettbewerb, bei dem
-                      // nicht alles erfasst ist - und nicht nur bei
-                      // unvollstaendigen. Der haeufigste Fall ist der
-                      // Wetterausfall vor dem ersten Durchgang: da fehlt gar
-                      // nichts, es wurde nur nie geflogen. Ohne diesen Knopf
-                      // waere genau dieser Wettbewerb nie als abgesagt zu
-                      // markieren. ?>
-                <?php if (!$abgesagt && !$completed && !$progress['complete']): ?>
-                    <form method="post" style="display:inline">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="cancel">
-                        <input type="hidden" name="id" value="<?= $sid ?>">
-                        <input type="hidden" name="competition" value="<?= $sid ?>">
-                        <button class="btn ghost small" type="submit"
-                                data-confirm-click="Wettbewerb <?= h($s['name']) ?> als abgesagt markieren? Er wird gesperrt wie ein beendeter und zählt nicht zum Regiocup. <?= (int) $progress['completed'] ?> von <?= (int) $progress['total'] ?> Ergebnissen sind erfasst; sie bleiben sichtbar, werden aber nicht gewertet.">☁ Abgesagt</button>
-                    </form>
-                <?php endif; ?>
+                <?php // "Beenden" und "Abgesagt" gibt es seit 2.2.0 nicht mehr
+                      // als eigene Knoepfe: die Statusauswahl oben der Karte macht
+                      // beides. Zwei Wege zum selben Zustand sind zwei Wege,
+                      // an denen sie sich unterscheiden koennen - und der
+                      // Knoepf war der, den man eher klickt als die Auswahl.
+                      //
+                      // "Trotzdem beenden" bleibt. Das kann die Auswahl nicht:
+                      // dort werden Ergebnisse unausgewertet, und das ist eine
+                      // bewusste Entscheidung, die man nicht nebenbei trifft. ?>
                 <?php // "Aktivieren" fehlte von 2.0.0 bis 2.0.7. Es war beim Umbau
                       // fuer "Abgesagt" weggefallen, ohne dass eine Meldung es
                       // angekuendigt haette - und der Text oben im Anlegeformular
@@ -616,22 +573,25 @@ page_start('Wettbewerbe', 'admin', 'wettbewerbe.php');
                       // anderen Wettbewerbe werden stillschweigend abgeschaltet -
                       // das ist ein Eingriff in den Betrieb aller Vereine und
                       // gehoert deshalb nicht in die Hand eines einzelnen. ?>
-                <?php if (!$abgesagt && !$completed): ?>
-                    <?php if ((int) $s['is_current'] === 0): ?>
-                        <?php if (is_superadmin()): ?>
-                        <form method="post" style="display:inline">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="activate">
-                            <input type="hidden" name="id" value="<?= $sid ?>">
-                            <input type="hidden" name="competition" value="<?= $sid ?>">
-                            <button class="btn small" type="submit"
-                                    data-confirm-click="Wettbewerb <?= h($s['name']) ?> aktivieren? Erfassung, Durchgänge und Rangliste zeigen danach diesen Wettbewerb.<?= $irgendeinAktiver ? ' Der bisher aktive Wettbewerb wird abgeschaltet.' : '' ?>">◉ Aktivieren</button>
-                        </form>
-                        <?php else: ?>
-                            <span class="hint" style="align-self:center">◉ Aktivieren – der SuperAdmin</span>
-                        <?php endif; ?>
-                    <?php endif; ?>
-                <?php endif; ?>
+                <?php // "Aktivieren" ist seit 2.2.0 weg - als Knopf und als
+                      // Hinweistext fuer Vereinskonten. Die Statusauswahl oben
+                      // der Karte stellt den Wettbewerb auf Aktiv, und zwar auch
+                      // ein Verein: dann, solange keiner laeuft.
+                      //
+                      // Der Knopf war der des SuperAdmin, der alle anderen
+                      // stillschweigend abschaltet - ein Eingriff in den Betrieb
+                      // aller Vereine. Diese Grenze ist nicht weg: die Auswahl
+                      // weist sie ab, wenn ein Wettbewerb laeuft.
+                      //
+                      // Der Hinweistext stand zudem an einer Karte, die daneben
+                      // etwas anbot, womit es doch selbst ging. Eine Luenge ohne
+                      // Wegweiser.
+                      //
+                      // Der Weg ueber den Knopf bleibt erreichbar: ein Formular
+                      // laesst sich auch ohne Klick abschicken, und die
+                      // Auspruefung in competition_status_setzen() greift auch
+                      // dort. Deshalb ist der ganze Zweig weg, nicht nur der
+                      // Knopf. ?>
                 <form method="post" style="display:inline">
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="region">

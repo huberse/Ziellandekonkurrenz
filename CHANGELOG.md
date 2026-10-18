@@ -10,6 +10,33 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.1
+
+**Die Wettbewerbskarte hat drei Knöpfe weniger, und die Meldung nach dem Anlegen einen Satz
+weniger.** Auf Wunsch des Nutzers am 18. Oktober 2026, nach dem Blick auf die Live-Seite.
+
+- **„Beenden“ und „Abgesagt“ als eigene Knöpfe sind weg.** Die Statusauswahl macht beides. Zwei Wege
+  zum selben Zustand sind zwei Wege, an denen sie sich unterscheiden können – und der Knopf ist der,
+  den man eher klickt als eine Auswahl.
+- **„Trotzdem beenden“ bleibt.** Das kann die Auswahl nicht: dort werden Ergebnisse unausgewertet,
+  und das ist eine bewusste Entscheidung, die man nicht nebenbei trifft.
+- **Der Knopf „Aktivieren“ ist weg – und der Hinweistext „◉ Aktivieren – der SuperAdmin“ auch.**
+  Der stand an einer Karte, die daneben etwas anbot, womit es doch selbst ging: eine Lüge ohne
+  Wegweiser. Die Grenze, die er beschützte, gilt unverändert – die Auswahl weist sie ab, wenn ein
+  Wettbewerb läuft, und zwar auch gegen ein direkt abgeschicktes Formular.
+- **Nach dem Anlegen steht nur noch: „Wettbewerb „Name“ angelegt.“** Vorher standen fünf Sätze:
+  ob er aktiv wurde, wer ihn aktiviert, der Veranstalter, der Regiocup und die Startliste. Keiner
+  davon beantwortete nach dem Anlegen eine Frage, und die nächsten Schritte stehen ohnehin auf
+  derselben Karte.
+
+An der Statuslogik ändert sich nichts.
+
+**Drei Fehler im Test, die alle von derselben Sorte sind:** Ich habe Erwartungen an den **Wortlaut**
+oder an die **Anzahl** von Treffern gestellt, statt an die Sache. Ein Test, der `grep -c` zählt,
+schlägt fehl, sobald eine zweite Karte dazukommt; einer, der auf „laeuft“ sucht, findet „läuft“
+nicht. Beides meldet einen Fehler, den es nicht gibt. Die drei betroffenen Skripte prüfen jetzt die
+Sache selbst.
+
 ## 2.2.0
 
 **Der Wettbewerb hat jetzt einen Status: eine Auswahl mit sechs Werten, und die entscheidet, was
