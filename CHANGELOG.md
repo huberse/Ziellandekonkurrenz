@@ -10,6 +10,41 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.6
+
+**Beim Speichern der Einstellungen kommt keine Fehlermeldung mehr – und die, es kommt, stimmt.**
+
+Meldung des Testers am 18. Oktober 2026: Beim Ändern der Einstellungen erschien
+*„Die Einstellungen konnten nicht gespeichert werden.“* – **und es war gespeichert.**
+
+**Nachgestellt.** Der Wettbewerb war jedes Mal gespeichert: Name, Ort, Datum – alles stand danach
+in der Datenbank. Und die Meldung erschien **bei jedem einzigen Speichern**.
+
+**Warum.** Der Bereich, der nach dem Speichern noch die zwei Hinweise anzeigt (Datum in der
+Vergangenheit, Tag bereits belegt), stolperte über eine Variable, die es in der Datei nicht gibt.
+Weil dort streng geprüft wird, wurde daraus ein Abbruch – und der führte in den Block, der
+pauschal *„konnten nicht gespeichert werden“* sagt. **Das Speichern war zu diesem Zeitpunkt längst
+fertig.**
+
+**Ein Satz, der das Gegenteil behauptet, ist schlimmer als gar keiner.** Man glaubt ihm, speichert
+ein zweites Mal – oder gibt auf und sucht weiter, während alles längst gespeichert ist. Darum
+unterscheidet der Block jetzt beides:
+
+- Scheitert es **vor** dem Speichern: *„Die Einstellungen konnten nicht gespeichert werden.“*
+- Scheitert nur ein Hinweis **danach**: *„Die Einstellungen wurden gespeichert. Nur die Hinweise
+  danach konnten nicht ausgegeben werden.“*
+
+**Und ein Fund dabei:** Die Warnung *„Das Wettbewerbsdatum liegt in der Vergangenheit“* aus 2.2.2
+**war noch nie zu sehen** – der Abbruch kam jedes Mal vorher. Dasselbe galt für den Hinweis, wenn
+der Tag schon einem anderen Wettbewerb gehört. Beide sind **zum ersten Mal** aufgetaucht, als der
+Fehler weg war. Sie waren also nie tot, nur **nie sichtbar** – und eine Warnung, die man nie sieht,
+hat den gleichen Wert wie keine.
+
+**Test:** `einstellungen_speichern.sh`, neu, mit 13 Prüfungen: Datum in der Zukunft, in der
+Vergangenheit, heute, ein bereits belegter Tag, eine absichtlich falsche Zahl – und jedes Mal die
+Gegenprobe, dass **nicht** das Gegenteil gemeldet wird. Nachgewiesen, dass die Prüfung den Fehler
+sieht: Fehler wieder eingebaut, 7 von 13 statt 13.
+
 ## 2.2.5
 
 **Wer nichts angefordert hat, wird nicht mehr beschuldigt. Und niemand landet in einem Archiv.**

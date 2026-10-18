@@ -16,6 +16,8 @@ $competitionQS = (int) $competition['id'] !== current_competition_id() ? '?compe
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = post('action');
+      // Wird erst nach dem commit() auf true gesetzt.
+      $gespeichert = false;
 
     if ($action === 'settings') {
         if ($competitionCompleted) {
@@ -142,15 +144,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // ueber ein ganzes Jahr und gehoert darum an das Programm. Der
             // SuperAdmin stellt es unter seinem Profil ein.
             $pdo->commit();
+            // Ab hier ist gespeichert, und nichts mehr zuruecknehmbar. Der
+            // Hinweis auf das Datum und der Hinweis auf einen belegten Tag
+            // kommen danach - sie duerfen aber nicht mehr behaupten, es sei
+            // nichts gespeichert worden.
+            //
+            // Genau das ist am 18. Oktober 2026 geschehen: Nach dem commit()
+            // stolperte der Abschluss ueber eine nicht vorhandene Variable
+            // und sagte "Die Einstellungen konnten nicht gespeichert werden" -
+            // obwohl alles gespeichert war. Ein Satz, der das Gegenteil
+            // behauptet, ist schlimmer als gar keiner: Man glaubt ihm und
+            // speichert ein zweites Mal, oder man gibt auf und sucht weiter.
+            $gespeichert = true;
             // Ein Datum in der Vergangenheit ist hier erlaubt - ein Wettbewerb
             // darf nach dem Flug nachgetragen werden, und das Datum darf nicht
             // nachtraeglich geaendert werden muessen, nur weil die Vergangenheit
             // weitergeht. Nur: der Wettbewerb nimmt dann keine Anmeldungen mehr
             // an. Das ist sonst der zweite Weg, auf dem jemand ohne erkennbare
             // Ursache vor einer geschlossenen Anmeldung steht.
-            $vergangen = $datum !== ''
-                && preg_match('/^\d{4}-\d{2}-\d{2}$/', $datum) === 1
-                && strtotime($datum . ' 23:59:59') < time()
+            $vergangen = $date !== ''
+                && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1
+                && strtotime($date . ' 23:59:59') < time()
                 && empty($competition['completed_at'])
                 && empty($competition['cancelled_at']);
             flash('Einstellungen gespeichert. Bereits erfasste Punkte bleiben stehen – bei geänderten Regeln unter Durchgänge neu berechnen.'
@@ -167,8 +181,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) { $pdo->rollBack(); }
-            settings(true);
-            flash('Die Einstellungen konnten nicht gespeichert werden.', 'err');
+            settings(!empty($gespeichert));
+            flash(empty($gespeichert)
+                ? 'Die Einstellungen konnten nicht gespeichert werden.'
+                : 'Die Einstellungen wurden gespeichert. Nur die Hinweise danach '
+                  . 'konnten nicht ausgegeben werden.', 'err');
         }
         redirect('einstellungen.php' . $competitionQS);
     }
