@@ -10,6 +10,33 @@ Betrieb hatte, hat sie durch eine frische Installation ersetzt. Wer von weit
 her kommt, liest deshalb eine lange Liste – das ist beabsichtigt, weil sonst
 wichtige Änderungen wie die Vereinszugehörigkeit in 1.9.0 untergingen.
 
+## 2.2.7
+
+**Wenn kein Wettbewerb aktiv ist, zeigt die Kopfzeile den alten Ort nicht mehr – und sagt auch nichts Falsches.**
+
+Meldung des Nutzers vom 27. Oktober 2026: *„Zurzeit kein Wettbewerb · Wintersingen · 22.05.2027"* –
+mitten im Satz stand der alte Ort und das alte Datum, obwohl gerade kein Wettbewerb im Betrieb war.
+
+**Nachgestellt.** Die Kopfzeile baute ihre Zeile „Ort · Datum" immer aus den Wettbewerbs-Einstellungen – ohne
+darzutun, ob ein Wettbewerb ueberhaupt angezeigt wird. Ist keiner aktiv, fiel der Kontext auf den letzten,
+also auf den vergangenen Wettbewerb zurueck. Daraus las die Kopfzeile den Ort und das Datum, und die Zeile
+wirkte so, als gaebe es den Wettbewerb noch.
+
+**Warum.** Der automatische Notweg in current_competition() ist kein Wettbewerb, den jemand sieht. Er dient
+dazu, dass die Verwaltung ueberhaupt etwas anzeigt – aber in der Kopfzeile gehoert er nicht hin. Eine Angabe,
+die den Nutzer auf einen vergangenen Wettbewerb fuehrt, ist kein Hinweis, sondern ein Fehler.
+
+**Was jetzt gilt.** Ort und Datum stehen in der Kopfzeile nur dann, wenn ein Wettbewerb wirklich angezeigt
+wird: als aktiver, als ausgewaehlter – etwa ein Archiv, das jemand anspricht – oder im Wettkampfbuero bei einem
+Wettbewerb, den das Konto verwaltet. Ohne beides bleibt die Zeile leer, und die Kopfzeile sagt nur
+*„Zurzeit kein Wettbewerb"*.
+
+Nebenbefund beim Nachbauen: die Startseite verworf den Wettbewerbsnamen nicht nur, wenn kein Wettbewerb
+lief – sondern auch, wenn keiner aktiv war. Das war fuer eine explizite Auswahl (eine Nummer im Verzeichnis)
+nicht gemeint. Jetzt gilt: eine echte Auswahl wird benannt, und der automatische Notweg nicht.
+
+Test: php -l ueber lib/layout.php und lib/competition.php, Diagnose ohne Beanstandung.
+
 ## 2.2.6
 
 **Beim Speichern der Einstellungen kommt keine Fehlermeldung mehr – und die, es kommt, stimmt.**

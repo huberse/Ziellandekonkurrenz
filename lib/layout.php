@@ -132,7 +132,33 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     $place = setting('competition_place', '');
     $user = current_user();
 
-    $meta = array_filter([$place, $date ? date('d.m.Y', strtotime($date)) : '']);
+    // Ein Wettbewerb zaehlt erst, wenn er auch wirklich angezeigt wird: als
+    // aktiver Wettbewerb, oder als einer, den jemand aus der Adresse oder dem
+    // Formular ausgewaehlt hat - meist ein Archiv, das man nachzusehen will.
+    //
+    // Ohne beides ist es die automatische Auswahl, die current_competition()
+    // als Notweg faellt, sobald kein Wettbewerb aktiv ist. Sie gehoert nicht in
+    // die Kopfzeile: Ein Ort und ein Datum aus einem vergangenen Wettbewerb
+    // darzustellen, waehrend die Zeile daneben schon "Zur Zeit kein Wettbewerb"
+    // sagt, ist widerspruechlich - und genau das war der Fehler, den der Nutzer
+    // gemeldet hat: Kein aktiver Wettbewerb, trotzdem tauschte ein alter Ort
+    // und ein alter Tag die Kopfzeile.
+    $einAktiver = (int) ($activeCompetition['is_current'] ?? 0) === 1;
+    // True, wenn die Kopfzeile hier ueberhaupt einen Wettbewerb benennen darf.
+    // Ohne aktiven und ohne Auswahl bleibt es beim automatischen Notweg - und
+    // der darf weder Namen, Ort noch Datum tragen.
+    $wettbewerb_wird_angezeigt = $einAktiver || competition_ausgewaehlt();
+    if ($area === 'admin' && !$wettbewerb_wird_angezeigt
+        && function_exists('competition_darf_verwalten')
+        && competition_darf_verwalten($selected)) {
+        // Im Wettkampfbuero verwaltet das Konto einen Wettbewerb - oft den,
+        // der gerade beendet wurde. Der darf mit Namen, Ort und Datum gefuehrt
+        // werden, solange niemand anderes aktiv ist.
+        $wettbewerb_wird_angezeigt = true;
+    }
+    $meta = $wettbewerb_wird_angezeigt
+        ? array_filter([$place, $date ? date('d.m.Y', strtotime($date)) : ''])
+        : [];
     $contextId = competition_context_id();
     $contextQS = $contextId > 0 && (int) $activeCompetition['id'] !== $contextId
         ? '?competition=' . $contextId : '';
@@ -173,14 +199,17 @@ function page_start(string $title, string $area = 'public', string $here = '', b
     // faellt auf den neuesten offenen Wettbewerb zurueck, gibt also auch dann
     // einen zurueck, wenn gar keiner aktiv ist. Die Kennung ist damit nie leer
     // und die Abfrage waere immer "da ist einer" - der Hinweis kaeme nie.
-    $einAktiver = (int) ($activeCompetition['is_current'] ?? 0) === 1;
     $zeigeAbzeichen = !$ohneAbzeichen || !$einAktiver;
-    if ($ohneAbzeichen && !$einAktiver) {
+    if ($ohneAbzeichen && !$wettbewerb_wird_angezeigt) {
         // Der Name wird ausdruecklich verworfen. selected_competition() faellt
         // auf den neuesten zurueck, und dessen Name stuende hier - also waere
         // genau das wieder zurueck, was diese Seite seit 1.9.10 vermeiden will:
         // einen Wettbewerb vorzunehmen, den man hier doch erst waehlt. Ohne
         // Namen greift weiter unten der Satz "Zur Zeit kein Wettbewerb".
+        //
+        // Eine echte Auswahl (eine Nummer im Verzeichnis der Adresse oder im
+        // Formular) ueberschreibt das: Wer einen Archiv-Wettbewerb anspricht,
+        // will ihn auch benennen und bekommt Datum und Ort dazu.
         $competitionName = '';
     }
     if ($zeigeAbzeichen) {
@@ -197,7 +226,13 @@ function page_start(string $title, string $area = 'public', string $here = '', b
         // Wettbewerb zurueck, und der kann einem anderen Verein gehoeren. Ein
         // Konto ohne eigenen Wettbewerb sah so "Testwettbewerb 2027" oben
         // stehen und haelt das fuer seines.
-        if (!is_superadmin()
+        //
+        // Eine explizite Auswahl schützt sich selbst: Wer eine Nummer im
+        // Verzeichnis oder im Formular schrieb, will diesen Wettbewerb sehen,
+        // und Sichtbarkeit ist hier eine oeffentliche Frage, kein
+        // Verwaltungsentscheid. Ohne Auswahl gilt die Regel wie zuvor.
+        if (!competition_ausgewaehlt()
+            && !is_superadmin()
             && function_exists('competition_darf_verwalten')
             && !competition_darf_verwalten($selected)) {
             $competitionName = '';

@@ -162,9 +162,29 @@ function set_competition_context(?int $competitionId): void
 function ensure_competition_context(): int
 {
     if (!isset($GLOBALS['competition_context_id']) || $GLOBALS['competition_context_id'] === null) {
+        // Ohne eine Frage gilt der automatische Notweg: aktuellster Wettbewerb,
+        // was auch keiner mehr sein kann. Damit ist klar, dass hier nichts
+        // ausgewaehlt wurde und die Kopfzeile keinen Ort und kein Datum zeigen
+        // darf.
+        $GLOBALS['competition_ausgewaehlt'] = false;
         set_competition_context(current_competition_id());
     }
     return competition_context_id();
+}
+
+/**
+ * Hat die Anfrage einen Wettbewerb ausgewaehlt, oder ist das die automatische
+ * Auswahl, wenn gerade kein Wettbewerb aktiv ist?
+ *
+ * Beides landet in $competition_context_id – und genau dort liegt auch das
+ * Problem: Ohne eine Frage wird der Kontext ebenso gesetzt, nur eben vom
+ * automatischen Notweg. Dieser Notweg gehoert nicht in die Kopfzeile, denn dort
+ * darf kein Ort und kein Datum stehen, wenn es keinen Wettbewerb gibt, den man
+ * sieht.
+ */
+function competition_ausgewaehlt(): bool
+{
+    return !empty($GLOBALS['competition_ausgewaehlt']);
 }
 
 /** Wettbewerb, der durch den Kontext ausgewählt ist. */
@@ -249,6 +269,11 @@ function find_competition(int $id): ?array
  */
 function resolve_competition_param(string $raw, bool $verwaltung = false): array
 {
+    // Eine Nummer ist eine Frage, ohne Nummer bleibt es beim automatischen
+    // Notweg. Damit unterscheidet sich "gefragt" von "schon da" und die
+    // Kopfzeile kann entscheiden, ob ein Ort und ein Datum stehen duerfen.
+    $GLOBALS['competition_ausgewaehlt'] = $raw !== '';
+
     if ($raw !== '' && ($competition = find_competition((int) $raw))) {
         if ($verwaltung && !competition_darf_verwalten($competition)) {
             $ersatz = accessible_competition_waehlen();
